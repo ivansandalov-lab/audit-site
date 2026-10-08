@@ -114,8 +114,13 @@
     'order-add': function () {
       var used = F.orders, opts = [];
       F.ctx.orderBlocks.forEach(function (b) { if (used.indexOf(b.name) < 0) opts.push({ value: b.name, title: b.name, meta: b.orders.join(', '), group: 'Блоки замовлень' }); });
-      F.ctx.orders.forEach(function (o) { if (used.indexOf(o.no) < 0) opts.push({ value: o.no, title: o.no, meta: [o.customer, o.lastDay ? 'останнє ' + P.fmt.date(o.lastDay + 'T12:00:00Z') : ''].filter(Boolean).join(' · '), group: 'Замовлення' }); });
-      pick({ title: 'Замовлення', options: opts, placeholder: 'Номер або замовник', emptyText: 'Замовлень немає' }, function (v) {
+      F.ctx.orders.forEach(function (o) {
+        if (used.indexOf(o.no) >= 0) return;
+        var b = AF.blockOf(F, o.no);   // замовлення з блоку — підказуємо, що є цілий блок
+        opts.push({ value: o.no, title: o.no, group: 'Замовлення',
+          meta: [b ? 'входить у ' + b.name : '', o.customer, o.lastDay ? 'останнє ' + P.fmt.date(o.lastDay + 'T12:00:00Z') : ''].filter(Boolean).join(' · ') });
+      });
+      pick({ title: 'Замовлення', options: opts, placeholder: 'Номер замовлення, блоку чи замовник', emptyText: 'Замовлень поки немає' }, function (v) {
         if (F.orders.length >= F.ctx.limits.maxOrders || F.orders.indexOf(v) >= 0) return;
         F.orders.push(v);
         if (F.orders.length === 1) F.items.forEach(function (i) { if (!i.orderNo) i.orderNo = v; });

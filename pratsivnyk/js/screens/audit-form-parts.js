@@ -37,6 +37,15 @@
       '" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" ' + attrs + ' value="' + esc(value) + '">' +
       (hint ? '<span class="ui-hint">' + esc(hint) + '</span>' : '') + '</label>';
   }
+  function deptNorm(n) {
+    var left = n.sampleTarget - n.todayChecked;
+    return left > 0 ? '<span class="pick-btn__sub">Ще перевірити: <b>' + f.num(left) + ' шт</b></span>'
+      : '<span class="pick-btn__sub pick-btn__sub--ok">' + P.ic('check', 'ui-icon--sm') + 'Норму виконано</span>';
+  }
+  AF.blockOf = function (F, no) { return (F.ctx.orderBlocks || []).filter(function (b) { return b.orders.indexOf(no) >= 0; })[0] || null; };
+  function blockLine(b, mark) {
+    return b.orders.map(function (o) { return o === mark ? '<mark class="hl">' + esc(o) + '</mark>' : esc(o); }).join(', ');
+  }
   var SEC_FIELDS = { defects: ['defects', 'mode'] };
   function sec(F, id, num, title, hint, body, done) {
     var ids = SEC_FIELDS[id] || [id];
@@ -53,15 +62,21 @@
     var body = '<div class="pick-grid">' + F.ctx.departments.map(function (d) {
       var n = norms[d.id], locked = F.editId && d.id !== F.departmentId;
       return '<button type="button" class="pick-btn" data-a="dept" data-v="' + esc(d.id) + '" aria-pressed="' + (F.departmentId === d.id) + '"' + (locked ? ' disabled' : '') + '>' + esc(d.name) +
-        (n && n.sampleTarget ? '<span class="pick-btn__sub">сьогодні ' + f.num(n.todayChecked) + ' з ' + f.num(n.sampleTarget) + ' шт</span>' : '') + '</button>';
+        (n && n.sampleTarget ? deptNorm(n) : '') + '</button>';
     }).join('') + '</div>' + err(F, 'departmentId');
-    return sec(F, 'departmentId', 1, 'Відділ', F.editId ? 'Відділ виправленого аудиту змінити не можна.' : 'Де проводите аудит.', body, !!F.departmentId);
+    return sec(F, 'departmentId', 1, 'Відділ', F.editId ? 'Відділ лишається тим самим. Для іншого відділу запишіть новий аудит.' : 'Де перевіряєте. Під відділом видно, скільки ще перевірити сьогодні.', body, !!F.departmentId);
   }
   function secOrders(F) {
     var body = '<div class="chips-input">' + F.orders.map(function (o) {
       return '<span class="ui-chip is-selected">' + esc(o) + '<button type="button" class="ui-chip__remove" data-a="order-del" data-v="' + esc(o) + '" aria-label="Прибрати ' + esc(o) + '">' + P.ic('close', 'ui-icon--sm') + '</button></span>';
     }).join('') + (F.orders.length < Number(F.ctx.limits.maxOrders) ? '<button type="button" class="ui-btn ui-btn--secondary ui-btn--sm" data-a="order-add">' + P.ic('add') + 'Додати замовлення</button>' : '') + '</div>' + err(F, 'orders');
-    return sec(F, 'orders', 2, 'Замовлення', 'Необовʼязково, до ' + Number(F.ctx.limits.maxOrders) + '. Можна обрати блок замовлень.', body, F.orders.length > 0);
+    body += F.orders.map(function (o) {
+      var whole = (F.ctx.orderBlocks || []).filter(function (x) { return x.name === o; })[0];
+      if (whole) return '<p class="form-sec__hint"><b>' + esc(whole.name) + '</b>: ' + blockLine(whole) + '.</p>';
+      var b = AF.blockOf(F, o);
+      return b ? '<p class="form-sec__hint">' + esc(o) + ' входить у блок <b>' + esc(b.name) + '</b>: ' + blockLine(b, o) + '.</p>' : '';
+    }).join('');
+    return sec(F, 'orders', 2, 'Замовлення', 'Можна пропустити. Додайте до ' + Number(F.ctx.limits.maxOrders) + ' замовлень або цілий блок.', body, F.orders.length > 0);
   }
   function secItems(F) {
     var many = F.orders.length > 1;
@@ -74,12 +89,12 @@
         (many ? '<div class="ui-field span-2"><span class="ui-label">Замовлення</span>' +
           selectBtn('data-a="item-order" data-k="' + esc(it.key) + '"', it.orderNo, 'Оберіть замовлення', F.errors[pre + '.orderNo']) + '</div>' : '') +
         numInput('data-in="qty" data-k="' + esc(it.key) + '"', it.qty, 'Перевірено, шт', F.errors[pre + '.qty']) +
-        numInput('data-in="rejected" data-k="' + esc(it.key) + '"', it.rejected, 'Відбраковано, шт', F.errors[pre + '.rejected'], 'якщо знаєте') +
+        numInput('data-in="rejected" data-k="' + esc(it.key) + '"', it.rejected, 'Відбраковано, шт', F.errors[pre + '.rejected'], 'не знаєте — лишіть порожнім') +
         '</div>' + err(F, pre + '.productId') + err(F, pre + '.orderNo') + err(F, pre + '.qty') + err(F, pre + '.rejected') + err(F, pre) + '</div>';
     }).join('') + '</div>' +
       (F.items.length < F.ctx.limits.maxProducts ? '<button type="button" class="ui-btn ui-btn--secondary" data-a="item-add">' + P.ic('add') + 'Додати виріб</button>' : '') + err(F, 'items');
     var ok = F.items.some(function (it) { return it.productId && parseInt(it.qty, 10) > 0; });
-    return sec(F, 'items', 3, 'Перевірені вироби', 'Що й скільки штук перевірили.', body, ok);
+    return sec(F, 'items', 3, 'Перевірені вироби', 'Що перевірили і скільки штук.', body, ok);
   }
   function secWorkers(F) {
     var body = '<div class="chips-input">' + F.workers.map(function (c) {
@@ -113,7 +128,7 @@
           err(F, gp) + err(F, gp + '.qty');
       }).join('') +
       (d.guilty.length < F.ctx.limits.maxGuiltyPerDefect ? '<div class="row"><button type="button" class="ui-btn ui-btn--quiet ui-btn--sm" data-a="g-add" data-k="' + esc(d.key) + '">' + P.ic('add') + 'Ще винний</button></div>' : '') +
-      (d.other ? '<p class="form-sec__hint">Цей брак піде у відсоток браку відділу, звідки він прийшов, а лежатиме в цьому аудиті.</p>' : '') +
+      (d.other ? '<p class="form-sec__hint">Зарахуємо цей брак відділу, звідки він прийшов. В аудиті він теж залишиться.</p>' : '') +
       err(F, pre + '.departmentId') + err(F, pre + '.productId') + err(F, pre + '.defectTypeId') + err(F, pre + '.guilty') + err(F, pre) + '</div>';
   }
   function secDefects(F) {
@@ -123,12 +138,12 @@
       body += '<div class="stack">' + F.defects.map(function (d, i) { return defectCard(F, d, i); }).join('') + '</div>' +
         (F.defects.length < F.ctx.limits.maxDefects ? '<button type="button" class="ui-btn ui-btn--secondary" data-a="def-add">' + P.ic('add') + 'Додати вид браку</button>' : '');
     }
-    return sec(F, 'defects', 5, 'Брак', 'Позначте, чи знайшли брак. Знайшли брак іншого відділу — оберіть у браку «Інший відділ».', body,
+    return sec(F, 'defects', 5, 'Брак', 'Знайшли брак — натисніть «Є брак» і додайте кожен вид. Брак зробили в іншому відділі — оберіть «Інший відділ».', body,
       F.mode === 'none' || (F.mode === 'defects' && F.defects.length > 0));
   }
   function secComment(F) {
     var body = '<label class="ui-field"><span class="visually-hidden">Коментар</span>' +
-      '<textarea class="ui-textarea" rows="3" maxlength="' + Number(F.ctx.limits.maxComment) + '" data-in="comment" placeholder="Необовʼязково">' + esc(F.comment) + '</textarea></label>' + err(F, 'comment');
+      '<textarea class="ui-textarea" rows="3" maxlength="' + Number(F.ctx.limits.maxComment) + '" data-in="comment" placeholder="Можна залишити порожнім">' + esc(F.comment) + '</textarea></label>' + err(F, 'comment');
     return sec(F, 'comment', 6, 'Коментар', '', body, !!F.comment.trim());
   }
   function actionBar(F) {
@@ -160,7 +175,7 @@
       '<h2 class="ui-title-lg done__title">' + (F.editId ? 'Аудит виправлено' : 'Аудит записано') + '</h2>' +
       '<p class="ui-text-sm ui-soft">' + esc(r.auditId) + ' · ' + esc((AF.dept(F, F.departmentId) || {}).name || '') + '</p>' +
       '<p class="ui-text-sm">Перевірено ' + f.num(t.checked) + ' шт · знайдено браку ' + f.num(t.rejected) + ' шт' + (t.pct != null ? ' (' + f.pct(t.pct) + ')' : '') + '</p>' +
-      (r.editableUntil ? '<p class="ui-caption ui-soft">Виправити можна до ' + f.time(r.editableUntil) + '.</p>' : '') +
+      (r.editableUntil ? '<p class="ui-caption ui-soft">Помилились? Виправити можна до ' + f.time(r.editableUntil) + '.</p>' : '') +
       '<div class="done__actions"><button type="button" class="ui-btn ui-btn--primary" data-a="again">' + P.ic('add') + 'Ще один аудит</button>' +
       '<button type="button" class="ui-btn ui-btn--secondary" data-a="view">' + P.ic('audit') + 'Переглянути аудит</button>' +
       '<button type="button" class="ui-btn ui-btn--quiet" data-a="home">' + P.ic('home') + 'На головну</button></div></div></div>';

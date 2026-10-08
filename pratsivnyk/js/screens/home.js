@@ -24,7 +24,7 @@
     }
     html += '<button class="ui-btn ui-btn--primary home-cta" type="button" data-act="new">' + P.ic('add') + 'Новий аудит</button>';
     html += '<section class="ui-card" aria-labelledby="h-mine"><div class="card-head"><h2 class="card-title" id="h-mine">Мої аудити сьогодні</h2></div>';
-    if (!mine.length) return html + '<p class="card-sub">Сьогодні ви ще не записували аудитів.</p></section></div>';
+    if (!mine.length) return html + '<p class="card-sub">Тут зʼявляться аудити, які ви запишете сьогодні.</p></section></div>';
     html += '<div class="totals">' + stat(f.num(mine.length), 'аудити') + stat(f.num(checked), 'перевірено, шт') +
       stat(f.num(rejected) + (checked ? ' · ' + f.pct(Math.round(rejected / checked * 1000) / 10) : ''), 'брак, шт') + '</div>';
     html += '<div class="mini-list">' + mine.map(function (a) {
@@ -32,7 +32,7 @@
       return '<button class="mini-item" type="button" data-audit="' + esc(a.id) + '">' + P.ic('audit') +
         '<span class="mini-item__main"><span class="mini-item__title">' + f.time(a.createdAt) + ' · ' + esc(a.departmentName) + '</span>' +
         '<span class="mini-item__meta">перевірено ' + f.num(a.checked) + ' · брак ' + f.num(a.rejected) + ' (' + f.pct(a.pct) + ')</span></span>' +
-        (left ? '<span class="ui-badge ui-badge--info">' + left + ' хв на правку</span>' : P.ic('chevron-right')) + '</button>';
+        (left ? '<span class="ui-badge ui-badge--info">ще ' + left + ' хв, щоб виправити</span>' : P.ic('chevron-right')) + '</button>';
     }).join('') + '</div></section></div>';
     return html;
   }

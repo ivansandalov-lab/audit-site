@@ -43,7 +43,8 @@
     app().innerHTML = strip() + '<main class="login"><span class="login__logo">' + P.ic('audit') + '</span>' +
       '<h1 class="login__title">Аудит якості</h1><p class="login__lead">Кабінет працівника</p>' +
       '<button class="ui-btn ui-btn--primary login__btn" type="button" data-act="login">' + P.ic('login') + 'Увійти через Google</button>' +
-      '<p class="login__note">Пускаємо лише робочі пошти з білого списку. Входити — раз на тиждень.</p>' +
+      '<p class="login__note">Увійдіть робочою Google-поштою. Раз на тиждень додаток попросить увійти знову.</p>' +
+      '<p class="login__note">Немає доступу? Попросіть старшого аудитора додати вашу пошту.</p>' +
       '<p class="login__note login__note--test">Тестова версія: вхід без пароля, як вигаданий працівник.</p></main>';
   }
   function login(btn) {

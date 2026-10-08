@@ -95,6 +95,11 @@
   };
   if (root.addEventListener) root.addEventListener('hashchange', function () { P.sheet.close(); });
 
+  function hl(text, q) {
+    var s = String(text || ''), i = q ? s.toLowerCase().indexOf(q) : -1;
+    if (i < 0) return esc(s);
+    return esc(s.slice(0, i)) + '<mark class="hl">' + esc(s.slice(i, i + q.length)) + '</mark>' + esc(s.slice(i + q.length));
+  }
   P.picker = function (o) {
     return new Promise(function (resolve) {
       var picked = o.multi ? (o.values || []).slice() : null, done = false, q = '';
@@ -107,8 +112,8 @@
           if (op.group && op.group !== group) { group = op.group; html += '<div class="opt-group">' + esc(group) + '</div>'; }
           var sel = o.multi ? picked.indexOf(op.value) >= 0 : op.value === o.value;
           html += '<button type="button" class="opt" role="option" aria-selected="' + sel + '" data-val="' + esc(op.value) + '">' +
-            '<span class="opt__main"><span class="opt__title">' + esc(op.title) + '</span>' +
-            (op.meta ? '<span class="opt__meta">' + esc(op.meta) + '</span>' : '') + '</span>' +
+            '<span class="opt__main"><span class="opt__title">' + hl(op.title, nq) + '</span>' +
+            (op.meta ? '<span class="opt__meta">' + hl(op.meta, nq) + '</span>' : '') + '</span>' +
             (sel ? '<span class="opt__check">' + P.ic('check') + '</span>' : '') + '</button>';
           n++;
         });

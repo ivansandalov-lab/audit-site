@@ -68,6 +68,10 @@
 .pick-btn:hover { border-color: var(--line-strong); background: var(--surface-2); }
 .pick-btn[aria-pressed="true"] { background: var(--brand-soft); border-color: var(--brand); color: var(--brand-ink); }
 .pick-btn__sub { display: block; margin-top: 2px; font-size: var(--fs-xs); font-weight: var(--fw-regular); color: var(--text-3); }
+.pick-btn__sub b { color: var(--text-2); font-weight: var(--fw-semibold); }
+.pick-btn__sub--ok { display: flex; align-items: center; gap: 4px; color: var(--ok); }
+.pick-btn__sub--ok .ui-icon { width: 16px; height: 16px; }
+mark.hl { padding: 0 2px; border-radius: 3px; background: var(--brand-soft); color: var(--brand-ink); font-weight: var(--fw-semibold); }
 .select-btn {
   position: relative; display: flex; align-items: center; width: 100%; min-height: var(--ctl-h);
   padding: 8px 40px 8px 14px; border: 1px solid var(--line-strong); border-radius: var(--r-md);

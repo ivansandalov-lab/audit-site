@@ -31,7 +31,7 @@
           '<section class="ui-card"><h2 class="card-title">Перевірені працівники</h2>' + (workers ? '<div class="chips-input">' + workers + '</div>' : '<p class="card-sub">—</p>') + '</section>' +
           (a.comment ? '<section class="ui-card"><h2 class="card-title">Коментар</h2><p class="ui-text-sm">' + esc(a.comment) + '</p></section>' : '') +
           (left ? '<button class="ui-btn ui-btn--primary home-cta" type="button" data-act="edit">' + P.ic('edit') + 'Виправити · ще ' + left + ' хв</button>'
-            : '<p class="card-sub">Записано о ' + f.time(a.createdAt) + '. Виправити можна лише протягом 15 хвилин після запису.</p>') + '</div>';
+            : '<p class="card-sub">Записано о ' + f.time(a.createdAt) + '. Час на виправлення минув. Щось не так — запишіть новий аудит або скажіть старшому аудитору.</p>') + '</div>';
       });
     },
     mount: function (el, ctx) {
