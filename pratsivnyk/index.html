@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="uk" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="color-scheme" content="dark light">
+  <meta name="theme-color" content="#1D1A17">
+  <title>Аудит якості — працівник (тест)</title>
+  <link rel="stylesheet" href="css/ds.css">
+  <link rel="stylesheet" href="css/app.css">
+  <link rel="stylesheet" href="css/screens.css">
+  <script>
+    /* Тему ставимо ДО малювання сторінки. У працівника типова — темна (рішення власника 07.10). v2.0 */
+    (function () {
+      var t = null;
+      try { t = JSON.parse(localStorage.getItem('audit-demo:theme')); } catch (e) { /* без памʼяті */ }
+      document.documentElement.setAttribute('data-theme', t === 'light' ? 'light' : 'dark');
+    })();
+  </script>
+</head>
+<body>
+  <div class="app" id="app">
+    <div class="app-boot ui-state" role="status">
+      <span class="ui-spinner" aria-hidden="true"></span>
+      <p class="ui-state__text">Завантаження…</p>
+    </div>
+  </div>
+  <div class="ui-toasts" id="toasts" aria-live="polite"></div>
+  <div id="overlay"></div>
+  <noscript>Для роботи додатку потрібен JavaScript.</noscript>
+
+  <script src="js/core.js"></script>
+  <script src="js/icons.js"></script>
+  <script src="js/demo/dictionary.js"></script>
+  <script src="js/demo/generate-audits.js"></script>
+  <script src="js/demo/generate.js"></script>
+  <script src="js/demo/server-common.js"></script>
+  <script src="js/demo/server-read.js"></script>
+  <script src="js/demo/server-submit.js"></script>
+  <script src="js/demo/server.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/shell.js"></script>
+  <script src="js/screens/home.js"></script>
+  <script src="js/screens/audit-form-parts.js"></script>
+  <script src="js/screens/audit-form-draft.js"></script>
+  <script src="js/screens/audit-form.js"></script>
+  <script src="js/screens/audit-view.js"></script>
+  <script src="js/screens/profile.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>
