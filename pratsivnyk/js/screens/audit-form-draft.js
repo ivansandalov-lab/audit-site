@@ -42,13 +42,13 @@
     F.departmentId = AF.dept(F, s.departmentId) ? s.departmentId : null;
     F.orders = (Array.isArray(s.orders) ? s.orders : []).filter(function (o) { return typeof o === 'string' && o; }).slice(0, L.maxOrders);
     F.items = items.map(function (i) { return { key: i.key, productId: str(i.productId) || null, orderNo: str(i.orderNo) || null, qty: num(i.qty), rejected: num(i.rejected) }; });
-    F.workers = (Array.isArray(s.workers) ? s.workers : []).filter(function (c) { return typeof c === 'string' && c; });
+    F.workers = (Array.isArray(s.workers) ? s.workers : []).filter(function (c) { return typeof c === 'string'; });   // '' — невідомий працівник
     F.comment = str(s.comment).slice(0, L.maxComment);
     F.mode = s.mode === 'none' || s.mode === 'defects' ? s.mode : null;
     F.defects = defs.map(function (x) {
       var other = x.other === true, dep = other && AF.dept(F, str(x.departmentId)) ? x.departmentId : null;
       return { key: x.key, itemKey: str(x.itemKey) || null, defectTypeId: str(x.defectTypeId) || null, other: other, departmentId: dep,
-        guilty: x.guilty.slice(0, L.maxGuiltyPerDefect).map(function (g) { return { workerCode: str(g && g.workerCode), qty: num(g && g.qty) }; }) };
+        guilty: x.guilty.slice(0, L.maxGuiltyPerDefect).map(function (g) { return { workerCode: g && g.workerCode == null ? null : str(g && g.workerCode), qty: num(g && g.qty) }; }) };
     });
     if (!F.items.length) F.items = [newItem()];
   };

@@ -89,7 +89,7 @@
         (many ? '<div class="ui-field span-2"><span class="ui-label">Замовлення</span>' +
           selectBtn('data-a="item-order" data-k="' + esc(it.key) + '"', it.orderNo, 'Оберіть замовлення', F.errors[pre + '.orderNo']) + '</div>' : '') +
         numInput('data-in="qty" data-k="' + esc(it.key) + '"', it.qty, 'Перевірено, шт', F.errors[pre + '.qty']) +
-        numInput('data-in="rejected" data-k="' + esc(it.key) + '"', it.rejected, 'Відбраковано, шт', F.errors[pre + '.rejected'], 'не знаєте — лишіть порожнім') +
+        numInput('data-in="rejected" data-k="' + esc(it.key) + '"', it.rejected, 'Відбраковано, шт', F.errors[pre + '.rejected']) +
         '</div>' + err(F, pre + '.productId') + err(F, pre + '.orderNo') + err(F, pre + '.qty') + err(F, pre + '.rejected') + err(F, pre) + '</div>';
     }).join('') + '</div>' +
       (F.items.length < F.ctx.limits.maxProducts ? '<button type="button" class="ui-btn ui-btn--secondary" data-a="item-add">' + P.ic('add') + 'Додати виріб</button>' : '') + err(F, 'items');
@@ -99,7 +99,7 @@
   function secWorkers(F) {
     var body = '<div class="chips-input">' + F.workers.map(function (c) {
       var w = AF.worker(F, c);
-      return '<span class="ui-chip is-selected">' + esc(w ? w.name + ' · ' + c : c) + '<button type="button" class="ui-chip__remove" data-a="worker-del" data-v="' + esc(c) + '" aria-label="Прибрати ' + esc(c) + '">' + P.ic('close', 'ui-icon--sm') + '</button></span>';
+      return '<span class="ui-chip is-selected">' + esc(c === '' ? 'Невідомий працівник' : w ? w.name + ' · ' + c : c) + '<button type="button" class="ui-chip__remove" data-a="worker-del" data-v="' + esc(c) + '" aria-label="Прибрати ' + esc(c) + '">' + P.ic('close', 'ui-icon--sm') + '</button></span>';
     }).join('') + '<button type="button" class="ui-btn ui-btn--secondary ui-btn--sm" data-a="worker-add"' + (F.departmentId ? '' : ' disabled') + '>' + P.ic('people') + (F.workers.length ? 'Змінити' : 'Обрати працівників') + '</button></div>' +
       (F.departmentId ? '' : '<p class="form-sec__hint">Спершу оберіть відділ.</p>') + err(F, 'checkedWorkers');
     return sec(F, 'checkedWorkers', 4, 'Перевірені працівники', 'Чию роботу перевіряли. Немає людини в списку — попросіть старшого аудитора додати.', body, F.workers.length > 0);
@@ -120,7 +120,7 @@
       selectBtn('data-a="def-type" data-k="' + esc(d.key) + '"', t && (t.name + ' · ' + AF.sevLabel(t.severity)), 'Оберіть вид браку', F.errors[pre + '.defectTypeId']) + '</div></div>' +
       d.guilty.map(function (g, j) {
         var w = AF.worker(F, g.workerCode), gp = pre + '.guilty[' + j + ']';
-        var who = w ? w.name + ' · ' + w.code : (g.workerCode || (d.other ? 'Невідомо' : ''));
+        var who = w ? w.name + ' · ' + w.code : g.workerCode === '' ? 'Невідомий працівник' : (g.workerCode || '');
         return '<div class="guilty"><div class="ui-field"><span class="ui-label">Винний</span>' +
           selectBtn('data-a="def-worker" data-k="' + esc(d.key) + '" data-j="' + j + '"', who, 'Хто', F.errors[gp]) + '</div>' +
           numInput('data-in="gqty" data-k="' + esc(d.key) + '" data-j="' + j + '"', g.qty, 'Шт', F.errors[gp + '.qty']) +

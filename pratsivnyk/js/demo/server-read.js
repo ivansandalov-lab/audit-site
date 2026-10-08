@@ -4,7 +4,7 @@
   var C = P.demoCommon;
 
   function nm(map, id, fallback) { return map[id] ? map[id].name : fallback; }
-  var NO_PROD = 'Невідомий виріб', NO_DEF = 'Невідомий вид браку', NO_WORKER = 'Невідомо';
+  var NO_PROD = 'Невідомий виріб', NO_DEF = 'Невідомий вид браку', NO_WORKER = 'Невідомий працівник';
 
   function editableUntil(a, env) {
     var end = Date.parse(a.createdAt) + C.LIMITS.editWindowMin * 60000;
@@ -140,7 +140,7 @@
       var audit = summary(a, env), ix = env.ix;
       audit.comment = a.comment || '';
       audit.noDefects = !!a.noDefects;
-      audit.checkedWorkers = a.checkedWorkers.map(function (c) { return { code: c, name: nm(ix.worker, a.locationId + ':' + c, c) }; });
+      audit.checkedWorkers = a.checkedWorkers.map(function (c) { return { code: c, name: c === '' ? NO_WORKER : nm(ix.worker, a.locationId + ':' + c, c) }; });
       audit.items = a.items.map(function (i) {
         return { productId: i.productId, productName: nm(ix.prod, i.productId, NO_PROD), orderNo: i.orderNo, qty: i.qty, rejected: i.rejected,
           rejectedInput: i.rejectedGiven === false ? null : i.rejected };

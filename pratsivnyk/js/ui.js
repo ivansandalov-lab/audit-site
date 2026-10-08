@@ -122,7 +122,7 @@
       }
       P.sheet.open({
         title: o.title, full: o.options.length > 8,
-        search: o.options.length > 6 ? '<label class="ui-input-wrap">' + P.ic('search') +
+        search: o.search || o.options.length > 6 ? '<label class="ui-input-wrap">' + P.ic('search') +
           '<span class="visually-hidden">Пошук</span><input class="ui-input" type="search" data-picker-q placeholder="' +
           esc(o.placeholder || 'Пошук') + '" autocomplete="off"></label>' : '',
         body: list(),

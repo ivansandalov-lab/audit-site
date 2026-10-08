@@ -87,7 +87,7 @@
           var code = g ? g.workerCode : null;
           var inSrc = !srcBad && db.workers.some(function (w) { return w.departmentId === src.id && w.code === code; });
           if (!g || (code !== '' && !srcBad && !inSrc)) add('defects[' + j + '].guilty[' + k + ']', 'Працівника з кодом ' + code + ' немає у відділі, звідки брак.');
-        } else if (!g || workers.indexOf(g.workerCode) < 0) add('defects[' + j + '].guilty[' + k + ']', 'Винний має бути серед перевірених працівників.');
+        } else if (!g || (g.workerCode !== '' && workers.indexOf(g.workerCode) < 0)) add('defects[' + j + '].guilty[' + k + ']', 'Винний має бути серед перевірених працівників.');
         var q = toNum(g && g.qty);
         if (!(isInt(q) && q >= 1 && q <= L.maxQty)) add('defects[' + j + '].guilty[' + k + '].qty', MSG_QTY);
       });
@@ -111,7 +111,7 @@
     }
 
     workers.forEach(function (code) {
-      if (deptWorkers.indexOf(code) < 0) add('checkedWorkers', 'Працівника з кодом ' + code + ' немає в довіднику. Попросіть старшого аудитора додати.');
+      if (code !== '' && deptWorkers.indexOf(code) < 0) add('checkedWorkers', 'Працівника з кодом ' + code + ' немає в довіднику. Попросіть старшого аудитора додати.');
     });
 
     if (typeof p.comment === 'string' && p.comment.length > L.maxComment) add('comment', 'Коментар задовгий: не більше ' + L.maxComment + ' знаків.');

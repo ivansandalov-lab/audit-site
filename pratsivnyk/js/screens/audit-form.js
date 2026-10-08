@@ -3,7 +3,8 @@
   var P = root.P, AF = P.AF = P.AF || {};
   var F = null, el = null;
   var MSG_QTY = 'Кількість — ціле число від 1 до 100 000.';
-  var NONE = '__none';   // пункт «Невідомо» у виборі винного для браку іншого відділу
+  var NONE = '__none';   // пункт «Невідомий працівник» у списках (у даних — порожній код '')
+  var UNKNOWN_OPT = { value: NONE, title: 'Невідомий працівник', meta: 'коли не знаєте, хто саме' };
 
   function itemByKey(k) { return F.items.filter(function (x) { return x.key === k; })[0]; }
   function defByKey(k) { return F.defects.filter(function (x) { return x.key === k; })[0]; }
@@ -11,7 +12,7 @@
   function newDefect() {
     var ready = F.items.filter(function (i) { return i.productId; });
     return { key: P.uid('df'), itemKey: ready.length === 1 ? ready[0].key : null, defectTypeId: null, other: false, departmentId: null,
-      guilty: [{ workerCode: F.workers.length === 1 ? F.workers[0] : '', qty: '' }] };
+      guilty: [{ workerCode: F.workers.length === 1 ? F.workers[0] : null, qty: '' }] };
   }
   function typeFor(d) { var dep = AF.dept(F, d && d.other ? d.departmentId : F.departmentId); return dep && dep.deptTypeId; }
   function active(form) { return F && F === form && F.alive && F.alive() && el && el.isConnected; }
@@ -37,7 +38,7 @@
         if (d.other && !d.departmentId) e[pre + '.departmentId'] = 'Оберіть відділ, звідки брак.';
         if (!d.defectTypeId) e[pre + '.defectTypeId'] = 'Оберіть тип браку зі списку. Немає потрібного — попросіть старшого аудитора додати його на сайті.';
         d.guilty.forEach(function (g, j) {
-          if (!g.workerCode && !d.other) e[pre + '.guilty[' + j + ']'] = 'Оберіть винного.';   // у браку іншого відділу порожньо = «невідомо»
+          if (g.workerCode == null) e[pre + '.guilty[' + j + ']'] = 'Оберіть винного або «Невідомий працівник».';
           if (!/^\d+$/.test(String(g.qty)) || Number(g.qty) < 1) e[pre + '.guilty[' + j + '].qty'] = MSG_QTY;
         });
       });
@@ -147,19 +148,20 @@
       ask({ title: 'Прибрати виріб?', text: 'Брак, записаний на цей виріб, теж буде прибрано.', okLabel: 'Прибрати', danger: true }, go);
     },
     'worker-add': function () {
-      pick({ title: 'Перевірені працівники', multi: true, values: F.workers, placeholder: 'Імʼя або код',
+      pick({ title: 'Перевірені працівники', multi: true, search: true, values: F.workers.map(function (c) { return c === '' ? NONE : c; }), placeholder: 'Імʼя або код',
         emptyText: 'У відділі немає працівників. Попросіть старшого аудитора додати.',
-        options: F.ctx.workers.filter(function (w) { return w.departmentId === F.departmentId; }).map(function (w) { return { value: w.code, title: w.name, meta: w.code }; }) },
+        options: [UNKNOWN_OPT].concat(F.ctx.workers.filter(function (w) { return w.departmentId === F.departmentId; }).map(function (w) { return { value: w.code, title: w.name, meta: w.code }; })) },
         function (v) {
+          v = v.map(function (c) { return c === NONE ? '' : c; });
           F.workers = v;
-          F.defects.forEach(function (d) { if (!d.other) d.guilty.forEach(function (g) { if (g.workerCode && v.indexOf(g.workerCode) < 0) g.workerCode = ''; }); });
+          F.defects.forEach(function (d) { if (!d.other) d.guilty.forEach(function (g) { if (g.workerCode && v.indexOf(g.workerCode) < 0) g.workerCode = null; }); });
           changed(true);
         });
     },
     'worker-del': function (t) {
       var c = t.getAttribute('data-v');
       F.workers = F.workers.filter(function (x) { return x !== c; });
-      F.defects.forEach(function (d) { if (!d.other) d.guilty.forEach(function (g) { if (g.workerCode === c) g.workerCode = ''; }); });
+      F.defects.forEach(function (d) { if (!d.other) d.guilty.forEach(function (g) { if (c && g.workerCode === c) g.workerCode = null; }); });
       changed(true);
     },
     mode: function (t) {
@@ -173,7 +175,7 @@
       var d = defByKey(t.getAttribute('data-k')), other = t.getAttribute('data-v') === 'other';
       if (!d || d.other === other) return;
       d.other = other; d.departmentId = null; d.defectTypeId = null;
-      d.guilty = [{ workerCode: !other && F.workers.length === 1 ? F.workers[0] : '', qty: d.guilty[0] ? d.guilty[0].qty : '' }];
+      d.guilty = [{ workerCode: other ? '' : (F.workers.length === 1 ? F.workers[0] : null), qty: d.guilty[0] ? d.guilty[0].qty : '' }];
       changed(true);
       if (other) ACT['def-dept'](t);
     },
@@ -185,7 +187,7 @@
         function (v) {
           if (v === d.departmentId) return;
           d.departmentId = v; d.defectTypeId = null;
-          d.guilty.forEach(function (g) { var w = AF.worker(F, g.workerCode); if (!w || w.departmentId !== v) g.workerCode = ''; });
+          d.guilty.forEach(function (g) { var w = AF.worker(F, g.workerCode); if (g.workerCode && (!w || w.departmentId !== v)) g.workerCode = ''; });
           changed(true);
         });
     },
@@ -211,20 +213,18 @@
       if (!g) return;
       if (d.other) {
         if (!d.departmentId) return P.toast('warn', 'Спершу оберіть, звідки брак');
-        return pick({ title: 'Винний', value: g.workerCode || NONE, placeholder: 'Імʼя або код',
-          options: [{ value: NONE, title: 'Невідомо', meta: 'не знаю, хто саме' }].concat(F.ctx.workers.filter(function (w) { return w.departmentId === d.departmentId; })
+        return pick({ title: 'Винний', search: true, value: g.workerCode || NONE, placeholder: 'Імʼя або код',
+          options: [UNKNOWN_OPT].concat(F.ctx.workers.filter(function (w) { return w.departmentId === d.departmentId; })
             .map(function (w) { return { value: w.code, title: w.name, meta: w.code }; })) },
           function (v) { g.workerCode = v === NONE ? '' : v; changed(true); });
       }
-      if (!F.workers.length) {
-        P.toast('warn', 'Спершу оберіть перевірених працівників', 'Винний обирається з тих, кого перевіряли.');
-        var s = el.querySelector('#sec-checkedWorkers'); if (s) s.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        return;
-      }
-      pick({ title: 'Винний', value: g.workerCode, options: F.workers.map(function (c) { var w = AF.worker(F, c); return { value: c, title: w ? w.name : c, meta: c }; }) },
-        function (v) { g.workerCode = v; changed(true); });
+      var known = F.workers.filter(function (c) { return c; });
+      pick({ title: 'Винний', search: true, value: g.workerCode === '' ? NONE : g.workerCode, placeholder: 'Імʼя або код',
+        emptyText: 'Немає перевірених працівників — оберіть їх у кроці 4.',
+        options: [UNKNOWN_OPT].concat(known.map(function (c) { var w = AF.worker(F, c); return { value: c, title: w ? w.name : c, meta: c }; })) },
+        function (v) { g.workerCode = v === NONE ? '' : v; changed(true); });
     },
-    'g-add': function (t) { var d = defByKey(t.getAttribute('data-k')); if (d) { d.guilty.push({ workerCode: '', qty: '' }); changed(true); } },
+    'g-add': function (t) { var d = defByKey(t.getAttribute('data-k')); if (d) { d.guilty.push({ workerCode: d.other ? '' : null, qty: '' }); changed(true); } },
     'g-del': function (t) { var d = defByKey(t.getAttribute('data-k')); if (d && d.guilty.length > 1) { d.guilty.splice(Number(t.getAttribute('data-j')), 1); changed(true); } },
     'draft-continue': function () { AF.restore(F, F.pendingDraft, newItem); F.pendingDraft = null; F.lockDraft = false; draw(); },
     'draft-new': function () { AF.draft.del(F.uid, F.loc); F.pendingDraft = null; F.lockDraft = false; draw(); },
