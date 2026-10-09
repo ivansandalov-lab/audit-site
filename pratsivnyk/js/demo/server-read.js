@@ -90,18 +90,19 @@
     auditFormContext: function (p, me, env) {
       var r = resolveLoc(p, me, env); if (r.err) return r.err;
       var db = env.db, day = env.day();
-      var deps = db.departments.filter(function (d) { return d.locationId === r.loc.id; });
+      function on(x) { return x.active !== false; }
+      var deps = db.departments.filter(function (d) { return d.locationId === r.loc.id && on(d); });
       var types = {};
       deps.forEach(function (d) { types[d.deptTypeId] = true; });
       var orders = db.orders.filter(function (o) { return o.locationId === r.loc.id && o.firstDay <= day; })
         .sort(function (a, b) { return a.lastDay < b.lastDay ? 1 : a.lastDay > b.lastDay ? -1 : a.no < b.no ? 1 : -1; }).slice(0, 50);
       return { ok: true, location: { id: r.loc.id, name: r.loc.name }, limits: Object.assign({}, C.LIMITS),
         departments: deps.map(function (d) { return { id: d.id, name: d.name, deptTypeId: d.deptTypeId }; }),
-        products: db.products.filter(function (x) { return types[x.deptTypeId]; })
+        products: db.products.filter(function (x) { return types[x.deptTypeId] && on(x); })
           .map(function (x) { return { id: x.id, name: x.name, deptTypeId: x.deptTypeId }; }),
-        defectTypes: db.defectTypes.filter(function (x) { return types[x.deptTypeId]; })
-          .map(function (x) { return { id: x.id, name: x.name, deptTypeId: x.deptTypeId, severity: x.severity }; }),
-        workers: db.workers.filter(function (w) { return w.locationId === r.loc.id; })
+        defectTypes: db.defectTypes.filter(function (x) { return types[x.deptTypeId] && on(x); })
+          .map(function (x) { return { id: x.id, name: x.name, deptTypeId: x.deptTypeId, severity: x.severity, level: x.level || 'fix' }; }),
+        workers: db.workers.filter(function (w) { return w.locationId === r.loc.id && on(w); })
           .map(function (w) { return { code: w.code, name: w.name, departmentId: w.departmentId }; }),
         orders: orders.map(function (o) { return { no: o.no, customer: o.customer, lastDay: o.lastDay }; }),
         orderBlocks: db.orderBlocks.filter(function (b) { return b.locationId === r.loc.id; })
@@ -151,6 +152,7 @@
         d.guilty.forEach(function (g) {
           audit.defects.push({ productId: d.productId, productName: nm(ix.prod, d.productId, NO_PROD), orderNo: d.orderNo,
             defectTypeId: d.defectTypeId, defectTypeName: nm(ix.def, d.defectTypeId, NO_DEF), severity: ix.def[d.defectTypeId] ? ix.def[d.defectTypeId].severity : null,
+            level: ix.def[d.defectTypeId] ? (ix.def[d.defectTypeId].level || 'fix') : null,
             workerCode: g.workerCode, workerName: g.workerCode === '' ? NO_WORKER : nm(ix.worker, a.locationId + ':' + g.workerCode, g.workerCode),
             qty: g.qty, photo: d.photo || null,
             departmentId: srcId, departmentName: nm(ix.dep, srcId, srcId), otherDept: srcId !== a.departmentId });

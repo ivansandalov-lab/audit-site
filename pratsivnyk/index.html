@@ -11,11 +11,13 @@
   <link rel="stylesheet" href="css/app.css">
   <link rel="stylesheet" href="css/screens.css">
   <script>
-    /* Тему ставимо ДО малювання сторінки. У працівника типова — темна (рішення власника 07.10). v2.0 */
+    /* Тему ставимо ДО малювання сторінки. У працівника типова — темна (рішення власника 07.10). v2.0
+       ?embed=1 — форма всередині кабінету старшого: сесія й тема старшого, без шапки й заставки ПК. v2.1 */
     (function () {
-      var t = null;
-      try { t = JSON.parse(localStorage.getItem('audit-demo:theme')); } catch (e) { /* без памʼяті */ }
-      document.documentElement.setAttribute('data-theme', t === 'light' ? 'light' : 'dark');
+      var embed = /[?&]embed=1/.test(location.search), t = null;
+      if (embed) { window.P = { demoSessionKey: 'demo:me:sr', embed: true }; document.documentElement.classList.add('is-embed'); }
+      try { t = JSON.parse(localStorage.getItem(embed ? 'audit-demo:theme:sr' : 'audit-demo:theme')); } catch (e) { /* без памʼяті */ }
+      document.documentElement.setAttribute('data-theme', embed ? (t === 'dark' ? 'dark' : 'light') : (t === 'light' ? 'light' : 'dark'));
     })();
   </script>
 </head>
@@ -38,6 +40,11 @@
   <script src="js/demo/server-common.js"></script>
   <script src="js/demo/server-read.js"></script>
   <script src="js/demo/server-submit.js"></script>
+  <script src="js/demo/senior-common.js"></script>
+  <script src="js/demo/senior-manage.js"></script>
+  <script src="js/demo/senior-kd.js"></script>
+  <script src="js/demo/senior-analytics.js"></script>
+  <script src="js/demo/senior-history.js"></script>
   <script src="js/demo/server.js"></script>
   <script src="js/ui.js"></script>
   <script src="js/shell.js"></script>

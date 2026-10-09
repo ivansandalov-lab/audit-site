@@ -20,6 +20,9 @@ button { font: inherit; }
 .app-boot { min-height: 60vh; justify-content: center; }
 
 
+.is-embed .app-demo, .is-embed .app-top { display: none; }
+
+
 .app-demo {
   display: flex; align-items: center; gap: var(--sp-2);
   padding: 6px var(--sp-4); background: var(--warn-soft); color: var(--warn);

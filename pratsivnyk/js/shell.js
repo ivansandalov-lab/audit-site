@@ -120,6 +120,7 @@
   function boot() {
     P.srv('authMe').then(function (r) {
       S.me = r.ok ? r.me : null;
+      if (!S.me && P.embed) { app().innerHTML = P.state.empty('login', 'Увійдіть у кабінет старшого', 'Форма відкривається від імені того, хто увійшов у кабінет.'); return; }
       if (!S.me) return renderLogin();
       buildFrame(); render();
     });
@@ -132,7 +133,7 @@
     P.on('route', render);
     P.on('auth:required', function () { S.me = null; renderLogin(); });
     P.on('auth:forbidden', function (r) { P.toast('warn', 'Немає прав на цю дію', r && r.error); });
-    if (isDesktop() && !pcAllowed()) return renderGate();
+    if (isDesktop() && !pcAllowed() && !P.embed) return renderGate();   // у вікні старшого заставки немає
     boot();
   };
 })(window);

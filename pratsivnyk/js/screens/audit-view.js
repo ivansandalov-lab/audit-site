@@ -2,7 +2,7 @@
   'use strict';
   var P = root.P, esc = P.esc, f = P.fmt;
 
-  function sevBadge(s) { return '<span class="ui-badge ui-badge--' + (s >= 3 ? 'danger' : s === 2 ? 'warn' : 'outline') + '">' + esc(P.AF.sevLabel(s)) + '</span>'; }
+  function lvlBadge(l) { return l ? '<span class="ui-badge ui-badge--' + (l === 'scrap' ? 'danger' : l === 'repair' ? 'warn' : 'info') + '">' + esc(P.AF.lvlLabel(l)) + '</span>' : ''; }
   function stat(v, label) { return '<div class="total"><span class="total__val">' + v + '</span><span class="total__label">' + label + '</span></div>'; }
 
   P.screen('/audit/:id', {
@@ -22,7 +22,7 @@
           var who = d.workerCode ? (d.workerName ? d.workerName + ' · ' + d.workerCode : d.workerCode) : 'винний невідомий';
           return '<div class="mini-item">' + P.ic('defect') + '<span class="mini-item__main"><span class="mini-item__title">' + esc(d.defectTypeName) + ' — ' + f.num(d.qty) + ' шт</span>' +
             '<span class="mini-item__meta">' + esc([d.productName, who].filter(Boolean).join(' · ')) + '</span>' +
-            (d.otherDept ? '<span class="ui-badge ui-badge--info">брак відділу «' + esc(d.departmentName) + '»</span>' : '') + '</span>' + sevBadge(d.severity) + '</div>';
+            (d.otherDept ? '<span class="ui-badge ui-badge--info">брак відділу «' + esc(d.departmentName) + '»</span>' : '') + '</span>' + lvlBadge(d.level) + '</div>';
         }).join('') + '</div>' : '<p class="card-sub">Без браку.</p>';
         var workers = (a.checkedWorkers || []).map(function (w) { return '<span class="ui-chip">' + esc(w.name ? w.name + ' · ' + w.code : w.code) + '</span>'; }).join('');
         return '<div class="stack">' +

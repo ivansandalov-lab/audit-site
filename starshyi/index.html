@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="uk" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>Аудит якості — старший аудитор (тест)</title>
+  <link rel="stylesheet" href="../pratsivnyk/css/ds.css">
+  <link rel="stylesheet" href="css/app.css">
+  <link rel="stylesheet" href="css/desk.css">
+  <link rel="stylesheet" href="css/senior.css">
+  <link rel="stylesheet" href="css/s-analytics.css">
+  <link rel="stylesheet" href="css/s-kd.css">
+  <link rel="stylesheet" href="css/s-manage.css">
+  <script>
+    /* Окрема демо-сесія старшого (вхід працівника не плутається з входом старшого) і тема до малювання. v1.0 */
+    window.P = { demoSessionKey: 'demo:me:sr' };
+    (function () {
+      var t = null;
+      try { t = JSON.parse(localStorage.getItem('audit-demo:theme:sr')); } catch (e) { /* без памʼяті */ }
+      document.documentElement.setAttribute('data-theme', t === 'dark' ? 'dark' : 'light');
+    })();
+  </script>
+</head>
+<body>
+  <div class="page" id="app" data-theme-root>
+    <div class="ui-state" role="status" style="padding-top: 120px"><span class="ui-spinner" aria-hidden="true"></span><p class="ui-state__text">Завантаження…</p></div>
+  </div>
+  <div class="ui-toasts" id="toasts" aria-live="polite"></div>
+  <div id="overlay"></div>
+  <noscript>Для роботи кабінету потрібен JavaScript.</noscript>
+
+  <script src="../pratsivnyk/js/core.js"></script>
+  <script src="../pratsivnyk/js/icons.js"></script>
+  <script src="../pratsivnyk/js/demo/dictionary.js"></script>
+  <script src="../pratsivnyk/js/demo/generate-audits.js"></script>
+  <script src="../pratsivnyk/js/demo/generate.js"></script>
+  <script src="../pratsivnyk/js/demo/server-common.js"></script>
+  <script src="../pratsivnyk/js/demo/server-read.js"></script>
+  <script src="../pratsivnyk/js/demo/server-submit.js"></script>
+  <script src="../pratsivnyk/js/demo/senior-common.js"></script>
+  <script src="../pratsivnyk/js/demo/senior-manage.js"></script>
+  <script src="../pratsivnyk/js/demo/senior-kd.js"></script>
+  <script src="../pratsivnyk/js/demo/senior-analytics.js"></script>
+  <script src="../pratsivnyk/js/demo/senior-history.js"></script>
+  <script src="../pratsivnyk/js/demo/server.js"></script>
+  <script src="../pratsivnyk/js/ui.js"></script>
+  <script src="js/shell.js"></script>
+  <script src="js/screens/analytics.js"></script>
+  <script src="js/screens/people.js"></script>
+  <script src="js/screens/kd.js"></script>
+  <script src="js/screens/history.js"></script>
+  <script src="js/screens/manage.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>

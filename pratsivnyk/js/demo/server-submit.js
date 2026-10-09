@@ -189,7 +189,8 @@
       var db = env.db;
       var rec = env.audits().filter(function (x) { return x.id === p.id; })[0];
       if (!rec) return C.fail('not_found', 'Аудит не знайдено.');
-      if (rec.auditorId !== me.id || !C.hasLoc(me, rec.locationId) || env.now().getTime() >= Date.parse(rec.createdAt) + C.LIMITS.editWindowMin * 60000) {
+      var senior = me.can.editOthersAudits && C.hasLoc(me, rec.locationId);
+      if (!senior && (rec.auditorId !== me.id || !C.hasLoc(me, rec.locationId) || env.now().getTime() >= Date.parse(rec.createdAt) + C.LIMITS.editWindowMin * 60000)) {
         return C.fail('forbidden', MSG_UPD_DENIED);
       }
       if (p.locationId !== rec.locationId || p.departmentId !== rec.departmentId) {
@@ -201,7 +202,7 @@
       rec.orders = body.orders; rec.items = body.items; rec.defects = body.defects;
       rec.checkedWorkers = arr(p.checkedWorkers).slice(); rec.comment = p.comment || '';
       rec.noDefects = !!p.noDefects || body.defects.length === 0;
-      rec.updatedAt = env.now().toISOString();
+      rec.updatedAt = env.now().toISOString(); if (rec.auditorId !== me.id) rec.updatedBy = me.id;
       var fresh = env.storage.get('demo:audits:new', []), at = -1;
       fresh.forEach(function (a, i) { if (a.id === rec.id) at = i; });
       if (at >= 0) fresh[at] = rec; else fresh.push(rec);

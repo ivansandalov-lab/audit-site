@@ -9,6 +9,8 @@
   AF.defType = function (F, id) { return F.ctx.defectTypes.filter(function (t) { return t.id === id; })[0] || null; };
   AF.worker = function (F, code) { return F.ctx.workers.filter(function (w) { return w.code === code; })[0] || null; };
   AF.sevLabel = function (s) { return SEV[s] || ''; };
+  var LVL = { fix: 'неправильно зроблене', repair: 'пошкоджене', scrap: 'зламане' };
+  AF.lvlLabel = function (l) { return LVL[l] || ''; };
   AF.itemLabel = function (F, it) {
     var p = AF.product(F, it.productId);
     return (p ? p.name : 'Виріб не обрано') + (it.orderNo ? ' · ' + it.orderNo : '');
@@ -117,7 +119,7 @@
       '<div class="ui-field span-2"><span class="ui-label">На якому виробі</span>' +
       selectBtn('data-a="def-item" data-k="' + esc(d.key) + '"', it && AF.itemLabel(F, it), 'Оберіть виріб', F.errors[pre + '.productId']) + '</div>' +
       '<div class="ui-field span-2"><span class="ui-label">Вид браку' + (d.other && src ? ' — відділ «' + esc(src.name) + '»' : '') + '</span>' +
-      selectBtn('data-a="def-type" data-k="' + esc(d.key) + '"', t && (t.name + ' · ' + AF.sevLabel(t.severity)), 'Оберіть вид браку', F.errors[pre + '.defectTypeId']) + '</div></div>' +
+      selectBtn('data-a="def-type" data-k="' + esc(d.key) + '"', t && (t.name + ' · ' + AF.lvlLabel(t.level)), 'Оберіть вид браку', F.errors[pre + '.defectTypeId']) + '</div></div>' +
       d.guilty.map(function (g, j) {
         var w = AF.worker(F, g.workerCode), gp = pre + '.guilty[' + j + ']';
         var who = w ? w.name + ' · ' + w.code : g.workerCode === '' ? 'Невідомий працівник' : (g.workerCode || '');

@@ -73,12 +73,19 @@
     if (Object.keys(e).length) return showErrors(e);
     var form = F, key = AF.draft.key(F.uid, F.loc), editing = !!F.editId;
     F.saving = true; drawSummary();
-    P.srv(editing ? 'auditUpdate' : 'auditSubmit', payload()).then(function (r) {
+    var sent = payload();
+    P.srv(editing ? 'auditUpdate' : 'auditSubmit', sent).then(function (r) {
       form.saving = false;
       if (r.ok) {
         form.done = r;   // відкладений запис чернетки цієї форми тепер нічого не запише
         if (!form.lockDraft && !editing) P.store.del(key);
         P.toast('ok', editing ? 'Аудит виправлено' : 'Аудит записано', r.auditId);
+        if (P.embed && root.parent && root.parent !== root) {
+          var chk = sent.items.reduce(function (s, i) { return s + (Number(i.qty) || 0); }, 0);
+          var bad = sent.defects.reduce(function (s, d) { return s + d.guilty.reduce(function (a, g) { return a + (Number(g.qty) || 0); }, 0); }, 0);
+          root.parent.postMessage({ type: 'audit:saved', id: r.auditId, edited: editing, time: P.fmt.time(r.createdAt || new Date().toISOString()),
+            summary: 'перевірено ' + chk + ' шт · брак ' + bad + ' шт' }, root.location.origin);
+        }
         if (active(form)) { draw(); root.scrollTo(0, 0); }   // якщо вже пішли з екрана — лише повідомлення
         return;
       }
@@ -205,7 +212,7 @@
       var dt = typeFor(d);
       pick({ title: 'Вид браку', value: d.defectTypeId, placeholder: 'Пошук виду браку',
         emptyText: 'Немає видів браку для цього відділу. Попросіть старшого аудитора додати.',
-        options: F.ctx.defectTypes.filter(function (x) { return x.deptTypeId === dt; }).map(function (x) { return { value: x.id, title: x.name, meta: AF.sevLabel(x.severity) }; }) },
+        options: F.ctx.defectTypes.filter(function (x) { return x.deptTypeId === dt; }).map(function (x) { return { value: x.id, title: x.name, meta: AF.lvlLabel(x.level) }; }) },
         function (v) { d.defectTypeId = v; changed(true); });
     },
     'def-worker': function (t) {

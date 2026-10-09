@@ -65,7 +65,8 @@
         db.products.push({ id: 'PRD_' + pad(ti * D.garments.length + gi + 1, 3), name: g, deptTypeId: t.id });
       });
       D.defectTypes[t.id].forEach(function (d) {
-        db.defectTypes.push({ id: 'DEF_' + pad(++nDef, 3), name: d[0], deptTypeId: t.id, severity: d[1] });
+        db.defectTypes.push({ id: 'DEF_' + pad(++nDef, 3), name: d[0], deptTypeId: t.id, severity: d[1],
+          level: (D.defectLevels && D.defectLevels[d[0]]) || 'fix' });   // рівень браку (09.10)
       });
     });
   }
