@@ -20,7 +20,7 @@
     P.store.set(key(form.uid, form.loc), {
       savedAt: Date.now(), summary: (d ? d.name : 'Відділ не обрано') + ' · ' + form.items.filter(function (i) { return i.productId; }).length + ' вир.',
       state: { clientId: form.clientId, departmentId: form.departmentId, orders: form.orders, items: form.items,
-        workers: form.workers, comment: form.comment, mode: form.mode,
+        workers: form.workers, helpers: form.helpers, comment: form.comment, mode: form.mode,
         defects: form.defects.map(function (x) { return { key: x.key, itemKey: x.itemKey, defectTypeId: x.defectTypeId, other: x.other, departmentId: x.departmentId, guilty: x.guilty }; }) }
     });
   }
@@ -43,6 +43,7 @@
     F.orders = (Array.isArray(s.orders) ? s.orders : []).filter(function (o) { return typeof o === 'string' && o; }).slice(0, L.maxOrders);
     F.items = items.map(function (i) { return { key: i.key, productId: str(i.productId) || null, orderNo: str(i.orderNo) || null, qty: num(i.qty), rejected: num(i.rejected) }; });
     F.workers = (Array.isArray(s.workers) ? s.workers : []).filter(function (c) { return typeof c === 'string'; });   // '' — невідомий працівник
+    F.helpers = (Array.isArray(s.helpers) ? s.helpers : []).filter(function (c) { return typeof c === 'string' && c && F.workers.indexOf(c) >= 0; });
     F.comment = str(s.comment).slice(0, L.maxComment);
     F.mode = s.mode === 'none' || s.mode === 'defects' ? s.mode : null;
     F.defects = defs.map(function (x) {
@@ -62,6 +63,7 @@
       return { key: P.uid('it'), productId: i.productId, orderNo: i.orderNo || null, qty: String(i.qty), rejected: r == null ? '' : String(r) };
     });
     F.workers = (a.checkedWorkers || []).map(function (w) { return w.code; });
+    F.helpers = (a.checkedWorkers || []).filter(function (w) { return w.helper && w.code; }).map(function (w) { return w.code; });
     F.comment = a.comment || '';
     F.mode = (a.defects || []).length ? 'defects' : 'none';
     var groups = {};

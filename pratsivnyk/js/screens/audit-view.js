@@ -19,19 +19,19 @@
               '<td class="num">' + f.num(i.qty) + '</td><td class="num">' + (i.rejected == null ? '—' : f.num(i.rejected)) + '</td></tr>';
           }).join('') + '</tbody></table>';
         var defects = a.defects.length ? '<div class="mini-list">' + a.defects.map(function (d) {
-          var who = d.workerCode ? (d.workerName ? d.workerName + ' · ' + d.workerCode : d.workerCode) : 'винний невідомий';
+          var who = d.workerCode ? (d.workerName || d.workerCode) + (d.helper ? ' · допомога' : '') : 'винний невідомий';
           return '<div class="mini-item">' + P.ic('defect') + '<span class="mini-item__main"><span class="mini-item__title">' + esc(d.defectTypeName) + ' — ' + f.num(d.qty) + ' шт</span>' +
             '<span class="mini-item__meta">' + esc([d.productName, who].filter(Boolean).join(' · ')) + '</span>' +
             (d.otherDept ? '<span class="ui-badge ui-badge--info">брак відділу «' + esc(d.departmentName) + '»</span>' : '') + '</span>' + lvlBadge(d.level) + '</div>';
         }).join('') + '</div>' : '<p class="card-sub">Без браку.</p>';
-        var workers = (a.checkedWorkers || []).map(function (w) { return '<span class="ui-chip">' + esc(w.name ? w.name + ' · ' + w.code : w.code) + '</span>'; }).join('');
+        var workers = (a.checkedWorkers || []).map(function (w) { return '<span class="ui-chip">' + esc(w.name || w.code) + (w.helper ? ' · допомога' : '') + '</span>'; }).join('');
         return '<div class="stack">' +
           '<section class="ui-card"><div class="totals">' + stat(f.num(a.checked), 'перевірено, шт') + stat(f.num(a.rejected), 'брак, шт') + stat(f.pct(a.pct), 'брак') + '</div>' + items + '</section>' +
           '<section class="ui-card"><h2 class="card-title">Брак</h2>' + defects + '</section>' +
           '<section class="ui-card"><h2 class="card-title">Перевірені працівники</h2>' + (workers ? '<div class="chips-input">' + workers + '</div>' : '<p class="card-sub">—</p>') + '</section>' +
           (a.comment ? '<section class="ui-card"><h2 class="card-title">Коментар</h2><p class="ui-text-sm">' + esc(a.comment) + '</p></section>' : '') +
           (left ? '<button class="ui-btn ui-btn--primary home-cta" type="button" data-act="edit">' + P.ic('edit') + 'Виправити · ще ' + left + ' хв</button>'
-            : '<p class="card-sub">Записано о ' + f.time(a.createdAt) + '. Час на виправлення минув. Щось не так — запишіть новий аудит або скажіть старшому аудитору.</p>') + '</div>';
+            : '<p class="card-sub">Записано о ' + f.time(a.createdAt) + '. Виправити можна було 15 хвилин після запису — цей час минув.</p>') + '</div>';
       });
     },
     mount: function (el, ctx) {

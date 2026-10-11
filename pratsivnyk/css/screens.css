@@ -121,3 +121,20 @@ mark.hl { padding: 0 2px; border-radius: 3px; background: var(--brand-soft); col
 .kv { display: grid; grid-template-columns: auto 1fr; gap: 6px var(--sp-3); margin: 0; font-size: var(--fs-sm); }
 .kv dt { color: var(--text-3); }
 .kv dd { margin: 0; overflow-wrap: anywhere; }
+
+
+.wk-list { display: flex; flex-direction: column; gap: var(--sp-2); margin-bottom: var(--sp-3); }
+
+.wk-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--sp-1) var(--sp-3); align-items: center; padding: var(--sp-3) var(--sp-2) var(--sp-3) var(--sp-4);
+  border: 1px solid var(--line); border-radius: var(--r-md); background: var(--surface-2); }
+.wk-row > .icon-btn { grid-column: 2; grid-row: 1 / span 2; }
+.wk-row__main { display: flex; flex-direction: column; min-width: 0; }
+.wk-row__name { font-weight: var(--fw-semibold); overflow-wrap: break-word; }
+.wk-row__meta { font-size: var(--fs-xs); color: var(--text-3); }
+.wk-help { grid-column: 1; justify-self: start; display: inline-flex; align-items: center; gap: var(--sp-2); min-height: 32px; font-size: var(--fs-sm); color: var(--text-2); cursor: pointer; }
+.wk-help input { width: 22px; height: 22px; accent-color: var(--brand); flex: none; }
+.wk-help.is-locked { cursor: default; color: var(--text-3); }
+
+.opt-create { display: flex; flex-direction: column; gap: 2px; margin-top: var(--sp-2); padding-top: var(--sp-2); border-top: 1px solid var(--line); }
+.opt--create { color: var(--brand-ink); font-weight: var(--fw-semibold); }
+.opt-hint { margin: var(--sp-3) var(--sp-2) var(--sp-1); font-size: var(--fs-xs); color: var(--text-3); }

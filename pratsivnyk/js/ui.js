@@ -117,8 +117,16 @@
             (sel ? '<span class="opt__check">' + P.ic('check') + '</span>' : '') + '</button>';
           n++;
         });
-        return n ? '<div role="listbox"' + (o.multi ? ' aria-multiselectable="true"' : '') + '>' + html + '</div>' :
-          P.state.empty('search', nq ? 'Нічого не знайдено' : (o.emptyText || 'Список порожній'), nq ? 'Спробуйте інше слово.' : '');
+        var typed = q.trim(), make = '';
+        if (o.create && typed && !o.options.some(function (op) { return String(op.title).trim().toLowerCase() === nq; })) {
+          make = '<div class="opt-create">' + o.create.map(function (c) {
+            return '<button type="button" class="opt opt--create" data-create="' + esc(c.id) + '">' + P.ic('add') +
+              '<span class="opt__main"><span class="opt__title">' + esc(c.label(typed)) + '</span></span></button>'; }).join('') + '</div>';
+        }
+        var tail = make + (o.hint && !make ? '<p class="opt-hint">' + esc(o.hint) + '</p>' : '');
+        return n ? '<div role="listbox"' + (o.multi ? ' aria-multiselectable="true"' : '') + '>' + html + '</div>' + tail :
+          (make ? '<p class="opt-hint">Такого в списку немає.</p>' + make
+            : P.state.empty('search', nq ? 'Нічого не знайдено' : (o.emptyText || 'Список порожній'), '') + tail);
       }
       P.sheet.open({
         title: o.title, full: o.options.length > 8,
@@ -132,6 +140,7 @@
           var body = el.querySelector('.sheet__body'), input = el.querySelector('[data-picker-q]');
           if (input) input.addEventListener('input', function () { q = input.value; body.innerHTML = list(); });
           P.delegate(body, 'click', '.opt', function (e, t) {
+            if (t.hasAttribute('data-create')) return finish({ create: t.getAttribute('data-create'), q: q.trim(), picked: o.multi ? picked.slice() : null });
             var v = t.getAttribute('data-val');
             if (!o.multi) return finish(v);
             var i = picked.indexOf(v);

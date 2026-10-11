@@ -8,6 +8,9 @@
   AF.product = function (F, id) { return F.ctx.products.filter(function (p) { return p.id === id; })[0] || null; };
   AF.defType = function (F, id) { return F.ctx.defectTypes.filter(function (t) { return t.id === id; })[0] || null; };
   AF.worker = function (F, code) { return F.ctx.workers.filter(function (w) { return w.code === code; })[0] || null; };
+  AF.workerName = function (F, code) { var w = AF.worker(F, code); return code === '' ? 'Невідомий працівник' : w ? w.name : (code || ''); };
+  AF.fromOther = function (F, code) { var w = AF.worker(F, code); return !!(w && F.departmentId && w.departmentId !== F.departmentId); };
+  AF.isHelper = function (F, code) { return !!code && (AF.fromOther(F, code) || (F.helpers || []).indexOf(code) >= 0); };
   AF.sevLabel = function (s) { return SEV[s] || ''; };
   var LVL = { fix: 'неправильно зроблене', repair: 'пошкоджене', scrap: 'зламане' };
   AF.lvlLabel = function (l) { return LVL[l] || ''; };
@@ -66,7 +69,7 @@
       return '<button type="button" class="pick-btn" data-a="dept" data-v="' + esc(d.id) + '" aria-pressed="' + (F.departmentId === d.id) + '"' + (locked ? ' disabled' : '') + '>' + esc(d.name) +
         (n && n.sampleTarget ? deptNorm(n) : '') + '</button>';
     }).join('') + '</div>' + err(F, 'departmentId');
-    return sec(F, 'departmentId', 1, 'Відділ', F.editId ? 'Відділ лишається тим самим. Для іншого відділу запишіть новий аудит.' : 'Де перевіряєте. Під відділом видно, скільки ще перевірити сьогодні.', body, !!F.departmentId);
+    return sec(F, 'departmentId', 1, 'Відділ', F.editId ? 'У записаному аудиті відділ не змінюється.' : 'Де перевіряєте. Під відділом видно, скільки ще перевірити сьогодні.', body, !!F.departmentId);
   }
   function secOrders(F) {
     var body = '<div class="chips-input">' + F.orders.map(function (o) {
@@ -99,12 +102,17 @@
     return sec(F, 'items', 3, 'Перевірені вироби', 'Що перевірили і скільки штук.', body, ok);
   }
   function secWorkers(F) {
-    var body = '<div class="chips-input">' + F.workers.map(function (c) {
-      var w = AF.worker(F, c);
-      return '<span class="ui-chip is-selected">' + esc(c === '' ? 'Невідомий працівник' : w ? w.name + ' · ' + c : c) + '<button type="button" class="ui-chip__remove" data-a="worker-del" data-v="' + esc(c) + '" aria-label="Прибрати ' + esc(c) + '">' + P.ic('close', 'ui-icon--sm') + '</button></span>';
-    }).join('') + '<button type="button" class="ui-btn ui-btn--secondary ui-btn--sm" data-a="worker-add"' + (F.departmentId ? '' : ' disabled') + '>' + P.ic('people') + (F.workers.length ? 'Змінити' : 'Обрати працівників') + '</button></div>' +
+    var body = (F.workers.length ? '<div class="wk-list">' + F.workers.map(function (c) {
+      var name = AF.workerName(F, c), other = AF.fromOther(F, c), w = AF.worker(F, c), from = other ? AF.dept(F, w.departmentId) : null;
+      return '<div class="wk-row"><span class="wk-row__main"><span class="wk-row__name">' + esc(name) + '</span>' +
+        (other ? '<span class="wk-row__meta">з відділу «' + esc(from ? from.name : '—') + '»</span>' : '') + '</span>' +
+        (c === '' ? '' : '<label class="wk-help' + (other ? ' is-locked' : '') + '"><input type="checkbox" data-a="worker-help" data-v="' + esc(c) + '"' +
+          (AF.isHelper(F, c) ? ' checked' : '') + (other ? ' disabled' : '') + '><span>це була допомога</span></label>') +
+        '<button type="button" class="icon-btn" data-a="worker-del" data-v="' + esc(c) + '" aria-label="Прибрати ' + esc(name) + '">' + P.ic('close') + '</button></div>';
+    }).join('') + '</div>' : '') +
+      '<button type="button" class="ui-btn ui-btn--secondary ui-btn--sm" data-a="worker-add"' + (F.departmentId ? '' : ' disabled') + '>' + P.ic('people') + (F.workers.length ? 'Змінити список' : 'Обрати працівників') + '</button>' +
       (F.departmentId ? '' : '<p class="form-sec__hint">Спершу оберіть відділ.</p>') + err(F, 'checkedWorkers');
-    return sec(F, 'checkedWorkers', 4, 'Перевірені працівники', 'Чию роботу перевіряли. Немає людини в списку — попросіть старшого аудитора додати.', body, F.workers.length > 0);
+    return sec(F, 'checkedWorkers', 4, 'Перевірені працівники', 'Чию роботу перевіряли.' + (F.ctx.canAddWorker ? ' Немає в списку — впишіть у пошук і додайте.' : ''), body, F.workers.length > 0);
   }
   function defectCard(F, d, i) {
     var pre = 'defects[' + i + ']', it = F.items.filter(function (x) { return x.key === d.itemKey; })[0], t = AF.defType(F, d.defectTypeId), src = AF.dept(F, d.departmentId);
@@ -121,8 +129,8 @@
       '<div class="ui-field span-2"><span class="ui-label">Вид браку' + (d.other && src ? ' — відділ «' + esc(src.name) + '»' : '') + '</span>' +
       selectBtn('data-a="def-type" data-k="' + esc(d.key) + '"', t && (t.name + ' · ' + AF.lvlLabel(t.level)), 'Оберіть вид браку', F.errors[pre + '.defectTypeId']) + '</div></div>' +
       d.guilty.map(function (g, j) {
-        var w = AF.worker(F, g.workerCode), gp = pre + '.guilty[' + j + ']';
-        var who = w ? w.name + ' · ' + w.code : g.workerCode === '' ? 'Невідомий працівник' : (g.workerCode || '');
+        var gp = pre + '.guilty[' + j + ']';
+        var who = g.workerCode == null ? '' : AF.workerName(F, g.workerCode) + (!d.other && AF.isHelper(F, g.workerCode) ? ' · допомога' : '');
         return '<div class="guilty"><div class="ui-field"><span class="ui-label">Винний</span>' +
           selectBtn('data-a="def-worker" data-k="' + esc(d.key) + '" data-j="' + j + '"', who, 'Хто', F.errors[gp]) + '</div>' +
           numInput('data-in="gqty" data-k="' + esc(d.key) + '" data-j="' + j + '"', g.qty, 'Шт', F.errors[gp + '.qty']) +
@@ -130,7 +138,7 @@
           err(F, gp) + err(F, gp + '.qty');
       }).join('') +
       (d.guilty.length < F.ctx.limits.maxGuiltyPerDefect ? '<div class="row"><button type="button" class="ui-btn ui-btn--quiet ui-btn--sm" data-a="g-add" data-k="' + esc(d.key) + '">' + P.ic('add') + 'Ще винний</button></div>' : '') +
-      (d.other ? '<p class="form-sec__hint">Зарахуємо цей брак відділу, звідки він прийшов. В аудиті він теж залишиться.</p>' : '') +
+      (d.other ? '<p class="form-sec__hint">Цей брак зарахується відділу, звідки прийшов; у цьому аудиті він теж записаний.</p>' : '') +
       err(F, pre + '.departmentId') + err(F, pre + '.productId') + err(F, pre + '.defectTypeId') + err(F, pre + '.guilty') + err(F, pre) + '</div>';
   }
   function secDefects(F) {
@@ -151,7 +159,7 @@
   function actionBar(F) {
     var t = AF.totals(F);
     return '<div class="action-bar"><p class="action-bar__sum">Перевірено <b>' + f.num(t.checked) + '</b> шт · знайдено браку <b>' + f.num(t.rejected) + '</b>' +
-      (t.pct != null ? ' (<b>' + f.pct(t.pct) + '</b>)' : '') + (t.other ? '<br>з них <b>' + f.num(t.other) + '</b> — брак іншого відділу (піде йому)' : '') + '</p>' +
+      (t.pct != null ? ' (<b>' + f.pct(t.pct) + '</b>)' : '') + (t.other ? '<br>з них <b>' + f.num(t.other) + '</b> — брак іншого відділу' : '') + '</p>' +
       '<button type="button" class="ui-btn ui-btn--primary" data-a="save"' + (F.saving ? ' disabled' : '') + '>' +
       (F.saving ? '<span class="ui-spinner ui-spinner--sm" aria-hidden="true"></span>Записую…' : P.ic('save') + (F.editId ? 'Зберегти зміни' : 'Записати аудит')) + '</button></div>';
   }

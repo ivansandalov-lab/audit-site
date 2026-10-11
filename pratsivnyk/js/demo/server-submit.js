@@ -29,7 +29,7 @@
     var dep = db.departments.filter(function (d) { return d.id === p.departmentId && d.locationId === p.locationId; })[0];
     if (!p.locationId || !p.departmentId || !dep) { add('departmentId', 'Оберіть локацію і відділ.'); return errs; }
     var items = arr(p.items), orders = arr(p.orders), defects = arr(p.defects), workers = arr(p.checkedWorkers);
-    var deptWorkers = db.workers.filter(function (w) { return w.departmentId === dep.id; }).map(function (w) { return w.code; });
+    var locWorkers = db.workers.filter(function (w) { return w.locationId === p.locationId; }).map(function (w) { return w.code; });
 
     if (items.length > L.maxProducts) add('items', 'Забагато виробів: не більше ' + L.maxProducts + '.');
     if (orders.length > L.maxOrders) add('orders', 'Забагато замовлень: не більше ' + L.maxOrders + '.');
@@ -86,7 +86,7 @@
         if (other) {
           var code = g ? g.workerCode : null;
           var inSrc = !srcBad && db.workers.some(function (w) { return w.departmentId === src.id && w.code === code; });
-          if (!g || (code !== '' && !srcBad && !inSrc)) add('defects[' + j + '].guilty[' + k + ']', 'Працівника з кодом ' + code + ' немає у відділі, звідки брак.');
+          if (!g || (code !== '' && !srcBad && !inSrc)) add('defects[' + j + '].guilty[' + k + ']', 'Працівника «' + code + '» немає у відділі, звідки брак.');
         } else if (!g || (g.workerCode !== '' && workers.indexOf(g.workerCode) < 0)) add('defects[' + j + '].guilty[' + k + ']', 'Винний має бути серед перевірених працівників.');
         var q = toNum(g && g.qty);
         if (!(isInt(q) && q >= 1 && q <= L.maxQty)) add('defects[' + j + '].guilty[' + k + '].qty', MSG_QTY);
@@ -111,12 +111,23 @@
     }
 
     workers.forEach(function (code) {
-      if (code !== '' && deptWorkers.indexOf(code) < 0) add('checkedWorkers', 'Працівника з кодом ' + code + ' немає в довіднику. Попросіть старшого аудитора додати.');
+      if (code !== '' && locWorkers.indexOf(code) < 0) add('checkedWorkers', 'Працівника «' + code + '» немає в довіднику цієї локації. Додайте його у списку вибору.');
     });
 
     if (typeof p.comment === 'string' && p.comment.length > L.maxComment) add('comment', 'Коментар задовгий: не більше ' + L.maxComment + ' знаків.');
     return errs;
   };
+
+  function helpersOf(p, db) {
+    var marked = arr(p.helpers), out = [];
+    arr(p.checkedWorkers).forEach(function (code) {
+      if (typeof code !== 'string' || !code || out.indexOf(code) >= 0) return;
+      var w = db.workers.filter(function (x) { return x.locationId === p.locationId && x.code === code; })[0];
+      if (marked.indexOf(code) >= 0 || (w && w.departmentId !== p.departmentId)) out.push(code);
+    });
+    return out;
+  }
+  P.demoHelpersOf = helpersOf;
 
   function newId(day, db) {
     var id, taken = {};
@@ -168,6 +179,7 @@
       var createdAt = env.now().toISOString(), day = P.fmt.dayKey(createdAt);
       var rec = { id: newId(day, db), day: day, createdAt: createdAt, clientId: p.clientId || null, locationId: p.locationId,
         departmentId: p.departmentId, auditorId: me.id, orders: body.orders, items: body.items, checkedWorkers: arr(p.checkedWorkers).slice(),
+        helpers: helpersOf(p, db),
         comment: p.comment || '', noDefects: !!p.noDefects || body.defects.length === 0, defects: body.defects, isTest: true };
       db.audits.push(rec);
       var fresh = env.storage.get('demo:audits:new', []);
@@ -200,7 +212,7 @@
       if (errors.length) return C.fail('validation', 'Перевірте поля форми.', errors);
       var body = buildBody(p);
       rec.orders = body.orders; rec.items = body.items; rec.defects = body.defects;
-      rec.checkedWorkers = arr(p.checkedWorkers).slice(); rec.comment = p.comment || '';
+      rec.checkedWorkers = arr(p.checkedWorkers).slice(); rec.helpers = helpersOf(p, db); rec.comment = p.comment || '';
       rec.noDefects = !!p.noDefects || body.defects.length === 0;
       rec.updatedAt = env.now().toISOString(); if (rec.auditorId !== me.id) rec.updatedBy = me.id;
       var fresh = env.storage.get('demo:audits:new', []), at = -1;

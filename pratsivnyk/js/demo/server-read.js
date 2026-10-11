@@ -96,7 +96,8 @@
       deps.forEach(function (d) { types[d.deptTypeId] = true; });
       var orders = db.orders.filter(function (o) { return o.locationId === r.loc.id && o.firstDay <= day; })
         .sort(function (a, b) { return a.lastDay < b.lastDay ? 1 : a.lastDay > b.lastDay ? -1 : a.no < b.no ? 1 : -1; }).slice(0, 50);
-      return { ok: true, location: { id: r.loc.id, name: r.loc.name }, limits: Object.assign({}, C.LIMITS),
+      var canAdd = !!me.can.recordAudit && (P.demoApis || []).some(function (a) { return Object.prototype.hasOwnProperty.call(a, 'workerQuickAdd'); });
+      return { ok: true, location: { id: r.loc.id, name: r.loc.name }, limits: Object.assign({}, C.LIMITS), canAddWorker: canAdd,
         departments: deps.map(function (d) { return { id: d.id, name: d.name, deptTypeId: d.deptTypeId }; }),
         products: db.products.filter(function (x) { return types[x.deptTypeId] && on(x); })
           .map(function (x) { return { id: x.id, name: x.name, deptTypeId: x.deptTypeId }; }),
@@ -141,7 +142,9 @@
       var audit = summary(a, env), ix = env.ix;
       audit.comment = a.comment || '';
       audit.noDefects = !!a.noDefects;
-      audit.checkedWorkers = a.checkedWorkers.map(function (c) { return { code: c, name: c === '' ? NO_WORKER : nm(ix.worker, a.locationId + ':' + c, c) }; });
+      var helpers = Array.isArray(a.helpers) ? a.helpers : [];
+      audit.checkedWorkers = a.checkedWorkers.map(function (c) {
+        return { code: c, name: c === '' ? NO_WORKER : nm(ix.worker, a.locationId + ':' + c, c), helper: !!c && helpers.indexOf(c) >= 0 }; });
       audit.items = a.items.map(function (i) {
         return { productId: i.productId, productName: nm(ix.prod, i.productId, NO_PROD), orderNo: i.orderNo, qty: i.qty, rejected: i.rejected,
           rejectedInput: i.rejectedGiven === false ? null : i.rejected };
@@ -154,7 +157,7 @@
             defectTypeId: d.defectTypeId, defectTypeName: nm(ix.def, d.defectTypeId, NO_DEF), severity: ix.def[d.defectTypeId] ? ix.def[d.defectTypeId].severity : null,
             level: ix.def[d.defectTypeId] ? (ix.def[d.defectTypeId].level || 'fix') : null,
             workerCode: g.workerCode, workerName: g.workerCode === '' ? NO_WORKER : nm(ix.worker, a.locationId + ':' + g.workerCode, g.workerCode),
-            qty: g.qty, photo: d.photo || null,
+            helper: !!g.workerCode && helpers.indexOf(g.workerCode) >= 0, qty: g.qty, photo: d.photo || null,
             departmentId: srcId, departmentName: nm(ix.dep, srcId, srcId), otherDept: srcId !== a.departmentId });
         });
       });
