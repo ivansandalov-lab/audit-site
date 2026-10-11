@@ -67,6 +67,7 @@
       var loc = r.loc, ix = env.ix, today = env.day(), crit = env.db.settings.criticalPct;
       var to = DAY_RE.test(p.to || '') && p.to <= today ? p.to : today;
       var from = DAY_RE.test(p.from || '') && p.from <= to ? p.from : S.addDays(to, -29);
+      if (from < S.addDays(to, -365)) from = S.addDays(to, -365);   // не довше року — як в аналітиці (інакше відповідь на мегабайти)
       var rng = dayRange(p, from, to);
       var deps = env.db.departments.filter(function (d) { return d.locationId === loc.id; });
       var pick = (Array.isArray(p.departments) ? p.departments : []).filter(function (id) { return ix.dep[id] && ix.dep[id].locationId === loc.id; });
@@ -152,7 +153,7 @@
     srAuditDelete: function (p, me, env) {
       if (!S.canManage(me)) return C.forbidden();
       var a = env.audits().filter(function (x) { return x.id === p.id; })[0];
-      if (!a) return C.fail('not_found', 'Аудит не знайдено — можливо, його вже видалили.');
+      if (!a) return C.fail('not_found', 'Аудит не знайдено.');
       if (!C.hasLoc(me, a.locationId)) return C.forbidden();
       var reason = String(p.reason || '').trim();
       if (reason.length > MAX_REASON) return C.fail('validation', 'Причина задовга.', [{ field: 'reason', message: 'Напишіть коротше — до ' + MAX_REASON + ' знаків.' }]);
@@ -173,7 +174,7 @@
     srAuditRestore: function (p, me, env) {
       if (!S.canManage(me)) return C.forbidden();
       var t = trashLive(env).filter(function (x) { return x.id === p.id; })[0];
-      if (!t) return C.fail('not_found', 'Такого аудиту в корзині немає — можливо, його вже повернули або минуло 30 днів.');
+      if (!t) return C.fail('not_found', 'Такого аудиту в корзині немає.');
       if (!C.hasLoc(me, t.locationId)) return C.forbidden();
       S.set(env, KEY_TRASH, S.get(env, KEY_TRASH, []).filter(function (x) { return x.id !== p.id; }));
       env.reload();

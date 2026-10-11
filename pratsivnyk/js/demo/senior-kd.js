@@ -12,7 +12,7 @@
     { id: 'organization', label: 'Організація роботи' },
     { id: 'other', label: 'Інше' }
   ];
-  var CAUSE_IX = {};
+  var CAUSE_IX = Object.create(null);
   CAUSES.forEach(function (c) { CAUSE_IX[c.id] = c; });
   var STATUS_LABELS = { 'new': 'нова', started: 'в роботі', check: 'перевірка', helped: 'допомогла', not_helped: 'не допомогла', not_needed: 'не потрібно', none: 'дій не було' };
 
@@ -286,7 +286,7 @@
         d.guilty.forEach(function (g) {
           var w = W[g.workerCode] = W[g.workerCode] || { qty: 0, audits: {}, helperQty: 0 };
           w.qty += g.qty || 0; w.audits[a.id] = 1;
-          if (helpers.indexOf(g.workerCode) >= 0) w.helperQty += g.qty || 0;
+          if (a.departmentId === depId && helpers.indexOf(g.workerCode) >= 0) w.helperQty += g.qty || 0;
         });
       });
       if (touches) mine[a.auditorId] = (mine[a.auditorId] || 0) + 1;   // аудити, у яких аудитор перевіряв цей відділ або записав його брак
@@ -382,7 +382,7 @@
   function planErrors(cx, me, p, checkDue) {
     var errs = [], causes = Array.isArray(p.causes) ? p.causes : [];
     if (!causes.length) errs.push({ field: 'causes', message: 'Оберіть причину — хоча б одну.' });
-    else if (causes.some(function (c) { return !CAUSE_IX[c]; }) || causes.length !== causes.filter(function (c, i) { return causes.indexOf(c) === i; }).length)
+    else if (causes.some(function (c) { return typeof c !== 'string' || !Object.prototype.hasOwnProperty.call(CAUSE_IX, c); }) || causes.length !== causes.filter(function (c, i) { return causes.indexOf(c) === i; }).length)
       errs.push({ field: 'causes', message: 'Причини мають бути з довідника, кожна один раз.' });
     if (causes.indexOf('other') >= 0 && String(p.causeNote || '').trim().length < 3) errs.push({ field: 'causeNote', message: 'Поясніть, що сталося, — ви обрали «Інше».' });
     var planText = String(p.plan || '').trim();
@@ -500,7 +500,7 @@
       var cx = makeCx(env, r.loc), a;
       if (p.id) {
         a = findAction(cx, p.id);
-        if (!a) return C.fail('not_found', 'Дію не знайдено — можливо, тестові дані скинуто. Оновіть сторінку.');
+        if (!a) return C.fail('not_found', 'Дію не знайдено. Оновіть сторінку.');
       } else {
         var n = periodArg(cx, p.period);
         if (n == null) return C.fail('not_found', 'Такого розбору немає. Оновіть сторінку.');

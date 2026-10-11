@@ -22,13 +22,14 @@
     '.upd__btn{display:inline-flex;align-items:center;justify-content:center;gap:10px;min-width:220px;height:56px;margin-top:10px;padding:0 28px;border:0;border-radius:999px;' +
     'background:var(--brand-fill,#EF8F4E);color:var(--on-brand,#2B1A0C);font:inherit;font-size:18px;font-weight:700;cursor:pointer}' +
     '.upd__btn:focus-visible{outline:3px solid var(--focus,#2D6396);outline-offset:3px}' +
-    '.upd__btn[disabled]{opacity:.6;cursor:default}' +
+    '.upd__btn[aria-busy="true"]{opacity:.6;cursor:default}' +
     '.upd__note{margin:0;font-size:15px;line-height:1.4;color:var(--text-3,#8A7F76)}';
   var ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
     '<path d="M20 11a8 8 0 0 0-14.3-4.5L4 8"/><path d="M4 4v4h4"/><path d="M4 13a8 8 0 0 0 14.3 4.5L20 16"/><path d="M20 20v-4h-4"/></svg>';
 
   function formOpen() {
-    return /^#\/audit\/new/.test(root.location.hash || '') || !!doc.querySelector('iframe.sr-frame');
+    var fr = doc.querySelector('iframe.sr-frame');
+    return /^#\/audit\/new/.test(root.location.hash || '') || !!(fr && /#\/audit\/new/.test(fr.getAttribute('src') || ''));
   }
 
   function show(remote) {
@@ -50,14 +51,15 @@
     doc.body.appendChild(box);
     var btn = box.querySelector('.upd__btn');
     btn.onclick = function () {
-      btn.disabled = true; btn.textContent = 'Оновлюю…';
+      if (btn.getAttribute('aria-busy') === 'true') return;
+      btn.setAttribute('aria-busy', 'true'); btn.textContent = 'Оновлюю…';
+      root.setTimeout(function () { btn.removeAttribute('aria-busy'); btn.textContent = 'Оновити'; }, 6000);
       try { if (P.AF && P.AF.draft) P.AF.draft.flush(); } catch (e) { /* чернетку допише ще й подія pagehide */ }
       if (remote) setTried(remote);
-      root.location.replace(root.location.pathname + (remote ? '?u=' + remote : '') + root.location.hash);
+      root.location.replace(root.location.pathname + (remote ? '?u=' + remote + '-' + Date.now() : '') + root.location.hash);
     };
     doc.addEventListener('keydown', function (e) {
       if (e.key === 'Tab') { e.preventDefault(); btn.focus(); }
-      else if (e.target !== btn) { e.preventDefault(); }
       e.stopPropagation();
     }, true);
     doc.addEventListener('focusin', function (e) { if (!box.contains(e.target)) btn.focus(); }, true);

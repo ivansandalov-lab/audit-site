@@ -28,12 +28,6 @@
       var w = Math.max(0, Math.min(100, (rate || 0) * 10));
       return '<div class="threshold"><i class="' + (over ? 'hot' : '') + '" style="width:' + w + '%"></i><b style="left:50%"></b></div>';
     },
-    dyn: function (rates, labels, height) {
-      var h = height || 64, k = h / 8;
-      return '<div class="dyn" style="height:' + h + 'px" role="img" aria-label="' + esc(rates.map(pct).join(' · ')) + '"><b style="bottom:' + Math.round(5 * k) + 'px"></b>' +
-        rates.map(function (r) { return r == null ? '<i style="height:2px;background:var(--line-mid)"></i>' : '<i' + (r > 5 ? ' class="hot"' : '') + ' style="height:' + Math.max(2, Math.round(Math.min(r, 8) * k)) + 'px"></i>'; }).join('') + '</div>' +
-        (labels ? '<div class="dyn-x">' + labels.map(function (l) { return '<span>' + esc(l) + '</span>'; }).join('') + '</div>' : '');
-    },
     empty: function (title, text) { return P.state.empty('info', title, text); },
     loading: function () { return P.state.loading(); },
     error: function (r) { return P.state.error('Не вдалося завантажити', (r && r.error) || ''); },

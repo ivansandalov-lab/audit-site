@@ -157,7 +157,7 @@
             defectTypeId: d.defectTypeId, defectTypeName: nm(ix.def, d.defectTypeId, NO_DEF), severity: ix.def[d.defectTypeId] ? ix.def[d.defectTypeId].severity : null,
             level: ix.def[d.defectTypeId] ? (ix.def[d.defectTypeId].level || 'fix') : null,
             workerCode: g.workerCode, workerName: g.workerCode === '' ? NO_WORKER : nm(ix.worker, a.locationId + ':' + g.workerCode, g.workerCode),
-            helper: !!g.workerCode && helpers.indexOf(g.workerCode) >= 0, qty: g.qty, photo: d.photo || null,
+            helper: !!g.workerCode && srcId === a.departmentId && helpers.indexOf(g.workerCode) >= 0, qty: g.qty, photo: d.photo || null,
             departmentId: srcId, departmentName: nm(ix.dep, srcId, srcId), otherDept: srcId !== a.departmentId });
         });
       });

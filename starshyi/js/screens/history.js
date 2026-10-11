@@ -266,6 +266,8 @@
       P.srv('srHistory', payload(ctx)).then(function (r) {
         if (!ctx.alive() || my !== req) return;
         if (!r.ok) { ctx.el.innerHTML = h.error(r); chart = null; sig = ''; return; }
+        var known = hf.deps.filter(function (id) { return r.departments.some(function (d) { return d.id === id; }); });
+        if (known.length !== hf.deps.length) { hf.deps = known; syncUrl(); }
         if (hf.d1 && !r.dayFrom && DAY_RE.test(hf.d1) && DAY_RE.test(hf.d2)) P.toast('info', 'Фільтр «Дні» знято', 'Обрані дні — поза періодом ' + A.span(r.from, r.to) + '.');
         if ((hf.d1 || '') !== (r.dayFrom || '') || (hf.d2 || '') !== (r.dayTo || '')) { hf.d1 = r.dayFrom || ''; hf.d2 = r.dayTo || ''; syncUrl(); }
         if (first || !ctx.el.querySelector('#hs-res')) { ctx.el.innerHTML = '<div id="hs-filters"></div><div id="hs-res" class="hs-res"></div>'; chart = null; sig = ''; }

@@ -451,7 +451,8 @@
       var st = workerStore(env), twin = workerByName(env, r.loc.id, name);
       if (twin) {
         if (twin.active === false) {
-          var k = r.loc.id + ':' + twin.code; st.edit[k] = Object.assign(st.edit[k] || {}, { active: true });
+          var k = r.loc.id + ':' + twin.code;
+          st.edit[k] = Object.assign(st.edit[k] || {}, { active: true }, S.canManage(me) ? {} : { pending: true, addedBy: me.id, addedByName: me.name, addedAt: env.now().toISOString() });
           save(env, K.workers, st);
           twin = env.ix.worker[k];
         }
@@ -526,7 +527,7 @@
       var t = locTypes(env, r.loc.id);
       if (p.id) { x = pick(env.ix.prod, p.id); if (!x || !t[x.deptTypeId]) return C.fail('not_found', 'Такого виробу вже немає — оновіть сторінку.'); }
       var dt = x ? x.deptTypeId : p.deptTypeId;
-      if (!x && !t[dt]) errs.push({ field: 'deptTypeId', message: 'Оберіть відділ.' });
+      if (!x && !pick(t, dt)) errs.push({ field: 'deptTypeId', message: 'Оберіть відділ.' });   // власним ключем: 'constructor' — не тип відділу
       if (!x || p.name !== undefined) {
         var name = clean(p.name, 80);
         if (name.length < 2) errs.push({ field: 'name', message: 'Назва виробу — від 2 знаків.' });
@@ -576,7 +577,7 @@
       var t = locTypes(env, r.loc.id);
       if (p.id) { x = pick(env.ix.def, p.id); if (!x || !t[x.deptTypeId]) return C.fail('not_found', 'Такого виду браку вже немає — оновіть сторінку.'); }
       var dt = x ? x.deptTypeId : p.deptTypeId;
-      if (!x && !t[dt]) errs.push({ field: 'deptTypeId', message: 'Оберіть відділ.' });
+      if (!x && !pick(t, dt)) errs.push({ field: 'deptTypeId', message: 'Оберіть відділ.' });
       if (!x || p.name !== undefined) {
         var name = clean(p.name, 80);
         if (name.length < 2) errs.push({ field: 'name', message: 'Назва виду браку — від 2 знаків.' });
@@ -584,7 +585,7 @@
         else patch.name = name;
       }
       if (!x || p.level !== undefined) {
-        if (!LEVELS[p.level]) errs.push({ field: 'level', message: 'Оберіть рівень: неправильно зроблене, пошкоджене чи зламане.' }); else patch.level = p.level;
+        if (!pick(LEVELS, p.level)) errs.push({ field: 'level', message: 'Оберіть рівень: неправильно зроблене, пошкоджене чи зламане.' }); else patch.level = p.level;
       }
       if (p.active !== undefined) patch.active = !!p.active;
       if (errs.length) return verr(errs);
@@ -621,7 +622,7 @@
     srMgMerge: function (p, me, env) {
       var r = guardW(p, me, env); if (r.err) return r.err;
       var kind = p.kind === 'defects' ? 'defects' : 'products', m = mergeSet(p, env, r.loc, kind); if (m.err) return m.err;
-      if (kind === 'defects' && p.level !== undefined && !LEVELS[p.level]) return verr([{ field: 'level', message: 'Оберіть рівень.' }]);
+      if (kind === 'defects' && p.level !== undefined && !pick(LEVELS, p.level)) return verr([{ field: 'level', message: 'Оберіть рівень.' }]);
       var otherIds = m.others.map(function (x) { return x.id; });
       var moved = kind === 'products' ? productUse(env, otherIds) : defectUse(env, otherIds);
       var key = kind === 'products' ? K.products : K.defects;
@@ -793,7 +794,7 @@
       if (!m) return C.fail('not_found', 'Такої розсилки немає — оновіть сторінку.');
       var s = mailState(env, r.loc), o = s.items[m.id] = Object.assign({}, s.items[m.id] || {}), errs = [];
       if (p.on !== undefined) o.on = !!p.on;
-      if (p.level !== undefined) { if (!m.hasLevel || !DAILY_LEVELS[p.level]) errs.push({ field: 'level', message: 'Оберіть: усе, тільки з браком чи тільки понад 5%.' }); else o.level = p.level; }
+      if (p.level !== undefined) { if (!m.hasLevel || !pick(DAILY_LEVELS, p.level)) errs.push({ field: 'level', message: 'Оберіть: усе, тільки з браком чи тільки понад 5%.' }); else o.level = p.level; }
       if (p.daily !== undefined) {
         if (m.id !== 'daily') return C.fail('validation', 'Ці налаштування — лише для денного звіту.');
         var d = p.daily || {}, to = arr(d.to).map(function (x) { return clean(x, 60); }).filter(function (x, i, a) { return x && a.indexOf(x) === i; });

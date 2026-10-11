@@ -6,6 +6,11 @@
   function pct(v) { return P.sr.h.pct(v); }
 
   var tipEl = null, owner = null;   // owner — графік, чия плашка зараз на екрані
+  var pinned = null;                // графік, у якому зараз щось зафіксовано (останній)
+  function covered(chart) {
+    var ov = doc.getElementById('overlay'), top = ov && ov.lastElementChild;
+    return !!top && !top.contains(chart.el);
+  }
   function tipBox() {
     if (!tipEl) { tipEl = doc.createElement('div'); tipEl.className = 'ctip'; tipEl.hidden = true; tipEl.setAttribute('role', 'status'); doc.body.appendChild(tipEl); }
     return tipEl;
@@ -25,7 +30,7 @@
     t.innerHTML = html + (pinned ? '<div class="ctip__pin">зафіксовано</div>' : '');
     t.className = 'ctip' + (pinned ? ' ctip--pin' : ''); t.hidden = false; owner = chart;
   }
-  if (root.MutationObserver) new root.MutationObserver(function () { if (owner && !doc.contains(owner.el)) hideTip(); }).observe(doc.documentElement, { childList: true, subtree: true });
+  if (root.MutationObserver) new root.MutationObserver(function () { if (owner && (!doc.contains(owner.el) || covered(owner))) hideTip(); }).observe(doc.documentElement, { childList: true, subtree: true });
   if (P.on) P.on('route', hideTip);
   var raf = 0;
   doc.addEventListener('scroll', function () { if (!owner || raf) return; raf = root.requestAnimationFrame(function () { raf = 0; if (owner) owner.anchor(); }); }, true);
@@ -101,6 +106,7 @@
     function rangeHtml(a, b) { return o.tipRange(items.slice(a, b + 1), items[a], items[b]); }
     function anchor() {
       if (st.pin < 0 && st.a < 0) { if (owner === api) hideTip(); return; }
+      if (covered(api)) { if (owner === api) hideTip(); return; }   // поверх відкрите вікно — плашку не показуємо
       var i = st.pin >= 0 ? st.pin : st.b, j = st.pin >= 0 ? st.pin : st.a;
       var r = bars[i].getBoundingClientRect(), r0 = bars[j].getBoundingClientRect(), top = box.getBoundingClientRect().top;
       showTip(api, st.pin >= 0 ? o.tip(items[st.pin], st.pin) : rangeHtml(st.a, st.b), true);
@@ -110,10 +116,11 @@
     function clear(silent) {
       var had = st.pin >= 0 || st.a >= 0;
       st.pin = st.a = st.b = -1; paint(); if (owner === api) hideTip();
+      if (pinned === api) pinned = null;
       if (had && !silent) { if (o.onPin) o.onPin(null); if (o.onRange) o.onRange(null, null); }
     }
     function setPin(i, silent) {
-      st.pin = i; st.a = st.b = -1; paint(); anchor();
+      st.pin = i; st.a = st.b = -1; pinned = api; paint(); anchor();
       if (!silent && o.onPin) o.onPin(items[i], i);
     }
 
@@ -129,7 +136,13 @@
         if (i !== st.hot) { st.hot = i; paint(); }
         if (i >= 0) follow(e, o.tip(items[i], i));
       });
-      box.addEventListener('pointerleave', function () { if (st.down >= 0) return; st.hot = -1; paint(); if (st.pin >= 0 || st.a >= 0) anchor(); else if (owner === api) hideTip(); });
+      box.addEventListener('pointerleave', function () {
+        if (st.down >= 0) return;
+        st.hot = -1; paint();
+        if (st.pin >= 0 || st.a >= 0) return anchor();
+        if (owner === api) hideTip();
+        if (pinned && pinned !== api && doc.contains(pinned.el)) pinned.anchor();
+      });
       box.addEventListener('pointerdown', function (e) {
         if (e.button != null && e.button !== 0) return;
         st.down = at(e.clientX); st.drag = false;
@@ -141,7 +154,7 @@
         st.hot = -1;   // після кліку підсвітку «під курсором» знімаємо — її поверне наступний рух миші
         try { box.releasePointerCapture(e.pointerId); } catch (err) { /* */ }
         if (was && i !== from) {                               // відпустили на іншому стовпчику — діапазон обрано
-          st.pin = -1; st.a = Math.min(from, i); st.b = Math.max(from, i); paint(); anchor();
+          st.pin = -1; st.a = Math.min(from, i); st.b = Math.max(from, i); pinned = api; paint(); anchor();
           if (o.onRange) o.onRange(items[st.a], items[st.b]);
         } else if (from === st.pin || (st.a >= 0 && from >= st.a && from <= st.b)) clear();   // клік по зафіксованому — зняти
         else if (from >= 0) setPin(from);
@@ -157,8 +170,9 @@
     }
     var api = { el: el, anchor: anchor, clear: function () { clear(true); },
       setPin: function (k) { var i = k == null ? -1 : indexOfKey(k); if (i < 0) clear(true); else setPin(i, true); },
-      setRange: function (k1, k2) { var a = indexOfKey(k1), b = indexOfKey(k2); if (a < 0 || b < 0) return clear(true); st.pin = -1; st.a = Math.min(a, b); st.b = Math.max(a, b); paint(); anchor(); },
-      destroy: function () { if (owner === api) hideTip(); el.innerHTML = ''; } };
+      setRange: function (k1, k2) { var a = indexOfKey(k1), b = indexOfKey(k2); if (a < 0 || b < 0) return clear(true); st.pin = -1; st.a = Math.min(a, b); st.b = Math.max(a, b); pinned = api; paint(); anchor(); },
+      destroy: function () { if (owner === api) hideTip(); if (pinned === api) pinned = null; el.innerHTML = ''; } };
+    if (st.pin >= 0 || st.a >= 0) pinned = api;
     paint();
     return api;
   }

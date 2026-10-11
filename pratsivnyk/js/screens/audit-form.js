@@ -216,7 +216,7 @@
       var c = t.getAttribute('data-v'), i = F.helpers.indexOf(c);
       if (t.checked && i < 0) F.helpers.push(c);
       if (!t.checked && i >= 0) F.helpers.splice(i, 1);
-      changed(false);
+      changed(true);   // перемальовуємо все: підпис «· допомога» є ще й біля винного в картці браку
     },
     'worker-del': function (t) {
       var c = t.getAttribute('data-v');
@@ -280,7 +280,11 @@
           options: [UNKNOWN_OPT].concat(F.ctx.workers.filter(function (w) { return w.departmentId === src; })
             .map(function (w) { return { value: w.code, title: w.name }; })) },
           function (v) {
-            if (v && v.create) return quickAdd(v.q, src).then(function (w) { if (w) { g.workerCode = w.code; changed(true); } });
+            if (v && v.create) return quickAdd(v.q, src).then(function (w) {
+              if (!w) return;
+              if (w.departmentId !== src) return P.toast('warn', 'Працівник «' + w.name + '» — з відділу «' + depName(w.departmentId) + '»', 'Брак записано на відділ «' + sn + '».');
+              g.workerCode = w.code; changed(true);
+            });
             g.workerCode = v === NONE ? '' : v; changed(true);
           });
       }

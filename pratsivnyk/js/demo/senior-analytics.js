@@ -43,7 +43,7 @@
       checked: C.checkedOf(a), rejected: pcsOf(a), pct: C.pct(pcsOf(a), C.checkedOf(a)) };
   }
   function workerName(env, locId, code) { return code === '' ? 'Невідомий працівник' : nm(env.ix.worker, locId + ':' + code, code); }
-  function isHelper(a, code) { return !!code && (a.helpers || []).indexOf(code) >= 0; }
+  function isHelper(a, code, d) { return !!code && (a.helpers || []).indexOf(code) >= 0 && (!d || S.sourceDept(a, d) === a.departmentId); }
 
   function depOf(p, env, loc) {
     var id = p.departmentId;
@@ -94,7 +94,7 @@
             var w = t.workers.filter(function (x) { return x.code === g.workerCode; })[0];
             if (!w) t.workers.push(w = { code: g.workerCode, name: workerName(env, a.locationId, g.workerCode), pieces: 0, helper: false });
             w.pieces += g.qty || 0;
-            if (isHelper(a, g.workerCode)) w.helper = true;
+            if (isHelper(a, g.workerCode, d)) w.helper = true;
           });
         } else if (a.departmentId === dep.id) {
           var k = src + '|' + d.defectTypeId;
@@ -115,7 +115,7 @@
       var loc = r.loc, sel = depOf(p, env, loc); if (sel.err) return sel.err;
       var dep = sel.dep, depId = dep ? dep.id : null;
       var rg = range(p, env), today = env.day(), crit = env.db.settings.criticalPct;
-      var deps = depsOf(env, loc.id), all = locAudits(env, loc.id);
+      var deps = depsOf(env, loc.id).filter(function (d) { return d.active !== false; }), all = locAudits(env, loc.id);
       var list = all.filter(function (a) { return a.day >= rg.from && a.day <= rg.to; });
       var dayKeys = daysOf(rg.from, rg.to), map = byDay(list);
 
@@ -199,7 +199,7 @@
           dep[src] = (dep[src] || 0) + q;
           prod[pn] = (prod[pn] || 0) + q;
           d.guilty.forEach(function (g) {
-            var help = isHelper(a, g.workerCode);
+            var help = isHelper(a, g.workerCode, d);
             wk[g.workerCode] = wk[g.workerCode] || { code: g.workerCode, name: workerName(env, a.locationId, g.workerCode), pieces: 0, helperPieces: 0 };
             wk[g.workerCode].pieces += g.qty || 0;
             if (help) wk[g.workerCode].helperPieces += g.qty || 0;
