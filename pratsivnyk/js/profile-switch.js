@@ -15,7 +15,7 @@
     var locs = me.allLocations || me.locations || [];
     return '<section class="ps" aria-label="Перемкнути профіль"><p class="ps__title">Перемкнути профіль</p>' +
       '<p class="ps__hint">Ви адміністратор — можете відкрити додаток так, як його бачить кожен.</p>' +
-      '<label class="ps__loc"><span>Локація — для працівника й старшого</span><select data-ps-loc>' +
+      '<label class="ps__loc"><span>Локація — для працівника й старшого</span><select data-ps-loc data-prev="' + esc(me.viewLocationId) + '">' +
       locs.map(function (l) { return '<option value="' + esc(l.id) + '"' + (l.id === me.viewLocationId ? ' selected' : '') + '>' + esc(l.name) + '</option>'; }).join('') +
       '</select></label><div class="ps__list">' + PROFILES.map(function (p) {
         var on = p.role === me.role;
@@ -42,7 +42,10 @@
       var t = e.target;
       if (!t.getAttribute || t.getAttribute('data-ps-loc') == null) return;
       t.disabled = true;
-      setLoc(t.value).then(function (ok) { if (!ok) { t.disabled = false; return; } root.location.hash = ''; root.location.reload(); });
+      setLoc(t.value).then(function (ok) {
+        if (!ok) { t.disabled = false; t.value = t.getAttribute('data-prev'); return; }   // сервер лишив стару локацію — показуємо її ж
+        root.location.hash = ''; root.location.reload();
+      });
     });
     el.addEventListener('click', function (e) {
       var b = e.target.closest ? e.target.closest('[data-ps-role]') : null;
@@ -51,5 +54,11 @@
     });
   }
 
-  P.profileSwitch = { PROFILES: PROFILES, html: html, bind: bind, open: open };
+  P.profileSwitch = { PROFILES: PROFILES, html: html, bind: bind, open: open, busy: null };
+
+  if (root.addEventListener && !P.embed) root.addEventListener('storage', function (e) {
+    if (e.key !== 'audit-demo:demo:admin') return;
+    if (P.profileSwitch.busy && P.profileSwitch.busy()) { P.toast('warn', 'Вхід змінили в іншій вкладці', 'Закрийте це вікно й оновіть сторінку — інакше дані запишуться від іншого імені.'); return; }
+    root.location.hash = ''; root.location.reload();
+  });
 })(typeof window !== 'undefined' ? window : globalThis);

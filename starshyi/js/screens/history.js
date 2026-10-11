@@ -140,7 +140,7 @@
     var list = box.querySelector('.hs-types'), rows = list ? list.children : [];
     if (rows.length <= TOP) return;
     var hgt = Math.round(rows[TOP].getBoundingClientRect().top - rows[0].getBoundingClientRect().top);
-    if (hgt > 60) list.style.maxHeight = hgt + 'px';   // не виміряли (екран схований) — лишається висота зі стилів
+    list.style.maxHeight = (hgt > 60 ? hgt : 290) + 'px';   // не виміряли (екран схований) — запасна висота
   }
 
   function openAudit(id) {

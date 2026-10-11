@@ -4,6 +4,7 @@
   var C = P.demoCommon;
   var OPEN_FNS = { demoUsers: 1, authDemoLogin: 1, authMe: 1, demoMeta: 1, demoReset: 1 };
   var KEY_ADMIN = 'demo:admin';
+  var SITE_SESSIONS = ['demo:me', 'demo:loggedAt', 'demo:me:sr', 'demo:me:sr:at', 'demo:me:adm', 'demo:me:adm:at', 'demo:me:mgr', 'demo:me:mgr:at'];
   var SCHEMA = '1';
   P.demoGenHooks = P.demoGenHooks || []; P.demoLoadHooks = P.demoLoadHooks || [];
   P.demoApis = P.demoApis || []; P.demoResetKeys = P.demoResetKeys || [];
@@ -49,11 +50,15 @@
       P.demoLoadHooks.forEach(function (h) { h(db, { storage: storage, today: today, now: now }); });
       env.db = db; env.ix = C.index(db);
       meId = storage.get(KEY_ME, null);
-      if (meId && !env.ix.user[meId]) meId = null;
+      if (meId && !has(env.ix.user, meId)) meId = null;
       loggedAt = storage.get(KEY_AT, null);
       if (meId && !loggedAt) { loggedAt = now().toISOString(); storage.set(KEY_AT, loggedAt); }
-      adminS = VIEW_ROLE ? storage.get(KEY_ADMIN, null) : null;
-      if (adminS && !(env.ix.user[adminS.userId] && env.ix.user[adminS.userId].role === 'admin')) adminS = null;
+      syncAdmin();
+    }
+    function syncAdmin() {
+      var a = VIEW_ROLE ? storage.get(KEY_ADMIN, null) : null;
+      var ok = a && typeof a === 'object' && typeof a.userId === 'string' && has(env.ix.user, a.userId) && env.ix.user[a.userId].role === 'admin';
+      adminS = ok ? { userId: a.userId, locationId: a.locationId } : null;
     }
     load();
 
@@ -73,14 +78,14 @@
         }) };
       },
       authDemoLogin: function (p) {
-        if (!p.userId || !env.ix.user[p.userId]) return C.fail('not_found', 'Користувача не знайдено.');
+        if (typeof p.userId !== 'string' || !has(env.ix.user, p.userId)) return C.fail('not_found', 'Користувача не знайдено.');
         var u = env.ix.user[p.userId];
         if (VIEW_ROLE && u.role === 'admin') {
-          adminS = { userId: u.id, locationId: env.ix.loc[p.locationId] ? p.locationId : u.locationIds[0] };
+          adminS = { userId: u.id, locationId: has(env.ix.loc, p.locationId) ? p.locationId : u.locationIds[0] };
           storage.set(KEY_ADMIN, adminS);
           return { ok: true, me: currentMe() };
         }
-        if (adminS) { adminS = null; storage.del(KEY_ADMIN); }
+        adminS = null; storage.del(KEY_ADMIN);
         meId = p.userId; storage.set(KEY_ME, meId);
         loggedAt = now().toISOString(); storage.set(KEY_AT, loggedAt);
         return { ok: true, me: currentMe() };
@@ -88,12 +93,16 @@
       authMe: function () { return { ok: true, me: currentMe() }; },
       authAdminView: function (p) {
         if (!adminS) return C.forbidden();
-        if (!env.ix.loc[p.locationId]) return C.fail('not_found', 'Такої локації немає — оновіть сторінку.');
+        if (typeof p.locationId !== 'string' || !has(env.ix.loc, p.locationId)) return C.fail('not_found', 'Такої локації немає — оновіть сторінку.');
         adminS = { userId: adminS.userId, locationId: p.locationId };
         storage.set(KEY_ADMIN, adminS);
         return { ok: true, me: currentMe() };
       },
-      authLogout: function () { if (adminS) { adminS = null; storage.del(KEY_ADMIN); } dropSession(); return { ok: true }; },
+      authLogout: function () {
+        if (adminS) { adminS = null; storage.del(KEY_ADMIN); SITE_SESSIONS.forEach(function (k) { storage.del(k); }); }
+        dropSession();
+        return { ok: true };
+      },
       demoReset: function () { reset(); return { ok: true }; },
       demoReload: function () { load(); return { ok: true }; },
       demoMeta: function () {
@@ -112,6 +121,7 @@
     function handle(fn, payload) {
       if (typeof fn !== 'string') return C.fail('not_found', 'Невідома функція.');
       if (failQueue[fn]) { delete failQueue[fn]; return C.fail('server', 'Демо: імітація збою сервера.'); }
+      syncAdmin();
       var me = currentMe();
       if (!has(OPEN_FNS, fn) && !me) return C.auth();
       if (has(own, fn)) return own[fn](payload || {});

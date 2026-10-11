@@ -57,7 +57,7 @@
 
     viewAs: function (u, ix, role, locId) {
       var me = C.buildMe(u, ix), one = role === 'auditor' || role === 'senior_auditor';
-      var loc = ix.loc[locId] ? locId : u.locationIds[0];
+      var loc = Object.prototype.hasOwnProperty.call(ix.loc, locId) ? locId : u.locationIds[0];   // лише справжня локація (не службове імʼя обʼєкта)
       me.admin = true; me.viewLocationId = loc; me.allLocations = me.locations;
       me.role = role; me.roleLabel = P.demoDict.roleLabels[role]; me.can = C.canOf(role);
       if (one) me.locations = [{ id: loc, name: ix.loc[loc].name }];

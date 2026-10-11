@@ -52,8 +52,9 @@
     var r = anchor.getBoundingClientRect(), dark = doc.documentElement.getAttribute('data-theme') === 'dark';
     menu = doc.createElement('div');
     menu.className = 'ov ov--menu';
-    menu.innerHTML = '<div class="backdrop backdrop--none" data-close></div><nav class="menu" style="position:fixed;top:' + Math.round(r.bottom + 8) + 'px;right:' +
-      Math.max(16, Math.round(root.innerWidth - r.right)) + 'px;width:360px;max-width:calc(100vw - 32px)">' +
+    var top = Math.round(r.bottom + 8);   // висота — до низу екрана, решта гортається
+    menu.innerHTML = '<div class="backdrop backdrop--none" data-close></div><nav class="menu" style="position:fixed;top:' + top + 'px;right:' +
+      Math.max(16, Math.round(root.innerWidth - r.right)) + 'px;width:360px;max-width:calc(100vw - 32px);max-height:' + Math.max(200, root.innerHeight - top - 12) + 'px;overflow:auto">' +
       '<div style="display:flex;gap:12px;align-items:center;padding:8px 12px"><span class="avatar" style="width:48px;height:48px">' + esc(P.initials(me.name)) + '</span>' +
       '<div style="min-width:0"><b>' + esc(me.name) + '</b><p class="hint">' + esc(maskEmail(me.email)) + '</p></div></div>' +
       '<div style="padding:4px 12px 8px"><span class="badge badge--brand">' + esc(me.roleLabel) + ' · усі локації</span></div>' +

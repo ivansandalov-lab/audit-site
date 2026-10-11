@@ -97,10 +97,13 @@
   S.drawer = function (o) { return makeLayer('drawer', o); };
   S.menu = function (anchor, o) {
     var r = anchor.getBoundingClientRect();
-    o.style = 'position:fixed;top:' + Math.round(r.bottom + 8) + 'px;right:' + Math.max(16, Math.round(root.innerWidth - r.right)) + 'px;width:' + (o.width || 360) + 'px;max-width:calc(100vw - 32px)';
+    var top = Math.round(r.bottom + 8);   // висота — до низу екрана, решта гортається (меню адміністратора довге)
+    o.style = 'position:fixed;top:' + top + 'px;right:' + Math.max(16, Math.round(root.innerWidth - r.right)) + 'px;width:' + (o.width || 360) +
+      'px;max-width:calc(100vw - 32px);max-height:' + Math.max(200, root.innerHeight - top - 12) + 'px;overflow:auto';
     return makeLayer('menu', o);
   };
   S.closeAll = function () { while (stack.length) stack[stack.length - 1].close(); };
+  if (P.profileSwitch) P.profileSwitch.busy = function () { return stack.length > 0; };
   doc.addEventListener('keydown', function (e) { if (e.key === 'Escape' && stack.length) { var top = stack[stack.length - 1]; if (top.kind !== 'modal' || !top.el.querySelector('[data-locked]')) closeTop(); } });
 
   var TABS = [
@@ -216,7 +219,7 @@
   S.reloadData = reloadData;
   var pending = null;
   root.addEventListener('storage', function (e) {
-    if (e.key === 'audit-demo:demo:admin') { P.srv('demoReload', {}).then(boot); return; }
+    if (e.key === 'audit-demo:demo:admin') return;   // зміну сесії адміністратора обробляє profile-switch.js (вкладка починає наново)
     if (!me || !e.key || e.key.indexOf('audit-demo:demo:') !== 0 || e.key.indexOf('audit-demo:demo:me') === 0 || e.key.indexOf('audit-demo:demo:loggedAt') === 0) return;
     clearTimeout(pending);
     pending = setTimeout(function () {
