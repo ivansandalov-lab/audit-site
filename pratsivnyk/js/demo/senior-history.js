@@ -66,11 +66,11 @@
         var c = C.checkedOf(a), rj = C.rejectedOf(a);
         sum.checked += c; sum.rejected += rj; sum.days[a.day] = 1;
         if (C.pct(rj, c) > crit) sum.over++;
-        perDay[a.day] = perDay[a.day] || { rejected: 0, audits: 0 };
+        perDay[a.day] = perDay[a.day] || { rejected: 0, audits: 0, levels: { fix: 0, repair: 0, scrap: 0 } };
         perDay[a.day].rejected += rj; perDay[a.day].audits++;
         a.defects.forEach(function (d) {
           var q = S.pieces(d), src = S.sourceDept(a, d), k = d.defectTypeId;
-          levels[lvOf(env, k)] += q;
+          levels[lvOf(env, k)] += q; perDay[a.day].levels[lvOf(env, k)] += q;   // рівні по днях — для кольорового графіка (v1.1)
           var t = types[k] = types[k] || { id: k, name: nm(ix.def, k, 'Невідомий вид браку'), level: lvOf(env, k), pieces: 0, otherDepts: [] };
           t.pieces += q;
           if (src !== a.departmentId) { var dn = nm(ix.dep, src, src); if (t.otherDepts.indexOf(dn) < 0) t.otherDepts.push(dn); }
@@ -79,7 +79,8 @@
       var days = [], workDays = 0;
       for (var d = from; d <= to; d = S.addDays(d, 1)) {
         if (P.demoDates.dow(d) !== 0) workDays++;
-        days.push({ day: d, audited: !!perDay[d], rejected: perDay[d] ? perDay[d].rejected : 0, audits: perDay[d] ? perDay[d].audits : 0 });
+        days.push({ day: d, audited: !!perDay[d], rejected: perDay[d] ? perDay[d].rejected : 0, audits: perDay[d] ? perDay[d].audits : 0,
+          levels: perDay[d] ? perDay[d].levels : { fix: 0, repair: 0, scrap: 0 } });
       }
 
       var typeIds = {}; deps.forEach(function (x) { typeIds[x.deptTypeId] = 1; });

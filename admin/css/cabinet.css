@@ -1,0 +1,4 @@
+
+.cab-locs { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.cab-loc__btns { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
+.cab-loc__btns .btn { flex: 1 1 auto; justify-content: center; white-space: nowrap; }

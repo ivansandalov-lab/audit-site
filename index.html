@@ -1722,6 +1722,8 @@ button.p03-photo:hover { background: var(--line-mid); color: var(--text-2); }
 .p04-kdcard .ui-card__body > .p04-kv,
 .p04-kdcard .ui-card__body > .ui-stack--sm { padding-top: var(--sp-3); border-top: 1px solid var(--line); }
 
+.pt-kd-defect { max-width: 100%; min-width: 0; height: auto; min-height: 28px; padding-block: 5px; white-space: normal; overflow-wrap: anywhere; line-height: 1.3; text-align: left; border-radius: var(--r-md); }
+
 
 .ch-bar.pt-base { opacity: .42; }
 .ch-col:hover .ch-bar.pt-base, .ch-col.is-hover .ch-bar.pt-base { opacity: .6; }
@@ -4680,7 +4682,7 @@ window.APP_ASSETS = {"help": {"Як увійти": "<section class=\"ui-help\">\
     }).join('');
   }
   function defectsHtml(k) {
-    return (k.defects || []).map(function (d) { return '<span class="ui-badge ui-badge--outline">' + esc(d.name) + ' · ' + P.num(d.pieces) + ' шт</span>'; }).join('');
+    return (k.defects || []).map(function (d) { return '<span class="ui-badge ui-badge--outline pt-kd-defect">' + esc(d.name) + ' · ' + P.num(d.pieces) + ' шт</span>'; }).join('');
   }
   function sumPieces(k) { return (k.defects || []).reduce(function (t, d) { return t + (Number(d.pieces) || 0); }, 0); }
   function lastAuditId(k) { var ids = k.auditIds || []; return ids.length ? ids[ids.length - 1] : ''; }

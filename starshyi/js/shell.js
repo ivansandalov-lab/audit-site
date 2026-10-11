@@ -117,14 +117,14 @@
       '<p class="hdr__sub">Сторінка старшого аудитора · ' + esc(S.h.dayLong(today())) + '</p></div>' +
       '<div class="hdr__tools"><button class="plus" type="button" data-act="sr-plus" aria-label="Додати">' + P.ic('add') + '<span class="sr-hide-phone">Додати</span></button>' +
       '<button class="tool" type="button" data-act="sr-refresh" title="Перечитати дані" aria-label="Оновлено о ' + hhmm + ' — перечитати"><span class="sr-hide-phone">Оновлено о ' + hhmm + '</span>' + P.ic('refresh', 'ui-icon--sm') + '</button>' +
-      '<button class="who" type="button" data-act="sr-profile" aria-label="Мій профіль"><span class="avatar" style="width:40px;height:40px">' + esc(P.initials ? P.initials(me.name) : '') + '</span><span class="sr-hide-phone">' + esc(me.name) + '</span></button></div></header>' +
-      '<nav class="wrap tabs" aria-label="Розділи">' + TABS.map(function (t) {
+      '<button class="who" type="button" data-act="sr-profile" aria-label="Мій профіль"><span class="avatar">' + esc(P.initials ? P.initials(me.name) : '') + '</span><span class="sr-hide-phone">' + esc(me.name) + '</span></button></div></header>' +
+      '<div class="sr-tabsbar"><nav class="wrap tabs" aria-label="Розділи">' + TABS.map(function (t) {
         return '<a class="tab' + (t.id === tab ? ' tab--on' : '') + '" href="#' + t.path + '">' + P.ic(t.ic) + esc(t.label) +
-          (t.id === 'kd' && kdNew ? '<span class="count count--danger">' + kdNew + '</span>' : '') + '</a>'; }).join('') + '</nav>' +
+          (t.id === 'kd' && kdNew ? '<span class="count count--danger">' + kdNew + '</span>' : '') + '</a>'; }).join('') + '</nav></div>' +
       (showPeriod ? periodBar() : '') + '<main class="wrap content" id="sr-main" style="padding-top:' + (showPeriod ? 0 : 20) + 'px"></main>';
   }
 
-  var screens = [], gen = 0;
+  var screens = [], gen = 0, lastPath = null;
   S.screen = function (pattern, def) { P.router.add(pattern, def); screens.push(pattern); };
   function refreshKdCount() {
     P.srv('srKdOverview', { locationId: loc.id }).then(function (r) {
@@ -142,6 +142,9 @@
     S.closeAll();
     app.innerHTML = frame(def.tab, def.period !== false);
     main = app.querySelector('#sr-main');
+    if (r.path !== lastPath) { lastPath = r.path; root.scrollTo(0, 0); }
+    var onTab = app.querySelector('.tab--on'), tabsEl = onTab && onTab.parentNode;
+    if (tabsEl) tabsEl.scrollLeft = Math.max(0, onTab.offsetLeft - (tabsEl.clientWidth - onTab.offsetWidth) / 2);
     doc.title = (def.title || 'Кабінет') + ' — ' + (loc ? loc.name : '') + ' · старший (тест)';
     cur = { el: main, me: me, loc: loc, params: m.params, query: r.query, period: S.period(),
       alive: function () { return my === gen; },
@@ -174,11 +177,12 @@
   }
   function openProfile(anchor) {
     var dark = doc.documentElement.getAttribute('data-theme') === 'dark';
-    S.menu(anchor, { width: 340, body:
+    S.menu(anchor, { width: 360, onMount: function (el) { P.profileSwitch.bind(el); }, body:
       '<div style="display:flex;gap:12px;align-items:center;padding:8px 12px"><span class="avatar" style="width:48px;height:48px">' + esc(P.initials(me.name)) + '</span>' +
       '<div style="min-width:0"><b>' + esc(me.name) + '</b><p class="hint">' + esc(maskEmail(me.email)) + '</p></div></div>' +
       '<div style="padding:4px 12px 8px;display:flex;flex-direction:column;gap:6px"><span class="badge badge--brand" style="align-self:flex-start">' + esc(me.roleLabel) + ' · ' + esc(loc ? loc.name : '') + '</span>' +
       '<span class="hint">Вхід через Google · пароль не потрібен</span></div>' +
+      (me.admin ? '<div class="menu__sep"></div><div style="padding:8px 12px">' + P.profileSwitch.html(me) + '</div>' : '') +
       '<div class="menu__sep"></div><div style="padding:8px 12px"><div class="seg" role="group" aria-label="Тема">' +
       '<button class="seg__btn' + (dark ? '' : ' seg__btn--on') + '" type="button" data-act="th" data-v="light">' + P.ic('theme-light', 'ui-icon--sm') + 'Світла</button>' +
       '<button class="seg__btn' + (dark ? ' seg__btn--on' : '') + '" type="button" data-act="th" data-v="dark">' + P.ic('theme-dark', 'ui-icon--sm') + 'Темна</button></div></div>' +
@@ -212,6 +216,7 @@
   S.reloadData = reloadData;
   var pending = null;
   root.addEventListener('storage', function (e) {
+    if (e.key === 'audit-demo:demo:admin') { P.srv('demoReload', {}).then(boot); return; }
     if (!me || !e.key || e.key.indexOf('audit-demo:demo:') !== 0 || e.key.indexOf('audit-demo:demo:me') === 0 || e.key.indexOf('audit-demo:demo:loggedAt') === 0) return;
     clearTimeout(pending);
     pending = setTimeout(function () {
@@ -227,7 +232,7 @@
       (note ? '<div class="banner banner--warn" style="text-align:left">' + P.ic('warning') + '<div class="banner__body"><p class="banner__text">' + esc(note) + '</p></div></div>' : '') +
       '<p class="hint">Тестова версія: вхід без пароля. У справжній — Google-пошта зі списку дозволених.</p>' +
       users.map(function (u) { return '<button class="btn btn--primary btn--block" type="button" data-login="' + esc(u.id) + '">' + P.ic('login') + 'Увійти як ' + esc(u.name) + ' · ' + esc(u.locations.map(function (l) { return l.name; }).join(', ') || u.roleLabel) + '</button>'; }).join('') +
-      '</main>';
+      '<a class="link hint" href="../admin/">Вхід адміністратора</a></main>';
     Array.prototype.forEach.call(app.querySelectorAll('[data-login]'), function (b) {
       b.onclick = function () { b.disabled = true; P.srv('authDemoLogin', { userId: b.getAttribute('data-login') }).then(function (r) { if (r.ok) boot(); else { b.disabled = false; P.toast('danger', 'Не вдалося увійти', r.error); } }); };
     });

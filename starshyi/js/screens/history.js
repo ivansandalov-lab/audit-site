@@ -1,7 +1,7 @@
 (function (root) {
   'use strict';
   var P = root.P, h = P.sr.h, esc = P.esc, A = P.srAn;
-  var STEP = 50;
+  var STEP = 50, TOP = 5;   // TOP — скільки видів браку видно без гортання
   var KEYS = { dep: 'deps', product: 'product', defect: 'defect', worker: 'worker', auditor: 'auditor', q: 'q', mode: 'mode', day: 'day', order: 'order' };
   var hf = blank();
   function blank() { return { deps: [], product: '', defect: '', worker: '', auditor: '', q: '', mode: '', day: '', order: '', limit: STEP }; }
@@ -48,7 +48,7 @@
         return '<button class="chip-pick hs-chip' + (on ? ' chip-pick--on' : '') + '" type="button" data-act="hs-mode" data-v="' + m[0] + '" aria-pressed="' + on + '">' + (on ? h.ic('check', 'ui-icon--sm') : '') + m[1] + '</button>';
       }).join('') +
       extra.map(function (x) { return '<span class="chip">' + esc(x[1]) + '<button class="chip__x" type="button" data-act="hs-x" data-k="' + x[0] + '" aria-label="Зняти фільтр">' + h.ic('close', 'ui-icon--sm') + '</button></span>'; }).join('') +
-      '<span class="hint" style="margin-left:8px">Клік по дню на графіку чи виду браку додасть його сюди фільтром.</span></div>' +
+      '<span class="hint an-foot-note" style="margin-left:8px">Клік по дню на графіку чи виду браку додасть його сюди фільтром.</span></div>' +
       '<button class="btn btn--quiet btn--sm" type="button" data-act="hs-reset">' + h.ic('close', 'ui-icon--sm') + 'Скинути фільтри</button></div></section>';
   }
 
@@ -86,26 +86,29 @@
       h.kpi(h.pct(an.pct), 'брак ÷ перевірено') + h.kpi(h.num(an.over), 'понад норму · ' + (an.audits ? Math.round(an.over / an.audits * 100) : 0) + '% аудитів вибірки', an.over ? 'danger' : '') +
       h.kpi(h.num(an.daysWithAudits), 'днів з аудитами · з ' + an.workDays + ' робочих') + '</div>' +
       (banner ? '<div class="banner">' + h.ic('info', 'icon') + '<div class="banner__body"><p class="banner__text">' + banner + '</p></div></div>' : '') +
-      '<div class="row"><div class="col--wide" style="display:flex;flex-direction:column;gap:10px"><div><h3 class="card-title" style="font-size:18px">Брак у вибірці по днях, шт</h3>' +
-      '<p class="hint">' + esc(A.span(r.from, r.to)) + (an.days.length > 1 ? ' · клік по стовпчику — фільтр «день»' : '') + '</p></div>' +
-      '<div class="legend"><span class="an-key"><i style="background:#6F829B"></i>Брак за день</span><span class="an-key"><i style="height:3px;background:var(--line-mid)"></i>Аудитів у вибірці не було</span></div>' +
-      A.bars(an.days.map(function (d) {
-        return { v: d.rejected, none: !d.audited, sel: d.day === hf.day, act: an.days.length > 1 && d.audited ? 'hs-day' : '', attrs: ' data-day="' + d.day + '"',
+      '<div class="row"><div class="col--wide hs-chartcol"><div><h3 class="card-title" style="font-size:18px">Брак у вибірці по днях, шт</h3>' +
+      '<p class="hint">' + esc(A.span(r.from, r.to)) + ' · колір — рівень браку' + (an.days.length > 1 ? ' · клік по стовпчику — фільтр «день»' : '') + '</p></div>' +
+      '<div class="legend">' + ['fix', 'repair', 'scrap'].map(function (k) { return h.lvl(k); }).join('') + '<span style="color:var(--text-3)">— аудитів у вибірці не було</span></div>' +
+      A.sbars(an.days.map(function (d) {
+        return { v: d.rejected, levels: d.levels, none: !d.audited, sel: d.day === hf.day, act: an.days.length > 1 && d.audited ? 'hs-day' : '', attrs: ' data-day="' + d.day + '"',
           title: h.dayShort(d.day) + ' · ' + (d.audited ? d.rejected + ' шт · ' + A.n(d.audits, 'аудит', 'аудити', 'аудитів') : 'аудитів не було') };
-      }), { height: 220, label: 'Брак у вибірці по днях' }) + A.xLabels(an.days.map(function (d) { return d.day; })) + '</div>' +
-      '<div class="col" style="display:flex;flex-direction:column;gap:10px"><div><h3 class="card-title" style="font-size:18px">Види браку у вибірці</h3>' +
-      '<p class="hint">' + h.num(an.rejected) + ' шт · клік по виду ставить фільтр «Вид браку»</p></div>' +
-      (an.types.length ? A.levels(an.levels) + '<div>' + an.types.slice(0, 8).map(function (t, i) {
-        return A.hbar({ rank: i + 1, name: t.name, sub: (t.otherDepts.length ? 'брак ' + esc(t.otherDepts.join(', ')) + ' · ' : '') + h.lvl(t.level), share: t.pieces / tmax, n: t.pieces,
-          cols: '22px minmax(0, 1fr) minmax(0, 0.7fr) 40px', act: 'hs-defect', attrs: ' data-v="' + esc(t.name) + '"' });
-      }).join('') + '</div>' : '<p class="hint">У вибірці браку немає.</p>') + '</div></div></section>';
+      }), { height: 300, label: 'Брак у вибірці по днях, за рівнями браку' }) + A.xLabels(an.days.map(function (d) { return d.day; })) + '</div>' +
+      '<div class="col hs-typescol"><div><h3 class="card-title" style="font-size:18px">Види браку у вибірці</h3>' +
+      '<p class="hint">' + h.num(an.rejected) + ' шт · ' + A.n(an.types.length, 'вид', 'види', 'видів') + ' · клік по виду ставить фільтр «Вид браку»</p></div>' +
+      (an.types.length ? A.levels(an.levels) + '<div class="hs-types"' + (an.types.length > TOP ? ' tabindex="0"' : '') + ' role="group" aria-label="Види браку у вибірці, від найчастішого">' +
+        an.types.map(function (t, i) {
+          return A.hbar({ rank: i + 1, name: t.name, sub: (t.otherDepts.length ? 'брак ' + esc(t.otherDepts.join(', ')) + ' · ' : '') + h.lvl(t.level), share: t.pieces / tmax, n: t.pieces,
+            cols: '20px minmax(0, 1fr) minmax(0, 0.55fr) 36px', act: 'hs-defect', attrs: ' data-v="' + esc(t.name) + '"' });
+        }).join('') + '</div>' +
+        (an.types.length > TOP ? '<p class="hint">Видно ' + TOP + ' найчастіших — ще ' + (an.types.length - TOP) + ' гортаються в цьому списку.</p>' : '')
+        : '<p class="hint">У вибірці браку немає.</p>') + '</div></div></section>';
     var perDay = {}; an.days.forEach(function (d) { perDay[d.day] = d.audits; });
     var rows = '', cur = null;
     r.items.forEach(function (a) {
       if (a.day !== cur) { cur = a.day; rows += '<tr><th colspan="6" class="hs-dayrow">' + esc(A.dcap(a.day)) + ' · ' + A.n(perDay[a.day] || 0, 'аудит', 'аудити', 'аудитів') + '</th></tr>'; }
       var it = a.items, first = it[0] || { productName: '—' };
       rows += '<tr data-act="hs-open" data-id="' + esc(a.id) + '"' + (a.over ? ' class="exceed"' : '') + '><td><b>' + P.fmt.time(a.createdAt) + '</b><span class="sub">' +
-        (a.auditorRole === 'senior_auditor' ? 'старший: ' : 'аудитор: ') + esc(a.auditorName) + '</span></td><td>' + esc(a.departmentName) + '</td>' +
+        (a.auditorRole === 'senior_auditor' ? 'старший: ' : a.auditorRole === 'admin' ? 'адміністратор: ' : 'аудитор: ') + esc(a.auditorName) + '</span></td><td>' + esc(a.departmentName) + '</td>' +
         '<td>' + esc(first.productName + (first.orderNo ? ' · ' + first.orderNo : '')) + it.slice(1).map(function (x) { return '<span class="sub">' + esc(x.productName + (x.orderNo ? ' · ' + x.orderNo : '')) + '</span>'; }).join('') + '</td>' +
         '<td class="n">' + h.num(a.checked) + '</td><td class="n"><b' + (a.over ? ' style="color:var(--danger)"' : '') + '>' + a.rejected + '</b><span class="sub">' + h.pct(a.pct) + (a.over ? ' · понад норму' : '') + '</span></td>' +
         '<td style="text-align:center;color:var(--text-2)">' + (a.photos || a.hasComment || a.edited ? '<span style="display:inline-flex;align-items:center;gap:10px">' +
@@ -131,6 +134,13 @@
           (t.reason ? ' · причина: ' + esc(t.reason) : '') + '</span></span>' +
           '<button class="btn btn--secondary btn--sm" type="button" data-act="hs-restore" data-id="' + esc(t.id) + '">' + h.ic('refresh', 'ui-icon--sm') + 'Повернути</button></div>';
       }).join('') + '</div></section>';
+  }
+
+  function fitTypes(box) {
+    var list = box.querySelector('.hs-types'), rows = list ? list.children : [];
+    if (rows.length <= TOP) return;
+    var hgt = Math.round(rows[TOP].getBoundingClientRect().top - rows[0].getBoundingClientRect().top);
+    if (hgt > 60) list.style.maxHeight = hgt + 'px';   // не виміряли (екран схований) — лишається висота зі стилів
   }
 
   function openAudit(id) {
@@ -221,7 +231,7 @@
         if (!r.ok) { ctx.el.innerHTML = h.error(r); return; }
         if (first || !ctx.el.querySelector('#hs-res')) ctx.el.innerHTML = '<div id="hs-filters"></div><div id="hs-res" style="display:flex;flex-direction:column;gap:20px"></div>';
         if (!keep || !ctx.el.querySelector('#hs-filters').innerHTML) ctx.el.querySelector('#hs-filters').innerHTML = filters(r);
-        box = ctx.el.querySelector('#hs-res'); box.style.opacity = ''; box.innerHTML = results(r);
+        box = ctx.el.querySelector('#hs-res'); box.style.opacity = ''; box.innerHTML = results(r); fitTypes(box);
       });
     }
     function change() { hf.limit = STEP; load(); }

@@ -26,6 +26,8 @@
   function isDesktop() { return !!(root.matchMedia && root.matchMedia('(pointer: fine)').matches) && root.innerWidth >= 900; }
   function pcAllowed() { try { return root.sessionStorage.getItem('pw-pc-ok') === '1'; } catch (e) { return false; } }
 
+  function adminHere() { return !!P.store.get('demo:admin', null); }
+
   function strip() {
     return '<div class="app-demo" role="note">' + P.ic('info') + '<span class="app-demo__text">Тестова версія · усі імена й цифри вигадані</span></div>';
   }
@@ -45,7 +47,8 @@
       '<button class="ui-btn ui-btn--primary login__btn" type="button" data-act="login">' + P.ic('login') + 'Увійти через Google</button>' +
       '<p class="login__note">Увійдіть робочою Google-поштою. Раз на тиждень додаток попросить увійти знову.</p>' +
       '<p class="login__note">Немає доступу? Попросіть старшого аудитора додати вашу пошту.</p>' +
-      '<p class="login__note login__note--test">Тестова версія: вхід без пароля, як вигаданий працівник.</p></main>';
+      '<p class="login__note login__note--test">Тестова версія: вхід без пароля, як вигаданий працівник.</p>' +
+      '<p class="login__note"><a href="../admin/" style="color:inherit">Вхід адміністратора</a></p></main>';
   }
   function login(btn) {
     btn.disabled = true;
@@ -133,7 +136,7 @@
     P.on('route', render);
     P.on('auth:required', function () { S.me = null; renderLogin(); });
     P.on('auth:forbidden', function (r) { P.toast('warn', 'Немає прав на цю дію', r && r.error); });
-    if (isDesktop() && !pcAllowed() && !P.embed) return renderGate();   // у вікні старшого заставки немає
+    if (isDesktop() && !pcAllowed() && !P.embed && !adminHere()) return renderGate();   // у вікні старшого й для адміністратора заставки немає
     boot();
   };
 })(window);

@@ -35,20 +35,34 @@
       return ix;
     },
 
+    canOf: function (role) {
+      return {
+        recordAudit: role === 'auditor' || role === 'senior_auditor' || role === 'admin',
+        editCatalogs: role === 'senior_auditor' || role === 'admin',
+        editOthersAudits: role === 'senior_auditor' || role === 'admin',
+        viewAllLocations: role === 'manager' || role === 'admin',
+        manageWhitelist: role === 'senior_auditor' || role === 'admin'
+      };
+    },
+
     buildMe: function (u, ix) {
       var role = u.role;
       return {
         id: u.id, name: u.name, role: role, roleLabel: P.demoDict.roleLabels[role], email: u.email,
         locations: u.locationIds.map(function (id) { return { id: id, name: ix.loc[id].name }; }),
         defaultLocationId: u.locationIds[0],
-        can: {
-          recordAudit: role === 'auditor' || role === 'senior_auditor' || role === 'admin',
-          editCatalogs: role === 'senior_auditor' || role === 'admin',
-          editOthersAudits: role === 'senior_auditor' || role === 'admin',
-          viewAllLocations: role === 'manager' || role === 'admin',
-          manageWhitelist: role === 'senior_auditor' || role === 'admin'
-        }
+        can: C.canOf(role)
       };
+    },
+
+    viewAs: function (u, ix, role, locId) {
+      var me = C.buildMe(u, ix), one = role === 'auditor' || role === 'senior_auditor';
+      var loc = ix.loc[locId] ? locId : u.locationIds[0];
+      me.admin = true; me.viewLocationId = loc; me.allLocations = me.locations;
+      me.role = role; me.roleLabel = P.demoDict.roleLabels[role]; me.can = C.canOf(role);
+      if (one) me.locations = [{ id: loc, name: ix.loc[loc].name }];
+      me.defaultLocationId = one ? loc : me.locations[0].id;
+      return me;
     },
 
     hasLoc: function (me, locationId) {

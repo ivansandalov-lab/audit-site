@@ -15,8 +15,9 @@
       return '<div class="stack">' +
         '<section class="ui-card"><div class="card-head"><span class="avatar">' + esc(P.initials(me.name)) + '</span>' +
         '<div class="grow"><h2 class="card-title">' + esc(me.name) + '</h2><p class="card-sub">' + esc(maskEmail(me.email)) + '</p></div></div>' +
-        '<dl class="kv"><dt>Роль</dt><dd>Працівник (аудитор)</dd><dt>Локація</dt><dd>' + esc(P.shell.locName(ctx.loc)) + '</dd>' +
-        '<dt>Вхід</dt><dd>Google · раз на тиждень</dd></dl></section>' +
+        '<dl class="kv"><dt>Роль</dt><dd>' + (me.admin ? 'Адміністратор · дивитесь як працівник' : 'Працівник (аудитор)') + '</dd><dt>Локація</dt><dd>' + esc(P.shell.locName(ctx.loc)) + '</dd>' +
+        '<dt>Вхід</dt><dd>' + (me.admin ? 'Google' : 'Google · раз на тиждень') + '</dd></dl></section>' +
+        (me.admin ? '<section class="ui-card">' + P.profileSwitch.html(me) + '</section>' : '') +
         '<section class="ui-card"><h2 class="card-title">Тема</h2><div class="ui-seg" role="group" aria-label="Тема">' +
         '<button class="ui-seg__btn" type="button" data-theme-set="dark" aria-pressed="' + dark + '">' + P.ic('theme-dark') + 'Темна</button>' +
         '<button class="ui-seg__btn" type="button" data-theme-set="light" aria-pressed="' + !dark + '">' + P.ic('theme-light') + 'Світла</button></div></section>' +
@@ -25,6 +26,7 @@
         '<button class="ui-btn ui-btn--quiet" type="button" data-act="reset">' + P.ic('refresh') + 'Скинути тестові дані</button></section></div>';
     },
     mount: function (el) {
+      P.profileSwitch.bind(el);
       P.delegate(el, 'click', '[data-theme-set]', function (e, t) { P.shell.setTheme(t.getAttribute('data-theme-set')); P.shell.rerender(); });
       P.delegate(el, 'click', '[data-act="logout"]', function () {
         P.srv('authLogout').then(function () { root.location.hash = ''; root.location.reload(); });

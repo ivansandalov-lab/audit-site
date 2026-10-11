@@ -1,0 +1,19 @@
+
+.ps { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.ps__title { margin: 0; font-size: var(--fs-sm); font-weight: 700; color: var(--text); }
+.ps__hint { margin: -6px 0 0; font-size: 13px; line-height: 1.4; color: var(--text-3); }
+.ps__loc { display: flex; flex-direction: column; gap: 4px; font-size: 13px; font-weight: 600; color: var(--text-2); }
+.ps__loc select { width: 100%; height: 44px; padding: 0 12px; border: 1px solid var(--line-strong); border-radius: var(--r-md);
+  background: var(--surface); color: var(--text); font: inherit; font-size: 16px; font-weight: 400; }
+.ps__list { display: flex; flex-direction: column; gap: 4px; }
+.ps__item { display: flex; align-items: center; gap: 12px; width: 100%; min-height: 52px; padding: 8px 12px; border: 1px solid transparent;
+  border-radius: var(--r-md); background: transparent; color: var(--text); font: inherit; text-align: left; cursor: pointer; }
+.ps__item:hover { background: var(--surface-2); }
+.ps__item > svg { flex: none; color: var(--text-3); }
+.ps__item--on, .ps__item--on:hover { border-color: var(--brand-line); background: var(--brand-soft); cursor: default; }
+.ps__ic { display: grid; place-items: center; width: 36px; height: 36px; border-radius: 10px; background: var(--surface-2); color: var(--text-2); flex: none; }
+.ps__item--on .ps__ic { background: var(--surface); color: var(--brand-ink); }
+.ps__text { display: flex; flex-direction: column; gap: 1px; flex: 1; min-width: 0; }
+.ps__text b { font-weight: 600; }
+.ps__text small { font-size: 13px; line-height: 1.35; color: var(--text-3); }
+.ps__now { flex: none; font-size: 13px; font-weight: 700; color: var(--brand-ink); white-space: nowrap; }

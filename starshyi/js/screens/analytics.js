@@ -39,6 +39,19 @@
             ' title="' + esc(x.title || '') + '" style="' + st + '"></i>';
         }).join('') + '</div>';
     },
+    sbars: function (items, o) {
+      var H = o.height || 200, max = Math.max.apply(null, items.map(function (x) { return x.v || 0; }).concat([1]));
+      return '<div class="sbars an-sbars' + (items.length > 40 ? ' an-dense' : '') + '" style="height:' + H + 'px" role="img" aria-label="' + esc(o.label || '') + '">' +
+        items.map(function (x) {
+          var open = '<div class="sbar' + (x.none ? ' sbar--none' : '') + (x.sel ? ' sbar--sel' : '') + '"' + (x.act ? ' data-act="' + x.act + '" role="button" tabindex="0"' : ' style="cursor:default"') +
+            (x.attrs || '') + ' title="' + esc(x.title || '') + '">';
+          if (x.none) return open + '<i></i></div>';
+          if (!x.v) return open + '<i style="height:2px;background:var(--text-3)"></i></div>';
+          var total = x.v / max * (H - 12), t = A.total(x.levels) || 1;
+          return open + ['scrap', 'repair', 'fix'].map(function (k) {
+            return x.levels[k] ? '<i class="s-' + k + '" style="height:' + (x.levels[k] / t * total).toFixed(1) + 'px"></i>' : ''; }).join('') + '</div>';
+        }).join('') + '</div>';
+    },
     hbar: function (o) {
       var inner = (o.rank != null ? '<span class="rank">' + o.rank + '</span>' : '') +
         '<span><b>' + esc(o.name) + '</b><span class="sub">' + (o.sub || '') + '</span></span>' +

@@ -3,6 +3,7 @@
   var P = root.P = root.P || {};
   var C = P.demoCommon;
   var OPEN_FNS = { demoUsers: 1, authDemoLogin: 1, authMe: 1, demoMeta: 1, demoReset: 1 };
+  var KEY_ADMIN = 'demo:admin';
   var SCHEMA = '1';
   P.demoGenHooks = P.demoGenHooks || []; P.demoLoadHooks = P.demoLoadHooks || [];
   P.demoApis = P.demoApis || []; P.demoResetKeys = P.demoResetKeys || [];
@@ -30,6 +31,8 @@
     var meId = null, loggedAt = null; // loggedAt — ISO-час входу; сесія старша за SESSION_DAYS = вихід
     var KEY_ME = opts.sessionKey || P.demoSessionKey || 'demo:me';
     var KEY_AT = KEY_ME === 'demo:me' ? 'demo:loggedAt' : KEY_ME + ':at';
+    var VIEW_ROLE = opts.viewRole || P.demoViewRole || null;
+    var adminS = null;
 
     function load() {
       if (storage.get('demo:schema', null) !== SCHEMA) {
@@ -49,12 +52,15 @@
       if (meId && !env.ix.user[meId]) meId = null;
       loggedAt = storage.get(KEY_AT, null);
       if (meId && !loggedAt) { loggedAt = now().toISOString(); storage.set(KEY_AT, loggedAt); }
+      adminS = VIEW_ROLE ? storage.get(KEY_ADMIN, null) : null;
+      if (adminS && !(env.ix.user[adminS.userId] && env.ix.user[adminS.userId].role === 'admin')) adminS = null;
     }
     load();
 
     function dropSession() { meId = null; loggedAt = null; storage.del(KEY_ME); storage.del(KEY_AT); }
 
     function currentMe() {
+      if (adminS) return C.viewAs(env.ix.user[adminS.userId], env.ix, VIEW_ROLE, adminS.locationId);
       if (meId && now().getTime() - Date.parse(loggedAt) > C.SESSION_DAYS * 86400000) dropSession();
       return meId ? C.buildMe(env.ix.user[meId], env.ix) : null;
     }
@@ -68,12 +74,26 @@
       },
       authDemoLogin: function (p) {
         if (!p.userId || !env.ix.user[p.userId]) return C.fail('not_found', 'Користувача не знайдено.');
+        var u = env.ix.user[p.userId];
+        if (VIEW_ROLE && u.role === 'admin') {
+          adminS = { userId: u.id, locationId: env.ix.loc[p.locationId] ? p.locationId : u.locationIds[0] };
+          storage.set(KEY_ADMIN, adminS);
+          return { ok: true, me: currentMe() };
+        }
+        if (adminS) { adminS = null; storage.del(KEY_ADMIN); }
         meId = p.userId; storage.set(KEY_ME, meId);
         loggedAt = now().toISOString(); storage.set(KEY_AT, loggedAt);
         return { ok: true, me: currentMe() };
       },
       authMe: function () { return { ok: true, me: currentMe() }; },
-      authLogout: function () { dropSession(); return { ok: true }; },
+      authAdminView: function (p) {
+        if (!adminS) return C.forbidden();
+        if (!env.ix.loc[p.locationId]) return C.fail('not_found', 'Такої локації немає — оновіть сторінку.');
+        adminS = { userId: adminS.userId, locationId: p.locationId };
+        storage.set(KEY_ADMIN, adminS);
+        return { ok: true, me: currentMe() };
+      },
+      authLogout: function () { if (adminS) { adminS = null; storage.del(KEY_ADMIN); } dropSession(); return { ok: true }; },
       demoReset: function () { reset(); return { ok: true }; },
       demoReload: function () { load(); return { ok: true }; },
       demoMeta: function () {

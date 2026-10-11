@@ -49,6 +49,12 @@
 .hs-photo { display: grid; place-items: center; align-content: center; gap: 6px; aspect-ratio: 1; padding: 8px; border-radius: var(--r-md);
   background: var(--surface-3); color: var(--text-3); font-size: 13px; text-align: center; }
 
+
+.hs-chartcol, .hs-typescol { display: flex; flex-direction: column; gap: 10px; }
+.row > .hs-typescol { flex: 1 1 340px; }
+.hs-types { max-height: 290px; overflow-y: auto; padding-right: 8px; scrollbar-width: thin; }
+.hs-types > .hbar { padding: 6px 0; font-size: 15px; }
+
 @media (max-width: 900px) {
   .an-kpis6 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
