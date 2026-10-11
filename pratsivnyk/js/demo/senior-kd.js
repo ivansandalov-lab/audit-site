@@ -2,21 +2,24 @@
   'use strict';
   var P = root.P = root.P || {}, C = P.demoCommon, S = P.demoSenior;
   var KD = S.KD, KEY = 'demo:sr:kd:actions';
+  var DEPT_BARS = 12, MINI_BARS = 7, TREND_SPAN = 5, MAX_BACK = 60, PERIOD_LIST = 24;
 
   var CAUSES = [
-    { id: 'skill', label: 'Не знав / не вміє', hint: 'навчання' },
-    { id: 'discipline', label: 'Знав, але не зробив', hint: 'розмова, контроль' },
-    { id: 'tool', label: 'Інструмент чи оснастка', hint: 'техніка' },
-    { id: 'material', label: 'Матеріал', hint: 'постачання' },
-    { id: 'organization', label: 'Організація роботи', hint: 'керівник відділу' },
-    { id: 'other', label: 'Інше', hint: 'потрібне пояснення' }
+    { id: 'skill', label: 'Не знав / не вміє' },
+    { id: 'discipline', label: 'Знав, але не зробив' },
+    { id: 'tool', label: 'Інструмент чи оснастка' },
+    { id: 'material', label: 'Матеріал' },
+    { id: 'organization', label: 'Організація роботи' },
+    { id: 'other', label: 'Інше' }
   ];
   var CAUSE_IX = {};
   CAUSES.forEach(function (c) { CAUSE_IX[c.id] = c; });
-  var STATUS_LABELS = { 'new': 'нова', started: 'в роботі', check: 'перевірка', helped: 'допомогла', not_helped: 'не допомогла', not_needed: 'не потрібно' };
+  var STATUS_LABELS = { 'new': 'нова', started: 'в роботі', check: 'перевірка', helped: 'допомогла', not_helped: 'не допомогла', not_needed: 'не потрібно', none: 'дій не було' };
 
   function clone(o) { return JSON.parse(JSON.stringify(o)); }
   function sumPieces(d) { return S.pieces(d); }
+  function has(o, k) { return typeof k === 'string' && Object.prototype.hasOwnProperty.call(o, k); }
+  function fmt(v) { return String(Math.round(v * 10) / 10).replace('.', ','); }
 
 
   function genAudits(db, depId, n) {
@@ -140,12 +143,31 @@
     var deps = env.db.departments.filter(function (d) { return d.locationId === loc.id; });
     var cx = { env: env, loc: loc, today: today, L: L, deps: deps, byN: byN };
     cx.stats = function (depId, n) {
-      var k = depId + '|' + n;
-      return memo[k] || (memo[k] = S.deptStats(env, byN[n] || [], depId));
+      var k = depId + '|' + n, st = memo[k];
+      if (!st) {
+        st = memo[k] = S.deptStats(env, byN[n] || [], depId);
+        st.audits = (byN[n] || []).filter(function (a) { return a.departmentId === depId; }).length;
+      }
+      return st;
+    };
+    cx.dates = function (n) {
+      var start = S.periodStart(n), cur = n > L;
+      return { n: n, start: start, end: S.periodEnd(n), current: cur, days: KD.PERIOD_DAYS, minSample: KD.MIN_SAMPLE,
+        daysDone: cur ? Math.max(1, Math.min(KD.PERIOD_DAYS, Math.round((S.parseDay(today) - S.parseDay(start)) / 86400000) + 1)) : KD.PERIOD_DAYS };
     };
     cx.rate = function (depId, typeId, n) {
-      var st = cx.stats(depId, n), pieces = st.byType[typeId] || 0, rate = C.pct(pieces, st.checked), low = st.checked < KD.MIN_SAMPLE;
-      return { n: n, start: S.periodStart(n), end: S.periodEnd(n), checked: st.checked, pieces: pieces, rate: rate, low: low, over: !low && rate != null && rate > KD.THRESHOLD };
+      var st = cx.stats(depId, n), pieces = has(st.byType, typeId) ? st.byType[typeId] : 0, rate = C.pct(pieces, st.checked), low = st.checked < KD.MIN_SAMPLE;
+      var o = cx.dates(n);
+      o.checked = st.checked; o.pieces = pieces; o.rate = rate; o.low = low; o.over = !low && rate != null && rate > KD.THRESHOLD;
+      return o;
+    };
+    cx.period = function (depId, n) {
+      var st = cx.stats(depId, n), o = cx.dates(n);
+      o.audits = st.audits; o.checked = st.checked; o.rejected = st.rejected; o.rate = C.pct(st.rejected, st.checked);
+      o.levels = { fix: st.byLevel.fix, repair: st.byLevel.repair, scrap: st.byLevel.scrap };
+      o.low = st.checked < KD.MIN_SAMPLE;
+      o.over = Object.keys(st.byType).filter(function (t) { return has(env.ix.def, t) && cx.rate(depId, t, n).over; }).length;
+      return o;
     };
     cx.actions = (env.db.kdActions || []).filter(function (a) { return a.locationId === loc.id && env.ix.dep[a.departmentId] && env.ix.def[a.defectTypeId]; })
       .map(function (a) { return evalAction(cx, a); });
@@ -183,23 +205,44 @@
   }
 
   function trendOf(dyn) {
-    var r = dyn.map(function (x) { return x.rate == null ? 0 : x.rate; }), last = r.length - 1, up = 0;
+    var r = dyn.map(function (x) { return x.rate == null ? 0 : x.rate; }), last = r.length - 1, up = 0, T = KD.THRESHOLD;
+    var seq = function (from) { return r.slice(from).map(fmt).join(' → ') + '%'; };
     for (var i = last; i > 0 && r[i] > r[i - 1]; i--) up++;
-    if (r[last] > KD.THRESHOLD && r[last - 1] <= 3 && r[last] - r[last - 1] >= 2.5) return { kind: 'jump', text: 'різкий стрибок', long: 'Різкий стрибок в останньому розборі — варто знайти, що змінилось.' };
-    if (up >= 3) return { kind: 'rise', n: up, text: 'росте ' + up + '-й розбір', long: 'Росте ' + up + '-й розбір поспіль — це не випадковий сплеск.' };
+    if (r[last] > T && r[last - 1] <= 3 && r[last] - r[last - 1] >= 2.5) return { kind: 'jump', text: 'попередній розбір ' + fmt(r[last - 1]) + '% → цей ' + fmt(r[last]) + '%' };
+    if (up >= 3) return { kind: 'rise', n: up, text: 'вище за попередній ' + up + ' ' + P.plural(up, 'розбір', 'розбори', 'розборів') + ' поспіль: ' + seq(last - up) };
     var near = r.filter(function (v) { return v >= 4 && v <= 6; }).length;
-    if (near >= 4) return { kind: 'near', n: near, text: 'біля порогу ' + near + ' розборів', long: 'Тримається біля порогу ' + near + ' розборів із 5.' };
+    if (near >= 4) return { kind: 'near', n: near, text: 'від 4 до 6% у ' + near + ' розборах із ' + r.length + ': ' + seq(0) };
     var overRun = 0;
-    for (var k = last; k >= 0 && r[k] > KD.THRESHOLD; k--) overRun++;
-    if (overRun >= 2) return { kind: 'over', n: overRun, text: 'понад поріг ' + overRun + '-й розбір', long: 'Понад поріг ' + overRun + '-й розбір поспіль.' };
-    return { kind: 'first', text: 'вперше понад поріг', long: 'Уперше понад поріг за 5 розборів.' };
+    for (var k = last; k >= 0 && r[k] > T; k--) overRun++;
+    if (overRun >= 2) return { kind: 'over', n: overRun, text: 'понад ' + T + '% — ' + overRun + '-й розбір поспіль' };
+    return { kind: 'first', text: 'уперше понад ' + T + '% за ' + r.length + ' розборів' };
   }
 
-  function dynOf(cx, depId, typeId) {
+  function series(cx, depId, typeId, from, to) {
     var out = [];
-    for (var n = cx.L - 4; n <= cx.L; n++) out.push(cx.rate(depId, typeId, n));
+    for (var n = Math.max(from, to - MAX_BACK - DEPT_BARS); n <= to; n++) out.push(typeId ? cx.rate(depId, typeId, n) : cx.period(depId, n));
     return out;
   }
+  function chartWindow(cx, n) {
+    var from = cx.L - DEPT_BARS + 1;
+    return n < from ? { from: n - 2, to: Math.min(cx.L + 1, n + DEPT_BARS - 3) } : { from: from, to: cx.L + 1 };
+  }
+
+  function dynOf(cx, depId, typeId, n) {
+    if (n == null) n = cx.L;
+    return series(cx, depId, typeId, n - TREND_SPAN + 1, n);
+  }
+
+  function periodArg(cx, v) {
+    if (v == null || v === '') return cx.L;
+    var n = typeof v === 'number' ? v : /^\d{1,6}$/.test(String(v)) ? Number(v) : NaN;
+    return n === Math.floor(n) && n >= Math.max(0, cx.L - MAX_BACK) && n <= cx.L + 1 ? n : null;
+  }
+  function depOf(cx, id) {
+    var d = has(cx.env.ix.dep, id) ? cx.env.ix.dep[id] : null;
+    return d && d.locationId === cx.loc.id ? d : null;
+  }
+  function typeOf(cx, id) { return has(cx.env.ix.def, id) ? cx.env.ix.def[id] : null; }
 
   function interimOf(cx, depId, typeId) {
     var r = cx.rate(depId, typeId, cx.L + 1);
@@ -214,37 +257,89 @@
       causes: a.causes || [], causeNote: a.causeNote || '', plan: a.plan || '', who: a.who || null, whoName: u ? u.name : null,
       due: a.due || null, startedAt: a.startedAt || null, implementedAt: a.implementedAt || null,
       notNeededReason: a.notNeeded ? a.notNeeded.reason : null, finishedOn: a.finishedOn || null,
-      after: null, afterStart: null, afterEnd: null, checkStart: null, checkEnd: null, interim: null, overdue: false, retryable: false };
+      after: null, afterStart: null, afterEnd: null, afterChecked: null, afterPieces: null, checkStart: null, checkEnd: null, interim: null,
+      overdue: false, retryable: false };
     if (a.status === 'started') o.overdue = !!a.due && a.due < cx.today;
     if (a.status === 'check') { o.checkStart = S.periodStart(a.checkPeriod); o.checkEnd = S.periodEnd(a.checkPeriod); o.interim = interimOf(cx, a.departmentId, a.defectTypeId); }
     if (a.resultPeriod != null) {
       var r = cx.rate(a.departmentId, a.defectTypeId, a.resultPeriod);
-      o.after = r.rate; o.afterStart = r.start; o.afterEnd = r.end; o.resultPeriod = a.resultPeriod;
+      o.after = r.rate; o.afterStart = r.start; o.afterEnd = r.end; o.afterChecked = r.checked; o.afterPieces = r.pieces; o.resultPeriod = a.resultPeriod;
     }
     if (a.status === 'not_helped') o.retryable = !cx.actions.some(function (x) { return x.departmentId === a.departmentId && x.defectTypeId === a.defectTypeId && x.period > a.period && x.status !== 'not_needed'; });
-    if (a.status === 'new') o.trend = trendOf(dynOf(cx, a.departmentId, a.defectTypeId));
+    if (a.status === 'new') o.trend = trendOf(dynOf(cx, a.departmentId, a.defectTypeId, a.period));
     return o;
   }
 
   function details(cx, depId, typeId, n) {
-    var ix = cx.env.ix, workers = {}, prods = {}, locId = cx.loc.id;
+    var ix = cx.env.ix, locId = cx.loc.id, W = Object.create(null), A = Object.create(null), prods = Object.create(null),
+      orders = Object.create(null), byDay = Object.create(null), mine = Object.create(null), withType = 0, total = 0;
     (cx.byN[n] || []).forEach(function (a) {
+      var q = 0, touches = a.departmentId === depId, helpers = Array.isArray(a.helpers) ? a.helpers : [];
       a.defects.forEach(function (d) {
-        if (d.defectTypeId !== typeId || S.sourceDept(a, d) !== depId) return;
-        var q = S.pieces(d);
-        prods[d.productId] = (prods[d.productId] || 0) + q;
-        d.guilty.forEach(function (g) { workers[g.workerCode] = (workers[g.workerCode] || 0) + g.qty; });
+        if (S.sourceDept(a, d) !== depId) return;
+        touches = true;
+        if (d.defectTypeId !== typeId) return;
+        var pcs = S.pieces(d), ord = d.orderNo || '';
+        q += pcs;
+        prods[d.productId] = (prods[d.productId] || 0) + pcs;
+        orders[ord] = (orders[ord] || 0) + pcs;
+        d.guilty.forEach(function (g) {
+          var w = W[g.workerCode] = W[g.workerCode] || { qty: 0, audits: {}, helperQty: 0 };
+          w.qty += g.qty || 0; w.audits[a.id] = 1;
+          if (helpers.indexOf(g.workerCode) >= 0) w.helperQty += g.qty || 0;
+        });
       });
+      if (touches) mine[a.auditorId] = (mine[a.auditorId] || 0) + 1;   // аудити, у яких аудитор перевіряв цей відділ або записав його брак
+      if (a.departmentId === depId) {
+        var day = byDay[a.day] = byDay[a.day] || { pieces: 0, checked: 0, audits: 0 };
+        day.checked += C.checkedOf(a); day.audits++;
+      }
+      if (!q) return;
+      withType++; total += q;
+      var u = A[a.auditorId] = A[a.auditorId] || { qty: 0, audits: 0 };
+      u.qty += q; u.audits++;
+      (byDay[a.day] = byDay[a.day] || { pieces: 0, checked: 0, audits: 0 }).pieces += q;
     });
-    function top(map, name) {
-      return Object.keys(map).map(function (k) { return { id: k, name: name(k), qty: map[k] }; })
-        .sort(function (a, b) { return b.qty - a.qty || (a.id < b.id ? -1 : 1); });
+    function top(map, make) {
+      return Object.keys(map).map(function (k) { return make(k, map[k]); }).sort(function (a, b) { return b.qty - a.qty || (a.name < b.name ? -1 : a.name > b.name ? 1 : 0); });
     }
-    var dyn = dynOf(cx, depId, typeId);
-    return { dyn: dyn, trend: trendOf(dyn),
-      workers: top(workers, function (c) { var w = ix.worker[locId + ':' + c]; return c === '' ? 'Невідомий працівник' : w ? w.name : c; })
-        .map(function (w) { return { code: w.id, name: w.name, qty: w.qty }; }),
-      products: top(prods, function (id) { return ix.prod[id] ? ix.prod[id].name : 'Невідомий виріб'; }) };
+    var share = function (q) { return C.pct(q, total); };
+    var days = [];
+    for (var k = S.periodStart(n); k <= S.periodEnd(n); k = S.addDays(k, 1)) {
+      var x = byDay[k] || { pieces: 0, checked: 0, audits: 0 };
+      days.push({ day: k, pieces: x.pieces, checked: x.checked, audits: x.audits, future: k > cx.today });
+    }
+    return {
+      workers: top(W, function (c, w) {
+        var known = ix.worker[locId + ':' + c];
+        return { code: c, name: c === '' ? 'Невідомий працівник' : known ? known.name : c, qty: w.qty, share: share(w.qty), audits: Object.keys(w.audits).length,
+          helper: w.helperQty > 0, helperQty: w.helperQty };
+      }),
+      auditors: top(A, function (id, u) {
+        return { id: id, name: has(ix.user, id) ? ix.user[id].name : id, qty: u.qty, share: share(u.qty), audits: u.audits, auditsAll: mine[id] || u.audits };
+      }),
+      products: top(prods, function (id, q) { return { id: id, name: has(ix.prod, id) ? ix.prod[id].name : 'Невідомий виріб', qty: q, share: share(q) }; }),
+      orders: top(orders, function (no, q) { return { no: no || null, name: no || 'Без замовлення', qty: q, share: share(q) }; }),
+      days: days, auditsWith: withType, auditsTotal: cx.stats(depId, n).audits };
+  }
+
+  function typeState(cx, depId, typeId) {
+    var mine = cx.actions.filter(function (a) { return a.departmentId === depId && a.defectTypeId === typeId; })
+      .sort(function (a, b) { return b.period - a.period; });
+    var isNew = cx.news.some(function (x) { return x.departmentId === depId && x.defectTypeId === typeId; });
+    var cur = isNew ? { status: 'new', period: cx.L } : mine.filter(function (a) { return a.status === 'started' || a.status === 'check'; })[0] || mine[0] || null;
+    if (!cur) return { status: 'none', label: STATUS_LABELS.none, id: null, period: null, start: null, end: null, count: 0 };
+    return { status: cur.status, label: STATUS_LABELS[cur.status], id: cur.id || null, period: cur.period, start: S.periodStart(cur.period), end: S.periodEnd(cur.period),
+      due: cur.due || null, overdue: cur.status === 'started' && !!cur.due && cur.due < cx.today, count: mine.length };
+  }
+
+  function deptActions(cx, depId) {
+    var rank = { 'new': 0, started: 1, check: 2 };
+    return cx.news.concat(cx.actions).filter(function (a) { return a.departmentId === depId; }).map(function (a) { return view(cx, a); })
+      .sort(function (a, b) {
+        var ra = has(rank, a.status) ? rank[a.status] : 3, rb = has(rank, b.status) ? rank[b.status] : 3;
+        return ra - rb || (ra === 1 ? (a.due < b.due ? -1 : a.due > b.due ? 1 : 0) : 0) || b.period - a.period || (a.name < b.name ? -1 : 1);
+      });
   }
 
   function reviewOf(cx) {
@@ -254,7 +349,8 @@
   function since(cx, days) { return S.addDays(cx.today, -(days - 1)); }
   function totals(cx) {
     var from = since(cx, 30), n = function (st, recent) { return cx.actions.filter(function (a) { return a.status === st && (!recent || a.finishedOn >= from); }).length; };
-    return { 'new': cx.news.length, started: n('started'), check: n('check'), helped30: n('helped', true), notHelped30: n('not_helped', true) };
+    return { 'new': cx.news.length, started: n('started'), check: n('check'), helped30: n('helped', true), notHelped30: n('not_helped', true),
+      notNeeded30: n('not_needed', true) };
   }
 
   function people(cx, me) {
@@ -272,8 +368,9 @@
   function findAction(cx, id) { return cx.actions.filter(function (a) { return a.id === id; })[0] || null; }
 
   function eligible(cx, p) {
-    var dep = cx.env.ix.dep[p.departmentId], t = cx.env.ix.def[p.defectTypeId], n = Number(p.period);
-    if (!dep || dep.locationId !== cx.loc.id || !t || t.deptTypeId !== dep.deptTypeId) return { err: C.fail('not_found', 'Такого виду браку у відділі не знайдено. Оновіть сторінку.') };
+    var dep = depOf(cx, p.departmentId), t = typeOf(cx, p.defectTypeId), n = periodArg(cx, p.period);
+    if (!dep || !t || t.deptTypeId !== dep.deptTypeId) return { err: C.fail('not_found', 'Такого виду браку у відділі не знайдено. Оновіть сторінку.') };
+    if (n == null) return { err: C.fail('not_found', 'Такого розбору немає. Оновіть сторінку.') };
     var isNew = cx.news.some(function (x) { return x.departmentId === dep.id && x.defectTypeId === t.id && x.period === n; });
     var retry = cx.actions.filter(function (a) { return a.departmentId === dep.id && a.defectTypeId === t.id && a.status === 'not_helped' && a.resultPeriod === n; })[0];
     if (retry && view(cx, retry).retryable === false) retry = null;
@@ -330,45 +427,72 @@
           .sort(function (a, b) { return a.finishedOn < b.finishedOn ? 1 : -1; }).map(function (a) { return view(cx, a); });
         var st = cx.stats(d.id, cx.L), busy = {};
         mine.concat(cx.news).forEach(function (a) { if (a.departmentId === d.id) busy[a.defectTypeId] = 1; });
-        var near = Object.keys(st.byType).filter(function (t) { return env.ix.def[t] && !busy[t]; }).map(function (t) {
+        var top = Object.keys(st.byType).filter(function (t) { return has(env.ix.def, t) && !busy[t]; }).map(function (t) {
           var x = cx.rate(d.id, t, cx.L), def = env.ix.def[t];
-          return { defectTypeId: t, name: def.name, level: def.level || 'fix', rate: x.rate, low: x.low };
-        }).filter(function (x) { return !x.low && x.rate >= 4 && x.rate <= KD.THRESHOLD; }).sort(function (a, b) { return b.rate - a.rate; });
+          return { defectTypeId: t, name: def.name, level: def.level || 'fix', pieces: x.pieces, checked: x.checked, rate: x.rate };
+        }).filter(function (x) { return x.pieces > 0; }).sort(function (a, b) { return b.pieces - a.pieces || (a.name < b.name ? -1 : 1); });
         var soon = started.filter(function (a) { return a.due && a.due <= S.addDays(cx.today, 1); })
           .sort(function (a, b) { return a.due < b.due ? -1 : 1; })[0] || null;
         return { id: d.id, name: d.name, order: order, checked: st.checked, lowData: st.checked < KD.MIN_SAMPLE, minSample: KD.MIN_SAMPLE,
           counts: { 'new': news.length, started: started.length, check: check.length, helped: count('helped', true).length },
-          news: news, started: started, check: check, done: done, near: near.slice(0, 1), soonDue: soon ? soon.due : null };
+          last: cx.period(d.id, cx.L), series: series(cx, d.id, null, cx.L - MINI_BARS + 1, cx.L),
+          news: news, started: started, check: check, done: done, top: top.slice(0, 2), soonDue: soon ? soon.due : null };
       }).sort(function (a, b) { return (b.counts['new'] > 0) - (a.counts['new'] > 0) || (b.counts.started + b.counts.check > 0) - (a.counts.started + a.counts.check > 0) || a.order - b.order; });
-      return { ok: true, review: reviewOf(cx), totals: totals(cx), depts: depts, actionsTotal: cx.actions.length + cx.news.length,
+      var sum = { depts: depts.length, lowDepts: 0, audits: 0, checked: 0, rejected: 0, over: 0 };
+      depts.forEach(function (d) { sum.audits += d.last.audits; sum.checked += d.last.checked; sum.rejected += d.last.rejected; sum.over += d.last.over; if (d.lowData) sum.lowDepts++; });
+      sum.rate = C.pct(sum.rejected, sum.checked);
+      return { ok: true, review: reviewOf(cx), totals: totals(cx), sum: sum, depts: depts, actionsTotal: cx.actions.length + cx.news.length,
         threshold: KD.THRESHOLD, minSample: KD.MIN_SAMPLE };
     },
 
     srKdDept: function (p, me, env) {
       var r = S.loc(p, me, env); if (r.err) return r.err;
-      var dep = env.ix.dep[p.departmentId];
-      if (!dep || dep.locationId !== r.loc.id) return C.fail('not_found', 'Відділ не знайдено. Поверніться до всіх відділів.');
-      var cx = makeCx(env, r.loc), from = since(cx, 30), mine = cx.actions.filter(function (a) { return a.departmentId === dep.id; });
-      var pick = function (fn) { return mine.filter(fn).map(function (a) { return view(cx, a); }); };
-      var news = cx.news.filter(function (x) { return x.departmentId === dep.id; }).map(function (x) {
-        var v = view(cx, x), d = details(cx, dep.id, x.defectTypeId, x.period);
-        v.dyn = d.dyn; v.workers = d.workers.slice(0, 3); v.products = d.products.slice(0, 3);
-        return v;
-      }).sort(function (a, b) { return b.rate - a.rate; });
-      var st = cx.stats(dep.id, cx.L);
-      var types = Object.keys(st.byType).filter(function (t) { return env.ix.def[t]; }).map(function (t) {
-        var x = cx.rate(dep.id, t, cx.L), d = env.ix.def[t];
-        return { defectTypeId: t, name: d.name, level: d.level || 'fix', pieces: x.pieces, rate: x.rate, over: x.over };
+      var cx = makeCx(env, r.loc), dep = depOf(cx, p.departmentId);
+      if (!dep) return C.fail('not_found', 'Відділ не знайдено. Поверніться до всіх відділів.');
+      var n = periodArg(cx, p.period);
+      if (n == null) return C.fail('not_found', 'Такого розбору немає. Оберіть розбір зі списку.');
+      var per = cx.period(dep.id, n), st = cx.stats(dep.id, n), win = chartWindow(cx, n);
+      var ids = {};
+      env.db.defectTypes.forEach(function (t) { if (t.deptTypeId === dep.deptTypeId) ids[t.id] = 1; });
+      Object.keys(st.byType).forEach(function (t) { if (has(env.ix.def, t)) ids[t] = 1; });
+      var types = Object.keys(ids).map(function (id) {
+        var t = env.ix.def[id], x = cx.rate(dep.id, id, n);
+        return { defectTypeId: id, name: t.name, level: t.level || 'fix', active: t.active !== false, pieces: x.pieces, rate: x.rate, over: x.over,
+          share: C.pct(x.pieces, per.rejected), dyn: series(cx, dep.id, id, n - MINI_BARS + 1, n), state: typeState(cx, dep.id, id) };
+      }).filter(function (x) {   // вимкнений у довіднику вид показуємо, лише якщо по ньому щось є
+        return x.active || x.state.status !== 'none' || x.dyn.some(function (y) { return y.pieces > 0; });
       }).sort(function (a, b) { return b.pieces - a.pieces || (a.name < b.name ? -1 : 1); });
-      var lv = S.deptStats(env, S.audits(env, r.loc.id, from, cx.today), dep.id);
+      var actions = deptActions(cx, dep.id), counts = { 'new': 0, started: 0, check: 0, helped: 0, not_helped: 0, not_needed: 0 };
+      actions.forEach(function (a) { counts[a.status]++; });
+      var periods = [];
+      for (var k = cx.L + 1; k > cx.L + 1 - PERIOD_LIST && k >= 0; k--) periods.push(cx.dates(k));
+      if (n < periods[periods.length - 1].n) periods.push(cx.dates(n));
       return { ok: true, review: reviewOf(cx), dept: { id: dep.id, name: dep.name }, threshold: KD.THRESHOLD, minSample: KD.MIN_SAMPLE,
-        newItems: news,
-        check: pick(function (a) { return a.status === 'check'; }),
-        started: pick(function (a) { return a.status === 'started'; }).sort(function (a, b) { return a.due < b.due ? -1 : 1; }),
-        done30: pick(function (a) { return (a.status === 'helped' || a.status === 'not_helped' || a.status === 'not_needed') && a.finishedOn >= from; })
-          .sort(function (a, b) { return a.finishedOn < b.finishedOn ? 1 : -1; }),
-        types: types, checked: st.checked, lowData: st.checked < KD.MIN_SAMPLE,
-        levels: lv.byLevel, levelsTotal: lv.rejected };
+        canWrite: S.canManage(me), today: cx.today, period: per, decide: n >= cx.L, minPeriod: Math.max(0, cx.L - MAX_BACK), maxPeriod: cx.L + 1,
+        periods: periods, series: series(cx, dep.id, null, win.from, win.to), types: types, actions: actions, counts: counts };
+    },
+
+    srKdType: function (p, me, env) {
+      var r = S.loc(p, me, env); if (r.err) return r.err;
+      var cx = makeCx(env, r.loc), dep = depOf(cx, p.departmentId), t = typeOf(cx, p.defectTypeId);
+      if (!dep) return C.fail('not_found', 'Відділ не знайдено. Поверніться до всіх відділів.');
+      var n = periodArg(cx, p.period);
+      if (n == null) return C.fail('not_found', 'Такого розбору немає. Оберіть розбір зі списку.');
+      if (!t || (t.deptTypeId !== dep.deptTypeId && !has(cx.stats(dep.id, n).byType, t.id))) return C.fail('not_found', 'Такого виду браку у відділі не знайдено. Оновіть сторінку.');
+      var x = cx.rate(dep.id, t.id, n), per = cx.period(dep.id, n), d = details(cx, dep.id, t.id, n), prev = cx.rate(dep.id, t.id, n - 1), win = chartWindow(cx, n);
+      var by = cx.stats(dep.id, n).byType, withDefect = Object.keys(by).filter(function (id) { return by[id] > 0; });
+      var mineOf = function (a) { return a.departmentId === dep.id && a.defectTypeId === t.id; };
+      var history = cx.news.filter(mineOf).concat(cx.actions.filter(mineOf).sort(function (a, b) { return b.period - a.period; }))
+        .map(function (a) { return view(cx, a); });
+      return { ok: true, dept: { id: dep.id, name: dep.name }, type: { id: t.id, name: t.name, level: t.level || 'fix', active: t.active !== false },
+        threshold: KD.THRESHOLD, minSample: KD.MIN_SAMPLE, canWrite: S.canManage(me), today: cx.today, decide: n >= cx.L, period: per,
+        pieces: x.pieces, checked: x.checked, rate: x.rate, over: x.over, low: x.low, share: C.pct(x.pieces, per.rejected),
+        prev: { n: prev.n, start: prev.start, end: prev.end, pieces: prev.pieces, checked: prev.checked, rate: prev.rate },
+        rank: x.pieces ? 1 + withDefect.filter(function (id) { return by[id] > x.pieces; }).length : null, rankOf: withDefect.length,
+        trend: x.over ? trendOf(dynOf(cx, dep.id, t.id, n)) : null,
+        series: series(cx, dep.id, t.id, win.from, win.to),
+        workers: d.workers, auditors: d.auditors, products: d.products, orders: d.orders, days: d.days,
+        auditsWith: d.auditsWith, auditsTotal: d.auditsTotal, history: history, state: typeState(cx, dep.id, t.id) };
     },
 
     srKdItem: function (p, me, env) {
@@ -378,7 +502,8 @@
         a = findAction(cx, p.id);
         if (!a) return C.fail('not_found', 'Дію не знайдено — можливо, тестові дані скинуто. Оновіть сторінку.');
       } else {
-        var n = p.period == null ? cx.L : Number(p.period);
+        var n = periodArg(cx, p.period);
+        if (n == null) return C.fail('not_found', 'Такого розбору немає. Оновіть сторінку.');
         a = cx.news.filter(function (x) { return x.departmentId === p.departmentId && x.defectTypeId === p.defectTypeId && x.period === n; })[0];
         if (!a) {
           var e = eligible(cx, { departmentId: p.departmentId, defectTypeId: p.defectTypeId, period: n });
@@ -386,10 +511,13 @@
           a = { status: 'new', departmentId: e.dep.id, defectTypeId: e.type.id, period: n };
         }
       }
-      var v = view(cx, a), d = details(cx, a.departmentId, a.defectTypeId, a.period);
-      v.dyn = d.dyn; v.trend = v.trend || d.trend; v.workers = d.workers; v.products = d.products;
+      var v = view(cx, a), d = details(cx, a.departmentId, a.defectTypeId, a.period), per = cx.period(a.departmentId, a.period);
+      v.series = series(cx, a.departmentId, a.defectTypeId, Math.min(cx.L - DEPT_BARS + 1, a.period - 2), cx.L + 1);
+      v.trend = v.trend || (v.rate != null && v.rate > KD.THRESHOLD ? trendOf(dynOf(cx, a.departmentId, a.defectTypeId, a.period)) : null);
+      v.workers = d.workers; v.auditors = d.auditors; v.products = d.products; v.orders = d.orders;
+      v.auditsWith = d.auditsWith; v.auditsTotal = d.auditsTotal; v.deptRejected = per.rejected; v.share = C.pct(v.pieces, per.rejected);
       return { ok: true, item: v, review: reviewOf(cx), causes: clone(CAUSES), people: people(cx, me), today: cx.today,
-        threshold: KD.THRESHOLD, canWrite: S.canManage(me) };
+        threshold: KD.THRESHOLD, minSample: KD.MIN_SAMPLE, canWrite: S.canManage(me) };
     },
 
     srKdList: function (p, me, env) {
@@ -404,7 +532,7 @@
         return rank[group(a)] - rank[group(b)] || (group(a) === 'started' ? (a.due < b.due ? -1 : a.due > b.due ? 1 : 0) : 0) ||
           b.period - a.period || (a.name < b.name ? -1 : 1);
       });
-      return { ok: true, state: state, counts: counts, items: items, review: reviewOf(cx),
+      return { ok: true, state: state, counts: counts, items: items, review: reviewOf(cx), today: cx.today, threshold: KD.THRESHOLD,
         departments: cx.deps.map(function (d) { return { id: d.id, name: d.name }; }) };
     },
 
@@ -413,12 +541,25 @@
       var cx = makeCx(env, r.loc), days = Number(p.days) === 90 ? 90 : 30, from = since(cx, days), periods = [];
       for (var n = cx.L; S.periodEnd(n) >= from; n--) periods.push(n);
       var inWin = {}; periods.forEach(function (x) { inWin[x] = 1; });
-      var overBy = {}, over = 0;
+      var overBy = {}, over = 0, overAt = {};
       cx.deps.forEach(function (d) {
         overBy[d.id] = 0;
-        periods.forEach(function (x) { Object.keys(cx.stats(d.id, x).byType).forEach(function (t) { if (cx.rate(d.id, t, x).over) { over++; overBy[d.id]++; } }); });
+        periods.forEach(function (x) {
+          Object.keys(cx.stats(d.id, x).byType).forEach(function (t) {
+            var rt = cx.rate(d.id, t, x);
+            if (!rt.over) return;
+            over++; overBy[d.id]++;
+            (overAt[x] = overAt[x] || []).push({ departmentName: d.name, name: has(env.ix.def, t) ? env.ix.def[t].name : 'Невідомий вид браку', rate: rt.rate, pieces: rt.pieces, checked: rt.checked });
+          });
+        });
       });
       var acts = cx.actions.filter(function (a) { return inWin[a.period]; }), real = acts.filter(function (a) { return a.status !== 'not_needed'; });
+      var byReview = periods.slice().reverse().map(function (x) {
+        var o = cx.dates(x), items = (overAt[x] || []).sort(function (a, b) { return b.rate - a.rate || (a.name < b.name ? -1 : 1); });
+        o.over = items.length; o.items = items;
+        o.started = real.filter(function (a) { return a.period === x; }).length;
+        return o;
+      });
       var cnt = function (st) { return acts.filter(function (a) { return st.indexOf(a.status) >= 0; }).length; };
       var causes = CAUSES.map(function (c) { return { id: c.id, label: c.label, n: real.filter(function (a) { return a.causes[0] === c.id; }).length }; })
         .filter(function (c) { return c.n; }).sort(function (a, b) { return b.n - a.n; });
@@ -429,7 +570,7 @@
         kpi: { reviews: periods.length, over: over, started: real.length, helped: cnt(['helped']), notHelped: cnt(['not_helped']),
           running: cnt(['started', 'check']), notNeeded: cnt(['not_needed']), waiting: cx.news.length },
         beforeAfter: real.map(function (a) { return view(cx, a); }).sort(function (a, b) { return b.period - a.period || (a.name < b.name ? -1 : 1); }),
-        causes: causes, depts: depts, threshold: KD.THRESHOLD };
+        byReview: byReview, causes: causes, depts: depts, threshold: KD.THRESHOLD, minSample: KD.MIN_SAMPLE };
     },
 
     srKdStart: function (p, me, env) {

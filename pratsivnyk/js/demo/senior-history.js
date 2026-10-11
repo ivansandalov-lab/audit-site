@@ -6,8 +6,8 @@
   var DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
 
   function nm(map, id, fb) { return map[id] ? map[id].name : fb; }
+  function lv0() { return { fix: 0, repair: 0, scrap: 0 }; }
   function lvOf(env, typeId) { var t = env.ix.def[typeId]; return (t && t.level) || 'fix'; }
-  function pcsOf(a) { return a.defects.reduce(function (s, d) { return s + S.pieces(d); }, 0); }
   function workerName(env, locId, code) { return code === '' ? 'Невідомий працівник' : nm(env.ix.worker, locId + ':' + code, code); }
   function trashLive(env) {
     var edge = new Date(env.now().getTime() - TRASH_DAYS * 86400000).toISOString();
@@ -15,17 +15,12 @@
   }
 
   function matches(env, a, f) {
-    var ix = env.ix, crit = env.db.settings.criticalPct;
+    var ix = env.ix;
     if (f.auditorId && a.auditorId !== f.auditorId) return false;
     if (f.orderNo && a.orders.indexOf(f.orderNo) < 0) return false;
     if (f.product && !a.items.some(function (i) { return nm(ix.prod, i.productId, '') === f.product; })) return false;
-    if (f.defect && !a.defects.some(function (d) { return nm(ix.def, d.defectTypeId, '') === f.defect; })) return false;
     if (f.workerCode && a.checkedWorkers.indexOf(f.workerCode) < 0 &&
       !a.defects.some(function (d) { return d.guilty.some(function (g) { return g.workerCode === f.workerCode; }); })) return false;
-    var rej = C.rejectedOf(a), pct = C.pct(rej, C.checkedOf(a));
-    if (f.mode === 'defects' && !rej) return false;
-    if (f.mode === 'clean' && rej) return false;
-    if (f.mode === 'over' && !(pct > crit)) return false;
     if (f.search) {
       var hay = [a.id].concat(a.orders, a.checkedWorkers,
         a.items.map(function (i) { return nm(ix.prod, i.productId, ''); }),
@@ -35,14 +30,35 @@
     }
     return true;
   }
+  function modeOk(env, a, mode) {
+    if (!mode) return true;
+    var rej = C.rejectedOf(a);
+    if (mode === 'defects') return rej > 0;
+    if (mode === 'clean') return !rej;
+    return C.pct(rej, C.checkedOf(a)) > env.db.settings.criticalPct;   // 'over'
+  }
+  function defectPieces(env, a, name) {
+    return a.defects.reduce(function (s, d) { return s + (nm(env.ix.def, d.defectTypeId, '') === name ? S.pieces(d) : 0); }, 0);
+  }
+  function dayRange(p, from, to) {
+    var a = DAY_RE.test(p.dayFrom || '') ? p.dayFrom : '', b = DAY_RE.test(p.dayTo || '') ? p.dayTo : '';
+    if (!a && !b && DAY_RE.test(p.day || '')) a = b = p.day;
+    if (!a && !b) return null;
+    a = a || b; b = b || a;
+    if (a > b) { var t = a; a = b; b = t; }
+    if (b < from || a > to) return null;
+    return { from: a < from ? from : a, to: b > to ? to : b };
+  }
 
-  function row(env, a) {
+  function row(env, a, defect) {
     var ix = env.ix, checked = C.checkedOf(a), rejected = C.rejectedOf(a), au = ix.user[a.auditorId];
-    return { id: a.id, createdAt: a.createdAt, day: a.day, departmentId: a.departmentId, departmentName: nm(ix.dep, a.departmentId, a.departmentId),
+    var o = { id: a.id, createdAt: a.createdAt, day: a.day, departmentId: a.departmentId, departmentName: nm(ix.dep, a.departmentId, a.departmentId),
       auditorName: au ? au.name : a.auditorId, auditorRole: au ? au.role : null,
       items: a.items.map(function (i) { return { productName: nm(ix.prod, i.productId, 'Невідомий виріб'), orderNo: i.orderNo || null }; }),
       checked: checked, rejected: rejected, pct: C.pct(rejected, checked), over: C.pct(rejected, checked) > env.db.settings.criticalPct,
       photos: a.defects.filter(function (d) { return !!d.photo; }).length, hasComment: !!a.comment, edited: !!a.updatedAt };
+    if (defect) o.defectPieces = defectPieces(env, a, defect);
+    return o;
   }
 
   var api = {
@@ -51,50 +67,79 @@
       var loc = r.loc, ix = env.ix, today = env.day(), crit = env.db.settings.criticalPct;
       var to = DAY_RE.test(p.to || '') && p.to <= today ? p.to : today;
       var from = DAY_RE.test(p.from || '') && p.from <= to ? p.from : S.addDays(to, -29);
-      if (DAY_RE.test(p.day || '')) { from = p.day; to = p.day; }
+      var rng = dayRange(p, from, to);
       var deps = env.db.departments.filter(function (d) { return d.locationId === loc.id; });
       var pick = (Array.isArray(p.departments) ? p.departments : []).filter(function (id) { return ix.dep[id] && ix.dep[id].locationId === loc.id; });
       var f = { auditorId: p.auditorId || '', orderNo: p.orderNo || '', product: p.product || '', defect: p.defect || '', workerCode: p.workerCode || '',
         mode: { defects: 1, clean: 1, over: 1 }[p.mode] ? p.mode : '', search: String(p.search || '').trim().toLowerCase().slice(0, 100) };
+      function inRange(a) { return !rng || (a.day >= rng.from && a.day <= rng.to); }
+      function counted(a) {
+        var o = { pieces: 0, levels: lv0(), has: !f.defect };
+        a.defects.forEach(function (d) {
+          if (f.defect && nm(ix.def, d.defectTypeId, '') !== f.defect) return;
+          var q = S.pieces(d); o.pieces += q; o.levels[lvOf(env, d.defectTypeId)] += q; o.has = true;
+        });
+        if (!f.defect) o.pieces = C.rejectedOf(a);
+        return o;
+      }
 
       var period = env.audits().filter(function (a) { return a.locationId === loc.id && a.day >= from && a.day <= to; }).sort(C.newestFirst);
       var inDeps = period.filter(function (a) { return !pick.length || pick.indexOf(a.departmentId) >= 0; });
-      var found = inDeps.filter(function (a) { return matches(env, a, f); });
+      var noMode = inDeps.filter(function (a) { return matches(env, a, f); });
+      var base = noMode.filter(function (a) { return modeOk(env, a, f.mode); });   // «вибірка»: без виду браку й без днів
+      var sel = base.filter(inRange);                                               // «вибірка в днях»
+      var found = [];                                                               // «знайдені»: + вид браку
 
-      var sum = { checked: 0, rejected: 0, over: 0, days: {} }, levels = { fix: 0, repair: 0, scrap: 0 }, types = {}, perDay = {};
-      found.forEach(function (a) {
-        var c = C.checkedOf(a), rj = C.rejectedOf(a);
-        sum.checked += c; sum.rejected += rj; sum.days[a.day] = 1;
-        if (C.pct(rj, c) > crit) sum.over++;
-        perDay[a.day] = perDay[a.day] || { rejected: 0, audits: 0, levels: { fix: 0, repair: 0, scrap: 0 } };
-        perDay[a.day].rejected += rj; perDay[a.day].audits++;
-        a.defects.forEach(function (d) {
-          var q = S.pieces(d), src = S.sourceDept(a, d), k = d.defectTypeId;
-          levels[lvOf(env, k)] += q; perDay[a.day].levels[lvOf(env, k)] += q;   // рівні по днях — для кольорового графіка (v1.1)
-          var t = types[k] = types[k] || { id: k, name: nm(ix.def, k, 'Невідомий вид браку'), level: lvOf(env, k), pieces: 0, otherDepts: [] };
-          t.pieces += q;
-          if (src !== a.departmentId) { var dn = nm(ix.dep, src, src); if (t.otherDepts.indexOf(dn) < 0) t.otherDepts.push(dn); }
-        });
+      var perDay = {};
+      base.forEach(function (a) {
+        var d = perDay[a.day] = perDay[a.day] || { audits: 0, matched: 0, checked: 0, rejected: 0, levels: lv0() }, c = counted(a);
+        d.audits++; d.checked += C.checkedOf(a);
+        if (!c.has) return;
+        d.matched++; d.rejected += c.pieces;
+        S.LEVELS.forEach(function (k) { d.levels[k] += c.levels[k]; });
       });
       var days = [], workDays = 0;
       for (var d = from; d <= to; d = S.addDays(d, 1)) {
-        if (P.demoDates.dow(d) !== 0) workDays++;
-        days.push({ day: d, audited: !!perDay[d], rejected: perDay[d] ? perDay[d].rejected : 0, audits: perDay[d] ? perDay[d].audits : 0,
-          levels: perDay[d] ? perDay[d].levels : { fix: 0, repair: 0, scrap: 0 } });
+        if (P.demoDates.dow(d) !== 0 && (!rng || (d >= rng.from && d <= rng.to))) workDays++;
+        var x = perDay[d];
+        days.push({ day: d, audited: !!x, audits: x ? x.audits : 0, matched: x ? x.matched : 0, checked: x ? x.checked : 0,
+          rejected: x ? x.rejected : 0, levels: x ? x.levels : lv0() });
       }
+
+      var sum = { checked: 0, rejected: 0, over: 0, days: {} }, levels = lv0(), allLevels = lv0(), allRejected = 0, types = {}, defLevels = {};
+      sel.forEach(function (a) {
+        var c = counted(a);
+        sum.checked += C.checkedOf(a); allRejected += C.rejectedOf(a);
+        a.defects.forEach(function (df) {
+          var q = S.pieces(df), src = S.sourceDept(a, df), k = df.defectTypeId;
+          allLevels[lvOf(env, k)] += q;
+          var t = types[k] = types[k] || { id: k, name: nm(ix.def, k, 'Невідомий вид браку'), level: lvOf(env, k), pieces: 0, otherDepts: [] };
+          t.pieces += q;
+          if (src !== a.departmentId) { var dn = nm(ix.dep, src, src); if (t.otherDepts.indexOf(dn) < 0) t.otherDepts.push(dn); }
+          if (f.defect && t.name === f.defect) defLevels[t.level] = 1;
+        });
+        if (!c.has) return;
+        found.push(a);
+        sum.rejected += c.pieces; sum.days[a.day] = 1;
+        S.LEVELS.forEach(function (k) { levels[k] += c.levels[k]; });
+        if (C.pct(C.rejectedOf(a), C.checkedOf(a)) > crit) sum.over++;
+      });
 
       var typeIds = {}; deps.forEach(function (x) { typeIds[x.deptTypeId] = 1; });
       function names(list) { var o = []; list.forEach(function (x) { if (typeIds[x.deptTypeId] && o.indexOf(x.name) < 0) o.push(x.name); }); return o.sort(); }
       var auditorIds = {}; env.audits().forEach(function (a) { if (a.locationId === loc.id) auditorIds[a.auditorId] = 1; });
       var limit = Math.min(500, Math.max(1, parseInt(p.limit, 10) || 50));
+      var lvKeys = Object.keys(defLevels);
 
-      return { ok: true, from: from, to: to, criticalPct: crit,
+      return { ok: true, from: from, to: to, dayFrom: rng ? rng.from : null, dayTo: rng ? rng.to : null, criticalPct: crit,
         departments: deps.map(function (x) { return { id: x.id, name: x.name, count: period.filter(function (a) { return a.departmentId === x.id; }).length }; }),
         total: found.length, base: inDeps.length, over: sum.over,
-        analytics: { audits: found.length, daysWithAudits: Object.keys(sum.days).length, workDays: workDays, checked: sum.checked, rejected: sum.rejected,
-          pct: C.pct(sum.rejected, sum.checked), over: sum.over, levels: levels, days: days,
+        analytics: { audits: found.length, selAudits: sel.length, modeTotal: noMode.filter(inRange).length,
+          daysWithAudits: Object.keys(sum.days).length, workDays: workDays, checked: sum.checked, rejected: sum.rejected,
+          pct: C.pct(sum.rejected, sum.checked), over: sum.over, levels: levels, allLevels: allLevels, allRejected: allRejected, days: days,
+          defect: f.defect ? { name: f.defect, level: lvKeys.length === 1 ? lvKeys[0] : null, pieces: sum.rejected, audits: found.length } : null,
           types: Object.keys(types).map(function (k) { return types[k]; }).sort(function (a, b) { return b.pieces - a.pieces || (a.name < b.name ? -1 : 1); }) },
-        items: found.slice(0, limit).map(function (a) { return row(env, a); }),
+        items: found.slice(0, limit).map(function (a) { return row(env, a, f.defect); }),
         options: { products: names(env.db.products), defects: names(env.db.defectTypes),
           workers: env.db.workers.filter(function (w) { return w.locationId === loc.id; }).map(function (w) { return { code: w.code, name: w.name }; })
             .sort(function (a, b) { return a.code < b.code ? -1 : 1; }),

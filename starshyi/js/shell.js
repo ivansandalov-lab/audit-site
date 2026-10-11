@@ -171,12 +171,13 @@
       menuItem('p-audit', 'audit', 'Новий аудит', 'Та сама форма, що в працівника, — у вікні') +
       '<div class="menu__sep"></div><p class="group-label" style="padding:6px 12px 4px">Додати в довідник</p>' +
       menuItem('p-team', 'user', 'Аудитор', 'Доступ до додатку за робочою поштою') +
-      menuItem('p-workers', 'people', 'Виробничий працівник', 'Код і відділ — щоб обирати в аудитах') +
+      menuItem('p-workers', 'people', 'Виробничий працівник', 'Підпис у цеху (напр. q5) і відділ') +
       menuItem('p-products', 'department', 'Виріб', 'Для типу відділу') +
       menuItem('p-defects', 'defect', 'Вид браку', 'З рівнем: неправильно зроблене · пошкоджене · зламане') +
-      menuItem('p-blocks', 'order', 'Блок замовлень', 'Кілька замовлень під однією назвою'),
+      menuItem('p-blocks', 'order', 'Блок замовлень', 'Кілька замовлень під однією назвою') +
+      menuItem('p-import', 'table', 'Таблиця виробництва', 'План і факт по відділах — звідки брати'),
       on: { 'p-audit': function (t, e, layer) { layer.close(); S.newAudit(); }, 'p-team': go('team'), 'p-workers': go('workers'),
-        'p-products': go('products'), 'p-defects': go('defects'), 'p-blocks': go('blocks') } });
+        'p-products': go('products'), 'p-defects': go('defects'), 'p-blocks': go('blocks'), 'p-import': go('import') } });
   }
   function openProfile(anchor) {
     var dark = doc.documentElement.getAttribute('data-theme') === 'dark';

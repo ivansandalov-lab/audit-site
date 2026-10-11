@@ -9,11 +9,11 @@
       { id: 'LOC_C', name: 'Цех В' }
     ],
     deptTypes: [
-      { id: 'DT_CUT', name: 'Розкрій', letter: 'Р' },
-      { id: 'DT_SEW', name: 'Пошив', letter: 'Ш' },
-      { id: 'DT_FIN', name: 'Оздоблення', letter: 'О' },
-      { id: 'DT_QC', name: 'ВТК', letter: 'К' },
-      { id: 'DT_PACK', name: 'Пакування', letter: 'П' }
+      { id: 'DT_CUT', name: 'Розкрій', letter: 'Р', tag: 'q' },
+      { id: 'DT_SEW', name: 'Пошив', letter: 'Ш', tag: 'w' },
+      { id: 'DT_FIN', name: 'Оздоблення', letter: 'О', tag: 'e' },
+      { id: 'DT_QC', name: 'ВТК', letter: 'К', tag: 'r' },
+      { id: 'DT_PACK', name: 'Пакування', letter: 'П', tag: 't' }
     ],
     deptsByLocation: {
       LOC_A: ['DT_CUT', 'DT_SEW', 'DT_FIN', 'DT_QC', 'DT_PACK'],
@@ -56,7 +56,6 @@
       'Людмила', 'Катерина', 'Анна', 'Вікторія', 'Надія', 'Лариса', 'Андрій', 'Сергій', 'Олександр',
       'Дмитро', 'Іван', 'Микола', 'Тарас', 'Богдан', 'Василь'],
     initials: ['А', 'Б', 'В', 'Г', 'Д', 'К', 'Л', 'М', 'Н', 'П', 'Р', 'С', 'Т', 'Ф', 'Ш'],
-    longName: 'Валентина-Анастасія П.',
     customers: ['Замовник А', 'Замовник Б', 'Замовник В', 'Замовник Г', 'Замовник Д', 'Замовник Е'],
     roleLabels: {
       auditor: 'Аудитор', senior_auditor: 'Старший аудитор', location_lead: 'Старший локації',

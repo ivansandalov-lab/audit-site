@@ -88,15 +88,14 @@
     db.locations.forEach(function (l, li) {
       var lc = l.id.slice(4), low = lc.toLowerCase(), counter = li * 100, used = {};
       db.departments.filter(function (d) { return d.locationId === l.id; }).forEach(function (d) {
-        var letter = D.deptTypes.filter(function (t) { return t.id === d.deptTypeId; })[0].letter;
+        var dt = D.deptTypes.filter(function (t) { return t.id === d.deptTypeId; })[0], letter = dt.letter;
         for (var n = rnd.int(6, 10), i = 0; i < n; i++) {
           var p, name;
           do { p = person(); name = p.first + ' ' + p.ini + '.'; } while (used[name]);
           used[name] = 1;
-          db.workers.push({ code: letter + '-' + pad(++counter, 3), name: name, departmentId: d.id, locationId: l.id });
+          db.workers.push({ code: letter + '-' + pad(++counter, 3), name: dt.tag + (i + 1), departmentId: d.id, locationId: l.id });
         }
       });
-      db.workers.filter(function (w) { return w.departmentId === 'DEP_' + lc + '_SEW'; })[0].name = D.longName;
       for (var a = 1, na = lc === 'A' ? 3 : 2; a <= na; a++) {
         addUser('u_aud_' + low + a, 'auditor', [l.id], a === 2 && lc === 'A' ? { lenient: true } : null);
       }

@@ -2,14 +2,20 @@
   'use strict';
   var P = root.P, h = P.sr.h, esc = P.esc, A = P.srAn;
   var STEP = 50, TOP = 5;   // TOP — скільки видів браку видно без гортання
-  var KEYS = { dep: 'deps', product: 'product', defect: 'defect', worker: 'worker', auditor: 'auditor', q: 'q', mode: 'mode', day: 'day', order: 'order' };
+  var LV = ['fix', 'repair', 'scrap'];
+  var DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
+  var KEYS = { dep: 'deps', product: 'product', defect: 'defect', worker: 'worker', auditor: 'auditor', q: 'q', mode: 'mode', order: 'order', d1: 'd1', d2: 'd2' };
   var hf = blank();
-  function blank() { return { deps: [], product: '', defect: '', worker: '', auditor: '', q: '', mode: '', day: '', order: '', limit: STEP }; }
+  var pin = null;   // день, зафіксований кліком на графіку: це НЕ фільтр, лише «тримати числа цього дня на екрані»
+  function blank() { return { deps: [], product: '', defect: '', worker: '', auditor: '', q: '', mode: '', order: '', d1: '', d2: '', limit: STEP }; }
 
   function fromQuery(q) {
-    if (!Object.keys(KEYS).some(function (k) { return q[k]; })) return;
-    hf = blank();
+    if (!q.day && !Object.keys(KEYS).some(function (k) { return q[k]; })) return;
+    hf = blank(); pin = null;
     Object.keys(KEYS).forEach(function (k) { if (q[k]) hf[KEYS[k]] = k === 'dep' ? q[k].split(',') : q[k]; });
+    if (q.day && !hf.d1 && !hf.d2) hf.d1 = hf.d2 = q.day;
+    hf.d1 = hf.d1 || hf.d2; hf.d2 = hf.d2 || hf.d1;
+    if (hf.d1 > hf.d2) { var t = hf.d1; hf.d1 = hf.d2; hf.d2 = t; }
   }
   function syncUrl() {
     var parts = [];
@@ -18,110 +24,152 @@
   }
   function payload(ctx) {
     return { locationId: ctx.loc.id, from: ctx.period.from, to: ctx.period.to, departments: hf.deps, product: hf.product, defect: hf.defect,
-      workerCode: hf.worker, auditorId: hf.auditor, search: hf.q, mode: hf.mode, day: hf.day, orderNo: hf.order, limit: hf.limit };
+      workerCode: hf.worker, auditorId: hf.auditor, search: hf.q, mode: hf.mode, dayFrom: hf.d1, dayTo: hf.d2, orderNo: hf.order, limit: hf.limit };
   }
 
+  function spanShort(a, b) { return a === b || a.slice(0, 7) !== b.slice(0, 7) ? A.span(a, b) : +a.slice(8) + ' — ' + A.span(b, b); }
+  function daysChip(a, b) { return a === b ? A.dshort(a) : (a.slice(0, 7) === b.slice(0, 7) ? String(+a.slice(8)) : h.dayShort(a)) + '–' + h.dayShort(b); }
+  function share(part, whole) { return whole ? Math.round(part / whole * 1000) / 10 : null; }
+  function modeText(r) { return { defects: 'з браком', clean: 'без браку', over: 'понад норму ' + r.criticalPct + '%' }[hf.mode] || ''; }
+  function sumDays(list) {
+    var s = { audits: 0, matched: 0, checked: 0, rejected: 0, levels: { fix: 0, repair: 0, scrap: 0 } };
+    list.forEach(function (d) {
+      s.audits += d.audits; s.matched += d.matched; s.checked += d.checked; s.rejected += d.rejected;
+      LV.forEach(function (k) { s.levels[k] += d.levels[k] || 0; });
+    });
+    return s;
+  }
+  function dayFacts(s, df) {
+    if (!s.audits) return 'аудитів у вибірці не було';
+    return A.n(s.audits, 'аудит', 'аудити', 'аудитів') + (df ? ', із них з цим видом браку — ' + h.num(s.matched) : '') + ' · перевірено ' + h.num(s.checked) + ' шт · ' +
+      (df ? '«' + df.name + '»' : 'брак') + ' ' + h.num(s.rejected) + ' шт · ' + h.pct(share(s.rejected, s.checked));
+  }
+
+  var MARK = '<span class="hs-mark">обрано</span>';   // видно лише в зміненого фільтра (.hs-f--on)
   function select(k, label, all, opts) {
-    return '<label class="field" style="flex:1 1 200px"><span class="label">' + label + '</span><select class="input" data-change="hs-sel" data-k="' + k + '">' +
+    return '<label class="field hs-f' + (hf[k] ? ' hs-f--on' : '') + '"><span class="label">' + label + MARK + '</span><select class="input" data-change="hs-sel" data-k="' + k + '">' +
       '<option value="">' + all + '</option>' + opts.map(function (o) { return '<option value="' + esc(o[0]) + '"' + (hf[k] === o[0] ? ' selected' : '') + '>' + esc(o[1]) + '</option>'; }).join('') + '</select></label>';
   }
+  function pickedList(r) {
+    var p = [], o = r.options;
+    function name(list, key, id, fb) { var x = list.filter(function (i) { return i[key] === id; })[0]; return x ? x.name : fb; }
+    if (hf.deps.length) p.push(['deps', hf.deps.length > 1 ? 'Відділи' : 'Відділ', r.departments.filter(function (d) { return hf.deps.indexOf(d.id) >= 0; }).map(function (d) { return d.name; }).join(', ')]);
+    if (hf.product) p.push(['product', 'Виріб', hf.product]);
+    if (hf.defect) p.push(['defect', 'Вид браку', hf.defect]);
+    if (hf.worker) p.push(['worker', 'Працівник', name(o.workers, 'code', hf.worker, 'невідомий')]);
+    if (hf.auditor) p.push(['auditor', 'Аудитор', name(o.auditors, 'id', hf.auditor, 'невідомий')]);
+    if (hf.order) p.push(['order', 'Замовлення', hf.order]);
+    if (hf.q) p.push(['q', 'Пошук', '«' + hf.q + '»']);
+    if (hf.mode) p.push(['mode', 'Лише аудити', modeText(r)]);
+    if (hf.d1) p.push(['days', hf.d1 === hf.d2 ? 'День' : 'Дні', daysChip(hf.d1, hf.d2)]);
+    return p;
+  }
+  function pickedHtml(r) {
+    var p = pickedList(r);
+    if (!p.length) return '';
+    return '<div class="hs-picked"><span class="hs-picked__t">Обрано:</span>' + p.map(function (x) {
+      return '<span class="chip hs-pchip"><span><span class="hs-pchip__k">' + x[1] + ' — </span>' + esc(x[2]) + '</span>' +
+        '<button class="chip__x" type="button" data-act="hs-x" data-k="' + x[0] + '" aria-label="Зняти фільтр «' + x[1] + '»">' + h.ic('close', 'ui-icon--sm') + '</button></span>';
+    }).join('') + '<button class="btn btn--secondary btn--sm hs-reset" type="button" data-act="hs-reset">' + h.ic('close', 'ui-icon--sm') +
+      'Скинути ' + A.n(p.length, 'фільтр', 'фільтри', 'фільтрів') + '</button></div>';
+  }
   function filters(r) {
-    var o = r.options, extra = [];
-    if (hf.day) extra.push(['day', 'День: ' + A.dshort(hf.day)]);
-    if (hf.order) extra.push(['order', 'Замовлення ' + hf.order]);
-    return '<section class="card" aria-label="Фільтри"><div class="field"><span class="label">Відділи <span style="font-weight:400;color:var(--text-3)">(можна кілька; «Усі» знімає вибір)</span></span>' +
-      '<div class="chips" role="group" aria-label="Відділи"><button class="chip-pick hs-chip' + (hf.deps.length ? '' : ' chip-pick--on') + '" type="button" data-act="hs-dep" data-id="">Усі</button>' +
+    var o = r.options;
+    return '<section class="card" aria-label="Фільтри"><div class="field hs-f' + (hf.deps.length ? ' hs-f--on' : '') + '"><span class="label">Відділи' + MARK +
+      ' <span class="hs-note">(можна кілька)</span></span>' +
+      '<div class="chips" role="group" aria-label="Відділи"><button class="chip-pick hs-chip hs-chip--all' + (hf.deps.length ? '' : ' chip-pick--on') + '" type="button" data-act="hs-dep" data-id="">Усі</button>' +
       r.departments.map(function (d) {
         var on = hf.deps.indexOf(d.id) >= 0;
         return '<button class="chip-pick hs-chip' + (on ? ' chip-pick--on' : '') + '" type="button" data-act="hs-dep" data-id="' + esc(d.id) + '" aria-pressed="' + on + '">' +
           (on ? h.ic('check', 'ui-icon--sm') : '') + esc(d.name) + '<small>' + d.count + '</small></button>'; }).join('') + '</div></div>' +
-      '<div style="display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end">' +
+      '<div class="hs-frow">' +
       select('product', 'Виріб', 'Усі вироби', o.products.map(function (x) { return [x, x]; })) +
       select('defect', 'Вид браку', 'Усі види', o.defects.map(function (x) { return [x, x]; })) +
-      select('worker', 'Працівник', 'Усі працівники', o.workers.map(function (w) { return [w.code, w.code + ' · ' + w.name]; })) +
+      select('worker', 'Працівник', 'Усі працівники', o.workers.slice().sort(function (a, b) { return a.name.localeCompare(b.name, 'uk'); }).map(function (w) { return [w.code, w.name]; })) +
       select('auditor', 'Аудитор', 'Усі аудитори', o.auditors.map(function (u) { return [u.id, u.name]; })) +
-      '<label class="field" style="flex:1.6 1 280px"><span class="label">Пошук</span><span class="search">' + h.ic('search', 'icon') +
-      '<input class="input" data-input="hs-q" value="' + esc(hf.q) + '" placeholder="AUD-…, виріб, № замовлення, код працівника" style="padding-left:46px;font-size:16px"></span></label></div>' +
-      '<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap"><div class="chips" style="flex:1">' +
-      [['defects', 'З браком'], ['clean', 'Без браку'], ['over', 'Понад норму ' + r.criticalPct + '%']].map(function (m) {
+      '<label class="field hs-f hs-f--q' + (hf.q ? ' hs-f--on' : '') + '"><span class="label">Пошук' + MARK + '</span><span class="search">' + h.ic('search', 'icon') +
+      '<input class="input" data-input="hs-q" value="' + esc(hf.q) + '" placeholder="AUD-…, виріб, № замовлення, працівник"></span></label></div>' +
+      '<div class="hs-modes" role="group" aria-label="Лише аудити"><span class="label">Лише аудити:</span>' +
+      [['defects', 'з браком'], ['clean', 'без браку'], ['over', 'понад норму ' + r.criticalPct + '%']].map(function (m) {
         var on = hf.mode === m[0];
         return '<button class="chip-pick hs-chip' + (on ? ' chip-pick--on' : '') + '" type="button" data-act="hs-mode" data-v="' + m[0] + '" aria-pressed="' + on + '">' + (on ? h.ic('check', 'ui-icon--sm') : '') + m[1] + '</button>';
-      }).join('') +
-      extra.map(function (x) { return '<span class="chip">' + esc(x[1]) + '<button class="chip__x" type="button" data-act="hs-x" data-k="' + x[0] + '" aria-label="Зняти фільтр">' + h.ic('close', 'ui-icon--sm') + '</button></span>'; }).join('') +
-      '<span class="hint an-foot-note" style="margin-left:8px">Клік по дню на графіку чи виду браку додасть його сюди фільтром.</span></div>' +
-      '<button class="btn btn--quiet btn--sm" type="button" data-act="hs-reset">' + h.ic('close', 'ui-icon--sm') + 'Скинути фільтри</button></div></section>';
+      }).join('') + '</div><div id="hs-picked">' + pickedHtml(r) + '</div></section>';
   }
 
-  function filterText(r) {
-    var p = [];
-    if (hf.deps.length) p.push(r.departments.filter(function (d) { return hf.deps.indexOf(d.id) >= 0; }).map(function (d) { return d.name; }).join(', '));
-    if (hf.product) p.push(hf.product);
-    if (hf.defect) p.push(hf.defect.toLowerCase());
-    if (hf.worker) p.push('працівник ' + hf.worker);
-    if (hf.auditor) { var u = r.options.auditors.filter(function (x) { return x.id === hf.auditor; })[0]; p.push('аудитор ' + (u ? u.name : hf.auditor)); }
-    if (hf.order) p.push(hf.order);
-    if (hf.q) p.push('«' + hf.q + '»');
-    if (hf.mode) p.push({ defects: 'з браком', clean: 'без браку', over: 'понад норму' }[hf.mode]);
-    return p.join(' · ');
-  }
-  function results(r) {
-    var an = r.analytics, ft = filterText(r);
-    var counts = '<div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap"><span><b style="font-variant-numeric:tabular-nums">' + h.num(r.total) + '</b> ' +
-      P.plural(r.total, 'аудит знайдено', 'аудити знайдено', 'аудитів знайдено') + '</span>' +
-      h.badge('з ' + r.base + (hf.deps.length ? ' у вибраних відділах' : '') + ' за період') +
-      (r.over ? '<span class="badge badge--danger">' + h.ic('warning', 'ui-icon--sm') + 'понад норму — ' + r.over + '</span>' : '') +
-      '<span class="hint" style="margin-left:auto">показано ' + r.items.length + ' · найновіші вгорі</span></div>';
-    if (!r.total) {
-      return counts + '<section class="card">' + P.state.empty('search', 'Нічого не знайдено', 'Спробуйте зняти частину фільтрів або взяти довший період — 90 дн.',
-        '<button class="btn btn--secondary btn--sm" type="button" data-act="hs-reset">Скинути фільтри</button>') + '</section>' + trash(r);
-    }
-    var banner = hf.mode === 'defects' ? '<b>Увімкнено «З браком»:</b> аудити без браку не враховано, тому % вищий, ніж в «Аналітиці». Вимкніть — і числа порахуються по всіх аудитах вибірки.'
-      : hf.mode === 'over' ? '<b>Увімкнено «Понад норму»:</b> лише аудити з браком понад ' + r.criticalPct + '%, тому % тут завжди високий.'
-      : hf.mode === 'clean' ? '<b>Увімкнено «Без браку»:</b> тут лише чисті аудити — браку в них нуль.' : '';
-    var tmax = an.types.length ? an.types[0].pieces : 1;
-    var card = '<section class="card" aria-label="Аналітика відфільтрованих аудитів"><div><h2 class="card-title">Аналітика відфільтрованих аудитів</h2>' +
-      '<p class="hint">Рахує все, що відібрано фільтрами: ' + A.n(an.audits, 'аудит', 'аудити', 'аудитів') + (ft ? ' · ' + esc(ft) : '') + ' · ' + esc(A.span(r.from, r.to)) + '</p></div>' +
-      '<div class="kpis an-kpis3">' + h.kpi(h.num(an.audits), P.plural(an.audits, 'аудит', 'аудити', 'аудитів') + ' · у ' + an.daysWithAudits + ' ' + P.plural(an.daysWithAudits, 'дні', 'днях', 'днях')) +
-      h.kpi(h.num(an.checked), 'перевірено, шт') + h.kpi(h.num(an.rejected), 'брак, шт', an.rejected ? 'danger' : '') +
-      h.kpi(h.pct(an.pct), 'брак ÷ перевірено') + h.kpi(h.num(an.over), 'понад норму · ' + (an.audits ? Math.round(an.over / an.audits * 100) : 0) + '% аудитів вибірки', an.over ? 'danger' : '') +
-      h.kpi(h.num(an.daysWithAudits), 'днів з аудитами · з ' + an.workDays + ' робочих') + '</div>' +
-      (banner ? '<div class="banner">' + h.ic('info', 'icon') + '<div class="banner__body"><p class="banner__text">' + banner + '</p></div></div>' : '') +
-      '<div class="row"><div class="col--wide hs-chartcol"><div><h3 class="card-title" style="font-size:18px">Брак у вибірці по днях, шт</h3>' +
-      '<p class="hint">' + esc(A.span(r.from, r.to)) + ' · колір — рівень браку' + (an.days.length > 1 ? ' · клік по стовпчику — фільтр «день»' : '') + '</p></div>' +
-      '<div class="legend">' + ['fix', 'repair', 'scrap'].map(function (k) { return h.lvl(k); }).join('') + '<span style="color:var(--text-3)">— аудитів у вибірці не було</span></div>' +
-      A.sbars(an.days.map(function (d) {
-        return { v: d.rejected, levels: d.levels, none: !d.audited, sel: d.day === hf.day, act: an.days.length > 1 && d.audited ? 'hs-day' : '', attrs: ' data-day="' + d.day + '"',
-          title: h.dayShort(d.day) + ' · ' + (d.audited ? d.rejected + ' шт · ' + A.n(d.audits, 'аудит', 'аудити', 'аудитів') : 'аудитів не було') };
-      }), { height: 300, label: 'Брак у вибірці по днях, за рівнями браку' }) + A.xLabels(an.days.map(function (d) { return d.day; })) + '</div>' +
-      '<div class="col hs-typescol"><div><h3 class="card-title" style="font-size:18px">Види браку у вибірці</h3>' +
-      '<p class="hint">' + h.num(an.rejected) + ' шт · ' + A.n(an.types.length, 'вид', 'види', 'видів') + ' · клік по виду ставить фільтр «Вид браку»</p></div>' +
-      (an.types.length ? A.levels(an.levels) + '<div class="hs-types"' + (an.types.length > TOP ? ' tabindex="0"' : '') + ' role="group" aria-label="Види браку у вибірці, від найчастішого">' +
+  function summary(r) {
+    var an = r.analytics, df = an.defect, rng = !!r.dayFrom;
+    var when = rng ? (r.dayFrom === r.dayTo ? A.dcap(r.dayFrom) : spanShort(r.dayFrom, r.dayTo) + ' · ' + A.n(A.diff(r.dayFrom, r.dayTo) + 1, 'день', 'дні', 'днів')) + ' · обрано на графіку'
+      : A.span(r.from, r.to) + ' · увесь період';
+    var facts = (hf.mode ? '<span class="hs-fact">Лише аудити ' + esc(modeText(r)) + ': <b>' + h.num(an.selAudits) + ' з ' + h.num(an.modeTotal) + '</b></span>' : '') +
+      (df ? '<span class="hs-fact">Брак рахується лише за видом <b>«' + esc(df.name) + '»</b></span>' : '');
+    var div = h.num(an.rejected) + ' шт ÷ ' + h.num(an.checked) + ' перевірених';
+    var kpis = df
+      ? '<div class="kpis hs-kpis hs-kpis--4">' +
+        h.kpi(h.num(an.audits), P.plural(an.audits, 'аудит', 'аудити', 'аудитів') + ' з цим видом браку · з ' + h.num(an.selAudits) + ' у вибірці') +
+        h.kpi(h.num(an.checked), 'перевірено, шт · в усій вибірці (' + A.n(an.selAudits, 'аудит', 'аудити', 'аудитів') + ')') +
+        h.kpi(h.num(an.rejected), '«' + df.name + '», шт', an.rejected ? 'danger' : '') +
+        h.kpi(h.pct(an.pct), div) + '</div>'
+      : '<div class="kpis hs-kpis">' +
+        h.kpi(h.num(an.audits), P.plural(an.audits, 'аудит', 'аудити', 'аудитів') + ' · у ' + an.daysWithAudits + ' ' + P.plural(an.daysWithAudits, 'дні', 'днях', 'днях') + ' з ' + an.workDays + ' робочих') +
+        h.kpi(h.num(an.checked), 'перевірено, шт') + h.kpi(h.num(an.rejected), 'брак, шт', an.rejected ? 'danger' : '') +
+        h.kpi(h.pct(an.pct), 'брак ÷ перевірено: ' + div) +
+        h.kpi(h.num(an.over), P.plural(an.over, 'аудит', 'аудити', 'аудитів') + ' понад норму ' + r.criticalPct + '% · ' + (an.audits ? Math.round(an.over / an.audits * 100) : 0) + '% аудитів вибірки', an.over ? 'danger' : '') + '</div>';
+    var chart = '<div class="col--wide hs-chartcol"><div><h3 class="card-title hs-h3">' + (df ? '«' + esc(df.name) + '»' : 'Брак у вибірці') + ' по днях, шт</h3>' +
+      '<p class="hint">' + esc(A.span(r.from, r.to)) + ' · колір — рівень браку</p></div>' +
+      '<div class="legend">' + LV.map(function (k) { return h.lvl(k); }).join('') + '<span class="hs-key-none">аудитів у вибірці не було</span></div>' +
+      '<div data-chart="days"></div><div id="hs-sel" class="hs-sel"></div></div>';
+    var tmax = an.types.length ? an.types[0].pieces : 1, pickedType = df && an.types.some(function (t) { return t.name === df.name; });
+    var types = '<div class="col hs-typescol"><div><h3 class="card-title hs-h3">Види браку у вибірці</h3>' +
+      '<p class="hint">' + h.num(an.allRejected) + ' шт · ' + A.n(an.types.length, 'вид', 'види', 'видів') + ' · клік по виду — числа й графік лише для нього, ще клік — зняти</p></div>' +
+      (an.types.length ? A.levels(an.allLevels) + '<div class="hs-types' + (pickedType ? ' hs-types--picked' : '') + '"' + (an.types.length > TOP ? ' tabindex="0"' : '') + ' role="group" aria-label="Види браку у вибірці, від найчастішого">' +
         an.types.map(function (t, i) {
-          return A.hbar({ rank: i + 1, name: t.name, sub: (t.otherDepts.length ? 'брак ' + esc(t.otherDepts.join(', ')) + ' · ' : '') + h.lvl(t.level), share: t.pieces / tmax, n: t.pieces,
-            cols: '20px minmax(0, 1fr) minmax(0, 0.55fr) 36px', act: 'hs-defect', attrs: ' data-v="' + esc(t.name) + '"' });
+          var on = !!df && t.name === df.name;
+          return A.hbar({ rank: i + 1, name: t.name, sub: (t.otherDepts.length ? 'зараховано: ' + esc(t.otherDepts.join(', ')) + ' · ' : '') + h.lvl(t.level), share: t.pieces / tmax, n: t.pieces,
+            cols: '20px minmax(0, 1fr) minmax(0, 0.55fr) 36px', act: 'hs-defect', attrs: ' data-v="' + esc(t.name) + '" aria-pressed="' + on + '"' });
         }).join('') + '</div>' +
         (an.types.length > TOP ? '<p class="hint">Видно ' + TOP + ' найчастіших — ще ' + (an.types.length - TOP) + ' гортаються в цьому списку.</p>' : '')
-        : '<p class="hint">У вибірці браку немає.</p>') + '</div></div></section>';
-    var perDay = {}; an.days.forEach(function (d) { perDay[d.day] = d.audits; });
-    var rows = '', cur = null;
+        : '<p class="hint">У вибірці браку немає.</p>') + '</div>';
+    return '<section class="card" aria-label="Числа вибірки"><div class="hs-head"><div><h2 class="card-title">Числа вибірки</h2><p class="hint">' + esc(when) + '</p></div>' +
+      (facts ? '<div class="hs-facts">' + facts + '</div>' : '') + '</div>' + kpis + '<div class="row">' + chart + types + '</div></section>';
+  }
+  function table(r) {
+    var df = r.analytics.defect, perDay = {}, rows = '', cur = null, cols = df ? 7 : 6;
+    r.analytics.days.forEach(function (d) { perDay[d.day] = d.matched; });
     r.items.forEach(function (a) {
-      if (a.day !== cur) { cur = a.day; rows += '<tr><th colspan="6" class="hs-dayrow">' + esc(A.dcap(a.day)) + ' · ' + A.n(perDay[a.day] || 0, 'аудит', 'аудити', 'аудитів') + '</th></tr>'; }
+      if (a.day !== cur) {
+        cur = a.day;
+        rows += '<tr><th colspan="' + cols + '" class="hs-dayrow">' + esc(A.dcap(a.day)) + ' · ' + A.n(perDay[a.day] || 0, 'аудит', 'аудити', 'аудитів') + (df ? ' з цим видом браку' : '') + '</th></tr>';
+      }
       var it = a.items, first = it[0] || { productName: '—' };
       rows += '<tr data-act="hs-open" data-id="' + esc(a.id) + '"' + (a.over ? ' class="exceed"' : '') + '><td><b>' + P.fmt.time(a.createdAt) + '</b><span class="sub">' +
         (a.auditorRole === 'senior_auditor' ? 'старший: ' : a.auditorRole === 'admin' ? 'адміністратор: ' : 'аудитор: ') + esc(a.auditorName) + '</span></td><td>' + esc(a.departmentName) + '</td>' +
         '<td>' + esc(first.productName + (first.orderNo ? ' · ' + first.orderNo : '')) + it.slice(1).map(function (x) { return '<span class="sub">' + esc(x.productName + (x.orderNo ? ' · ' + x.orderNo : '')) + '</span>'; }).join('') + '</td>' +
-        '<td class="n">' + h.num(a.checked) + '</td><td class="n"><b' + (a.over ? ' style="color:var(--danger)"' : '') + '>' + a.rejected + '</b><span class="sub">' + h.pct(a.pct) + (a.over ? ' · понад норму' : '') + '</span></td>' +
+        '<td class="n">' + h.num(a.checked) + '</td>' + (df ? '<td class="n"><b>' + h.num(a.defectPieces) + '</b></td>' : '') +
+        '<td class="n"><' + (df ? 'span' : 'b') + (a.over ? ' style="color:var(--danger)"' : '') + '>' + a.rejected + '</' + (df ? 'span' : 'b') + '><span class="sub">' + h.pct(a.pct) + (a.over ? ' · понад норму' : '') + '</span></td>' +
         '<td style="text-align:center;color:var(--text-2)">' + (a.photos || a.hasComment || a.edited ? '<span style="display:inline-flex;align-items:center;gap:10px">' +
           (a.photos ? '<span style="display:inline-flex;align-items:center;gap:4px" title="фото">' + h.ic('photo', 'ui-icon--sm') + a.photos + '</span>' : '') +
           (a.hasComment ? '<span title="є коментар">' + h.ic('feedback', 'ui-icon--sm') + '</span>' : '') +
           (a.edited ? '<span title="виправлено">' + h.ic('edit', 'ui-icon--sm') + '</span>' : '') + '</span>' : '<span style="color:var(--text-3)">—</span>') + '</td></tr>';
     });
     var left = r.total - r.items.length;
-    var table = '<section class="card" style="gap:16px"><div class="tbl-box"><table class="tbl"><thead><tr><th>Дата й час</th><th>Відділ</th><th>Виріб · замовлення</th>' +
-      '<th class="n">Перевірено</th><th class="n">Брак</th><th style="text-align:center">Фото, коментар</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
+    return '<section class="card" style="gap:16px"><div class="tbl-box"><table class="tbl"><thead><tr><th>Дата й час</th><th>Відділ</th><th>Виріб · замовлення</th>' +
+      '<th class="n">Перевірено, шт</th>' + (df ? '<th class="n">Цей вид, шт</th><th class="n">Увесь брак, шт</th>' : '<th class="n">Брак, шт</th>') +
+      '<th style="text-align:center">Фото, коментар</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
       '<div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">' + (left > 0 ? '<button class="btn btn--secondary" type="button" data-act="hs-more">' + h.ic('chevron-down') + 'Показати ще ' + Math.min(left, STEP) + '</button>' : '') +
-      '<p class="hint">Клік по рядку — увесь аудит збоку: перевірка, брак, фото, правка й видалення.</p></div></section>';
-    return counts + card + table + trash(r);
+      '<p class="hint">Клік по рядку — аудит збоку: перевірка, брак, фото, правка й видалення.</p></div></section>';
+  }
+  function results(r) {
+    var counts = '<div class="hs-counts"><span><b style="font-variant-numeric:tabular-nums">' + h.num(r.total) + '</b> ' +
+      P.plural(r.total, 'аудит знайдено', 'аудити знайдено', 'аудитів знайдено') + '</span>' +
+      h.badge('з ' + r.base + (hf.deps.length ? ' у вибраних відділах' : '') + ' за період') +
+      (r.over ? '<span class="badge badge--danger">' + h.ic('warning', 'ui-icon--sm') + 'понад норму ' + r.criticalPct + '% — ' + r.over + '</span>' : '') +
+      (r.total ? '<span class="hint" style="margin-left:auto">показано ' + r.items.length + ' · найновіші вгорі</span>' : '') + '</div>';
+    if (!r.total) {
+      var n = pickedList(r).length;
+      return counts + '<section class="card">' + P.state.empty('search', 'Аудитів не знайдено', (n ? 'Обрано ' + A.n(n, 'фільтр', 'фільтри', 'фільтрів') + ' · ' : '') + 'період ' + A.span(r.from, r.to),
+        n ? '<button class="btn btn--secondary btn--sm" type="button" data-act="hs-reset">Скинути фільтри</button>' : '') + '</section>' + trash(r);
+    }
+    return counts + summary(r) + table(r) + trash(r);
   }
   function trash(r) {
     if (!r.trash.length) return '';
@@ -141,97 +189,90 @@
     if (rows.length <= TOP) return;
     var hgt = Math.round(rows[TOP].getBoundingClientRect().top - rows[0].getBoundingClientRect().top);
     list.style.maxHeight = (hgt > 60 ? hgt : 290) + 'px';   // не виміряли (екран схований) — запасна висота
+    var on = list.querySelector('[aria-pressed="true"]');
+    if (on && on.offsetTop + on.offsetHeight > list.offsetTop + list.clientHeight) list.scrollTop = on.offsetTop - list.offsetTop;
   }
-
-  function openAudit(id) {
-    var audit = null;
-    var layer = P.sr.drawer({ title: 'Аудит ' + id, sub: 'Завантаження…', body: h.loading(),
-      on: { edit: function () { editAudit(audit); }, del: function () { deleteAudit(audit); }, retry: function () { load(); } } });
-    function load() {
-      layer.body(h.loading());
-      P.srv('auditGet', { id: id }).then(function (r) {
-        if (layer.closed) return;
-        if (!r.ok) { layer.body(r.code === 'not_found' ? h.empty('Аудиту немає', 'Можливо, його видалили — подивіться в корзині внизу історії.') : h.error(r)); return; }
-        audit = r.audit;
-        var day = P.fmt.dayKey(audit.createdAt);
-        layer.el.querySelector('.modal__title').textContent = 'Аудит ' + audit.id + ' · ' + P.fmt.time(audit.createdAt) + ' · ' + audit.departmentName;
-        layer.el.querySelector('.modal__head .hint').textContent = A.dcap(day) + ' · аудитор: ' + audit.auditorName;
-        layer.body(auditBody(audit));
-        if (audit.canEdit) {
-          layer.el.querySelector('.drawer').insertAdjacentHTML('beforeend', '<div class="modal__foot" style="margin-top:auto">' +
-            '<button class="btn btn--secondary btn--sm" type="button" data-act="del" style="color:var(--danger);border-color:var(--danger-line)">' + h.ic('delete', 'ui-icon--sm') + 'Видалити</button>' +
-            '<button class="btn btn--primary btn--sm" type="button" data-act="edit" style="margin-left:auto">' + h.ic('edit', 'ui-icon--sm') + 'Виправити</button></div>');
-        }
-      });
-    }
-    load();
-  }
-  function auditBody(a) {
-    var over = a.pct != null && a.pct > 5;
-    var kpis = '<div class="kpis an-kpis3" style="grid-template-columns:repeat(3,minmax(0,1fr))">' + h.kpi(h.num(a.checked), 'перевірено, шт') +
-      h.kpi(h.num(a.rejected), 'брак, шт', a.rejected ? 'danger' : '') + h.kpi(h.pct(a.pct), over ? 'понад норму 5%' : 'брак ÷ перевірено', over ? 'danger' : '') + '</div>';
-    var items = '<div style="display:flex;flex-direction:column;gap:6px"><p class="group-label" style="padding:0">Перевірка</p><table class="table"><thead><tr><th>Виріб · замовлення</th><th class="n">Перевірено</th><th class="n">Брак</th></tr></thead><tbody>' +
-      a.items.map(function (i) { return '<tr><td>' + esc(i.productName) + (i.orderNo ? '<span class="sub">' + esc(i.orderNo) + '</span>' : '') + '</td><td class="n">' + h.num(i.qty) + '</td><td class="n">' + h.num(i.rejected) + '</td></tr>'; }).join('') +
-      '</tbody></table></div>';
-    var defects = '<div style="display:flex;flex-direction:column;gap:8px"><p class="group-label" style="padding:0">Брак · ' + h.num(a.rejected) + ' шт</p>' + (a.defects.length ? a.defects.map(function (d) {
-      return '<div class="entry ' + (d.otherDept ? 'entry--other' : 'entry--defect') + '" style="gap:4px"><div class="entry__head"><p class="entry__title">' + esc(d.defectTypeName) + '</p>' +
-        (d.otherDept ? h.badge('брак іншого відділу', 'info') : '') + '<b style="font-variant-numeric:tabular-nums;margin-left:auto">' + d.qty + ' шт</b></div>' + h.lvl(d.level) +
-        '<span class="hint">' + esc(d.productName) + ' · ' + (d.workerCode ? 'винний працівник: ' + esc(d.workerName) + ' · ' + esc(d.workerCode) : 'працівника не вказали') + '</span>' +
-        (d.otherDept ? '<b style="font-size:14px;color:var(--info)">Піде відділу ' + esc(d.departmentName) + ' — у його аналітику</b>' : '') + '</div>';
-    }).join('') : '<p class="hint">Браку не знайшли — чистий аудит.</p>') + '</div>';
-    var workers = '<div style="display:flex;flex-direction:column;gap:8px"><p class="group-label" style="padding:0">Перевірені працівники · ' + a.checkedWorkers.length + '</p><div class="chips">' +
-      a.checkedWorkers.map(function (w) { return '<span class="chip chip--plain">' + esc(w.code ? w.name + ' · ' + w.code : w.name) + '</span>'; }).join('') + '</div></div>';
-    var comment = a.comment ? '<div style="display:flex;flex-direction:column;gap:8px"><p class="group-label" style="padding:0">Коментар</p><p class="note-box" style="margin:0;font-size:16px;color:var(--text)">' + esc(a.comment) + '</p></div>' : '';
-    var photos = a.defects.filter(function (d) { return d.photo; });
-    var ph = photos.length ? '<div style="display:flex;flex-direction:column;gap:8px"><p class="group-label" style="padding:0">Фото браку · ' + photos.length + '</p><div class="hs-photos">' +
-      photos.map(function (d) { return '<div class="hs-photo" title="' + esc(d.photo.name || '') + '">' + h.ic('photo') + '<span>фото · ' + esc(d.defectTypeName) + '</span></div>'; }).join('') +
-      '</div><p class="hint">У тестовій версії замість фото — заглушки.</p></div>' : '';
-    var info = a.canEdit ? '<div class="banner">' + h.ic('info', 'icon') + '<div class="banner__body"><p class="banner__text"><b>Ви можете правити цей аудит будь-коли</b> — ви старший цієї локації. ' +
-      'Аудитор править свій аудит лише 15 хвилин після запису.</p></div></div>' : '';
-    return kpis + items + defects + workers + comment + ph + info;
-  }
-  function editAudit(a) {
-    if (!a) return;
-    P.sr.modal({ size: 'frame', title: 'Виправити аудит · ' + a.departmentName + ' · ' + P.fmt.time(a.createdAt), sub: esc(a.id + ' · ' + h.dayLong(P.fmt.dayKey(a.createdAt))),
-      body: '<iframe class="sr-frame" title="Форма виправлення аудиту" src="../pratsivnyk/index.html?embed=1#/audit/' + encodeURIComponent(a.id) + '/edit"></iframe>',
-      onMount: function (el) { el.querySelector('.ov-body').style.padding = '0'; } });
-  }
-  function deleteAudit(a) {
-    if (!a) return;
-    var when = P.fmt.time(a.createdAt) + ' · ' + a.departmentName;
-    P.sr.modal({ size: 'sm', title: 'Видалити аудит ' + when + '?',
-      body: '<p class="dlg__text" style="font-size:18px;color:var(--text);margin:0"><b>Аудит зникне з аналітики й історії.</b> 30 днів його можна повернути з корзини.</p>' +
-        '<div class="facts" style="gap:4px"><b>' + esc(a.id) + '</b><span class="hint">' + esc(A.dcap(P.fmt.dayKey(a.createdAt)) + ', ' + P.fmt.time(a.createdAt) + ' · аудитор: ' + a.auditorName) + '</span>' +
-        '<span class="hint">' + esc(a.products.join(', ')) + ' · перевірено ' + h.num(a.checked) + ' шт · брак ' + h.num(a.rejected) + ' шт</span></div>' +
-        '<label class="field"><span class="label">Причина <span style="font-weight:400;color:var(--text-3)">(необовʼязково)</span></span>' +
-        '<input class="input" data-reason maxlength="300" placeholder="Наприклад: записали двічі"></label><p class="err" data-err hidden></p>',
-      foot: '<button class="btn btn--quiet" type="button" data-ov-close style="margin-left:auto">Залишити</button>' +
-        '<button class="btn btn--danger" type="button" data-act="go">' + h.ic('delete', 'ui-icon--sm') + 'Видалити</button>',
-      on: { go: function (t, e, layer) {
-        t.disabled = true;
-        P.srv('srAuditDelete', { id: a.id, reason: layer.el.querySelector('[data-reason]').value }).then(function (r) {
-          if (!r.ok) { t.disabled = false; var er = layer.el.querySelector('[data-err]'); er.hidden = false; er.textContent = (r.errors && r.errors[0] ? r.errors[0].message : r.error) || 'Не вдалося видалити.'; return; }
-          P.toast('ok', 'Аудит видалено · ' + when, 'Повернути можна з «Корзини» внизу історії аудитів (' + r.trashCount + ').');
-          P.emit('kd:changed'); P.sr.render();
-        });
-      } } });
-  }
-
-  P.srHist = { openAudit: openAudit };
 
   P.sr.screen('/history', { tab: 'history', title: 'Історія аудитів', render: function (ctx) {
     fromQuery(ctx.query || {});
     var timer = null, req = 0;
+    var data = null;    // остання відповідь сервера
+    var chart = null;   // контролер графіка (P.srChart.mount)
+    var sig = '';       // «відбиток» даних графіка: не змінився — графік не перемальовуємо (обраний діапазон і плашка не блимають)
+
+    function tipHtml(an, list, title, sub) {
+      var s = sumDays(list), df = an.defect;
+      return P.srChart.tipDay({ title: title, sub: [sub, df ? '«' + df.name + '»' : ''].filter(Boolean).join(' · '), none: s.audits ? null : 'Аудитів у вибірці не було',
+        audits: s.audits, checked: s.checked, rejected: s.rejected, pct: share(s.rejected, s.checked),
+        levels: df && df.level ? null : s.levels,   // один вид браку має один рівень — замість трьох рядків пишемо його словом
+        rows: df ? [['Аудитів із цим видом', h.num(s.matched)]].concat(df.level ? [['Рівень', P.sr.LEVELS[df.level]]] : []) : [] });
+    }
+    function mountChart(slot, r) {
+      var an = r.analytics;
+      return P.srChart.mount(slot, {
+        items: an.days.map(function (d) { return { key: d.day, x: h.dayShort(d.day), v: d.rejected, levels: d.levels, none: !d.audited, d: d }; }),
+        height: 300, label: (an.defect ? '«' + an.defect.name + '»' : 'Брак у вибірці') + ' по днях, шт, за рівнями браку',
+        tip: function (it) { return tipHtml(an, [it.d], A.dcap(it.key)); },
+        tipRange: function (list, a, b) { return tipHtml(an, list.map(function (x) { return x.d; }), spanShort(a.key, b.key), A.n(list.length, 'день', 'дні', 'днів')); },
+        pin: hf.d1 ? null : pin, range: hf.d1 ? [hf.d1, hf.d2] : null,
+        onPin: function (it) {
+          pin = it ? it.key : null;
+          if (it && hf.d1) { hf.d1 = hf.d2 = ''; change(); return; }   // клік по іншому дню зняв діапазон на графіку — знімаємо й фільтр «Дні»
+          drawSel();
+        },
+        onRange: function (a, b) {
+          if (a) { pin = null; hf.d1 = a.key; hf.d2 = b.key; change(); }
+          else if (hf.d1) { hf.d1 = hf.d2 = ''; change(); }
+        } });
+    }
+    function drawSel() {
+      var el = ctx.el.querySelector('#hs-sel');
+      if (!el || !data) return;
+      var days = data.analytics.days, df = data.analytics.defect, html, s;
+      if (pin && !days.some(function (d) { return d.day === pin; })) pin = null;   // період змінили — того дня на графіку вже немає
+      if (hf.d1) {
+        s = sumDays(days.filter(function (d) { return d.day >= hf.d1 && d.day <= hf.d2; }));
+        var one = hf.d1 === hf.d2;
+        html = '<p class="hs-sel__t"><b>' + esc(one ? A.dcap(hf.d1) : spanShort(hf.d1, hf.d2)) + '</b>' + (one ? '' : ' · ' + A.n(A.diff(hf.d1, hf.d2) + 1, 'день', 'дні', 'днів')) + ' · ' + esc(dayFacts(s, df)) + '</p>' +
+          '<button class="btn btn--secondary btn--sm" type="button" data-act="hs-unrange">' + h.ic('close', 'ui-icon--sm') + (one ? 'Зняти день' : 'Зняти діапазон') + '</button>';
+      } else if (pin) {
+        s = sumDays(days.filter(function (d) { return d.day === pin; }));
+        html = '<p class="hs-sel__t"><b>' + esc(A.dcap(pin)) + '</b> · ' + esc(dayFacts(s, df)) + '</p>' +
+          (s.matched ? '<button class="btn btn--primary btn--sm" type="button" data-act="hs-showday">Показати аудити цього дня</button>' : '') +
+          '<button class="btn btn--quiet btn--sm" type="button" data-act="hs-unpin">Зняти</button>';
+      } else html = '<p class="hint">Наведіть на стовпчик — числа дня · клік — зафіксувати день · протягніть мишею — обрати кілька днів</p>';
+      el.className = 'hs-sel' + (hf.d1 || pin ? ' hs-sel--on' : '');
+      el.innerHTML = html;
+    }
+    function paint(r) {
+      data = r;
+      var box = ctx.el.querySelector('#hs-res');
+      var next = r.total ? JSON.stringify([r.analytics.days, r.analytics.defect && r.analytics.defect.name]) : '';
+      var keep = chart && next && next === sig ? chart.el : null;
+      if (keep && keep.parentNode) keep.parentNode.removeChild(keep);
+      box.style.opacity = ''; box.innerHTML = results(r);
+      var slot = box.querySelector('[data-chart="days"]');
+      if (slot && keep) {
+        slot.parentNode.replaceChild(keep, slot);
+        if (hf.d1) chart.setRange(hf.d1, hf.d2); else if (pin) chart.setPin(pin); else chart.clear();   // вибір могли зняти кнопкою чи хрестиком
+      } else chart = slot ? mountChart(slot, r) : null;
+      sig = next;
+      drawSel(); fitTypes(box);
+    }
     function load(first, keep) {
       syncUrl();
       var my = ++req, box = ctx.el.querySelector('#hs-res');
       if (box && !first) box.style.opacity = '.55';
       P.srv('srHistory', payload(ctx)).then(function (r) {
         if (!ctx.alive() || my !== req) return;
-        if (!r.ok) { ctx.el.innerHTML = h.error(r); return; }
-        if (first || !ctx.el.querySelector('#hs-res')) ctx.el.innerHTML = '<div id="hs-filters"></div><div id="hs-res" style="display:flex;flex-direction:column;gap:20px"></div>';
-        if (!keep || !ctx.el.querySelector('#hs-filters').innerHTML) ctx.el.querySelector('#hs-filters').innerHTML = filters(r);
-        box = ctx.el.querySelector('#hs-res'); box.style.opacity = ''; box.innerHTML = results(r); fitTypes(box);
+        if (!r.ok) { ctx.el.innerHTML = h.error(r); chart = null; sig = ''; return; }
+        if (hf.d1 && !r.dayFrom && DAY_RE.test(hf.d1) && DAY_RE.test(hf.d2)) P.toast('info', 'Фільтр «Дні» знято', 'Обрані дні — поза періодом ' + A.span(r.from, r.to) + '.');
+        if ((hf.d1 || '') !== (r.dayFrom || '') || (hf.d2 || '') !== (r.dayTo || '')) { hf.d1 = r.dayFrom || ''; hf.d2 = r.dayTo || ''; syncUrl(); }
+        if (first || !ctx.el.querySelector('#hs-res')) { ctx.el.innerHTML = '<div id="hs-filters"></div><div id="hs-res" class="hs-res"></div>'; chart = null; sig = ''; }
+        var fbox = ctx.el.querySelector('#hs-filters');
+        if (!keep || !fbox.innerHTML) fbox.innerHTML = filters(r);
+        else fbox.querySelector('#hs-picked').innerHTML = pickedHtml(r);   // рядок «Обрано» оновлюємо завжди
+        paint(r);
       });
     }
     function change() { hf.limit = STEP; load(); }
@@ -242,14 +283,23 @@
       change();
     });
     ctx.on('hs-sel', function (t) { hf[t.getAttribute('data-k')] = t.value; change(); });
-    ctx.on('hs-q', function (t) { clearTimeout(timer); timer = setTimeout(function () { hf.q = t.value.trim(); hf.limit = STEP; load(false, true); }, 300); });
+    ctx.on('hs-q', function (t) {
+      t.closest('.hs-f').classList.toggle('hs-f--on', !!t.value.trim());
+      clearTimeout(timer); timer = setTimeout(function () { hf.q = t.value.trim(); hf.limit = STEP; load(false, true); }, 300);
+    });
     ctx.on('hs-mode', function (t) { var v = t.getAttribute('data-v'); hf.mode = hf.mode === v ? '' : v; change(); });
-    ctx.on('hs-x', function (t) { hf[t.getAttribute('data-k')] = ''; change(); });
-    ctx.on('hs-reset', function () { hf = blank(); change(); });
-    ctx.on('hs-day', function (t) { hf.day = t.getAttribute('data-day'); change(); });
-    ctx.on('hs-defect', function (t) { hf.defect = t.getAttribute('data-v'); change(); });
+    ctx.on('hs-x', function (t) {
+      var k = t.getAttribute('data-k');
+      if (k === 'deps') hf.deps = []; else if (k === 'days') hf.d1 = hf.d2 = ''; else hf[k] = '';
+      change();
+    });
+    ctx.on('hs-reset', function () { hf = blank(); pin = null; change(); });
+    ctx.on('hs-defect', function (t) { var v = t.getAttribute('data-v'); hf.defect = hf.defect === v ? '' : v; change(); });
+    ctx.on('hs-showday', function () { if (!pin) return; hf.d1 = hf.d2 = pin; pin = null; change(); });
+    ctx.on('hs-unpin', function () { pin = null; if (chart) chart.clear(); drawSel(); });
+    ctx.on('hs-unrange', function () { hf.d1 = hf.d2 = ''; change(); });
     ctx.on('hs-more', function () { hf.limit += STEP; load(false, true); });
-    ctx.on('hs-open', function (t) { openAudit(t.getAttribute('data-id')); });
+    ctx.on('hs-open', function (t) { P.srChart.hide(); P.srHist.openAudit(t.getAttribute('data-id')); });
     ctx.on('hs-restore', function (t) {
       t.disabled = true;
       P.srv('srAuditRestore', { id: t.getAttribute('data-id') }).then(function (r) {

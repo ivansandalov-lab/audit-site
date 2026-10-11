@@ -160,7 +160,6 @@
       setRange: function (k1, k2) { var a = indexOfKey(k1), b = indexOfKey(k2); if (a < 0 || b < 0) return clear(true); st.pin = -1; st.a = Math.min(a, b); st.b = Math.max(a, b); paint(); anchor(); },
       destroy: function () { if (owner === api) hideTip(); el.innerHTML = ''; } };
     paint();
-    if (st.pin >= 0 || st.a >= 0) root.requestAnimationFrame(function () { if (doc.contains(el)) anchor(); });
     return api;
   }
 
