@@ -177,3 +177,10 @@
   .mg-wz__band { margin: 0 -12px 0 -8px; padding: 10px 12px 10px 8px; }
   .mg-wz__bandtext { flex: 1 1 160px; }
 }
+
+
+.mg-lvl { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; width: 100%; border: 1px solid transparent; font: inherit; color: inherit; text-align: left; cursor: pointer; }
+.mg-lvl:hover { border-color: var(--line-strong); }
+.mg-lvl--on, .mg-lvl--on:hover { border-color: var(--brand); background: var(--brand-soft); }
+.mg-lvl__top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.mg-lvl__n { font-size: 13px; font-weight: 600; color: var(--text-2); font-variant-numeric: tabular-nums; }

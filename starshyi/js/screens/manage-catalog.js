@@ -159,15 +159,16 @@
   });
 
   M.section('defects', 'Види браку', function (v) {
-    var data = null, st = { q: '', type: '', sel: {} };
+    var data = null, st = { q: '', type: '', lvl: '', sel: {} };   // lvl — фільтр за рівнем браку ('' — усі). v1.2
     function load() { v.get('srMgDefects', function (r) { data = r; draw(); }); }
     function find(id) { return data.items.filter(function (x) { return x.id === id; })[0]; }
     function selIds() { return Object.keys(st.sel).filter(function (id) { return st.sel[id] && find(id); }); }
     function typeName(id) { var t = data.deptTypes.filter(function (x) { return x.id === id; })[0]; return t ? t.name : ''; }
     function shown() {
       var s = st.q.trim().toLowerCase();
-      return data.items.filter(function (x) { return (!st.type || x.deptTypeId === st.type) && (!s || x.name.toLowerCase().indexOf(s) >= 0); });
+      return data.items.filter(function (x) { return (!st.type || x.deptTypeId === st.type) && (!st.lvl || x.level === st.lvl) && (!s || x.name.toLowerCase().indexOf(s) >= 0); });
     }
+    function levelCount(k) { return data.items.filter(function (x) { return x.level === k && (!st.type || x.deptTypeId === st.type); }).length; }
     function levelSeg(x) {
       if (!x.level) return H.badge('рівень не задано', 'warn');
       return '<div class="seg seg--sm" role="radiogroup" aria-label="Рівень · ' + esc(x.name) + '" style="display:inline-flex">' + ['fix', 'repair', 'scrap'].map(function (k) {
@@ -189,8 +190,11 @@
     function draw() {
       v.col.innerHTML = M.head('Види браку', 'У кожного виду — рівень. Довідник спільний для всіх цехів.',
         '<div class="mg-actions"><button class="btn btn--secondary" type="button" data-act="mg-merge">' + P.ic('merge') + 'Обʼєднати…</button>' + M.btnNew('Новий вид браку') + '</div>') +
-        '<div class="kpis mg-kpis3">' + [['fix', 'Неправильно зроблене', 'можна виправити одразу — переробити'], ['repair', 'Пошкоджене', 'піде в ремонт'], ['scrap', 'Зламане', 'не відремонтувати — втрачено']].map(function (k) {
-          return '<div class="kpi"><span class="lvl lvl--' + k[0] + '" style="font-size:16px">' + esc(k[1]) + '</span><span class="kpi__label">' + esc(k[2]) + '</span></div>'; }).join('') + '</div>' +
+        '<div class="kpis mg-kpis3" role="group" aria-label="Фільтр за рівнем браку">' + [['fix', 'Неправильно зроблене', 'можна виправити одразу — переробити'], ['repair', 'Пошкоджене', 'піде в ремонт'], ['scrap', 'Зламане', 'не відремонтувати — втрачено']].map(function (k) {
+          var on = st.lvl === k[0], n = levelCount(k[0]);
+          return '<button class="kpi mg-lvl' + (on ? ' mg-lvl--on' : '') + '" type="button" data-act="mg-lvl"' + da('v', k[0]) + ' aria-pressed="' + on + '">' +
+            '<span class="mg-lvl__top"><span class="lvl lvl--' + k[0] + '" style="font-size:16px">' + esc(k[1]) + '</span>' + (on ? H.badge('обрано', 'brand') : '') + '</span>' +
+            '<span class="kpi__label">' + esc(k[2]) + '</span><span class="mg-lvl__n">' + H.num(n) + ' ' + P.plural(n, 'вид', 'види', 'видів') + '</span></button>'; }).join('') + '</div>' +
         '<section class="card"><div class="mg-tools"><div class="search" style="flex:1;min-width:240px">' + P.ic('search', 'icon') +
         '<input class="input" data-input="mg-q" value="' + esc(st.q) + '" placeholder="Пошук виду браку" aria-label="Пошук виду браку" style="padding-left:46px"></div>' +
         '<span class="pills mg-pills">' + [['', 'Усі відділи']].concat(data.deptTypes.map(function (t) { return [t.id, t.name]; })).map(function (o) {
@@ -253,6 +257,7 @@
     });
     v.ctx.on('mg-q', function (t) { st.q = t.value; redrawRows(); });
     v.ctx.on('mg-type', function (t) { st.type = t.getAttribute('data-id'); draw(); });
+    v.ctx.on('mg-lvl', function (t) { var k = t.getAttribute('data-v'); st.lvl = st.lvl === k ? '' : k; draw(); });
     v.ctx.on('mg-sel', function (t) { var id = t.getAttribute('data-id'); st.sel[id] = !st.sel[id]; redrawRows(); });
     v.ctx.on('mg-sel-clear', function () { st.sel = {}; redrawRows(); });
     v.ctx.on('mg-level', function (t) {
