@@ -2,7 +2,7 @@
   'use strict';
   var P = root.P, doc = root.document, esc = P.esc;
   var DAYS = [[1, 'пн'], [2, 'вт'], [3, 'ср'], [4, 'чт'], [5, 'пт'], [6, 'сб'], [0, 'нд']];
-  var SOURCE = { 'rule:probe': 'За розкладом', test: 'Пробне з кабінету адміна', daily: 'Денний звіт · надіслати зараз', 'daily-test': 'Денний звіт · пробне' };
+  var SOURCE = { 'rule:probe': 'За розкладом', test: 'Пробне з кабінету адміна', daily: 'Денний звіт · надіслати зараз', 'daily-test': 'Денний звіт · пробне', preview: 'Пробне з конструктора розсилок' };
   var STATUS = { pending: ['warn', 'у черзі'], sending: ['info', 'надсилається'], sent: ['ok', 'надіслано'], failed: ['danger', 'не надіслано'], expired: ['', 'застаріло'] };
   var el = null, data = null, editChannel = false, editRule = null, busy = false, timer = null, gen = 0;
 

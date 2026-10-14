@@ -21,7 +21,7 @@
       savedAt: Date.now(), summary: (d ? d.name : 'Відділ не обрано') + ' · ' + form.items.filter(function (i) { return i.productId; }).length + ' вир.',
       state: { clientId: form.clientId, departmentId: form.departmentId, orders: form.orders, items: form.items,
         workers: form.workers, helpers: form.helpers, comment: form.comment, mode: form.mode,
-        defects: form.defects.map(function (x) { return { key: x.key, itemKey: x.itemKey, defectTypeId: x.defectTypeId, other: x.other, departmentId: x.departmentId, guilty: x.guilty }; }) }
+        defects: form.defects.map(function (x) { return { key: x.key, itemKey: x.itemKey, defectTypeId: x.defectTypeId, other: x.other, departmentId: x.departmentId, guilty: x.guilty, photos: x.photos || [] }; }) }
     });
   }
   function flush() { clearTimeout(timer); var fn = pending; pending = null; if (fn) fn(); }
@@ -49,6 +49,7 @@
     F.defects = defs.map(function (x) {
       var other = x.other === true, dep = other && AF.dept(F, str(x.departmentId)) ? x.departmentId : null;
       return { key: x.key, itemKey: str(x.itemKey) || null, defectTypeId: str(x.defectTypeId) || null, other: other, departmentId: dep,
+        photos: (Array.isArray(x.photos) ? x.photos : []).filter(AF.isPhoto).slice(0, AF.PHOTO_MAX),
         guilty: x.guilty.slice(0, L.maxGuiltyPerDefect).map(function (g) { return { workerCode: g && g.workerCode == null ? null : str(g && g.workerCode), qty: num(g && g.qty) }; }) };
     });
     if (!F.items.length) F.items = [newItem()];
@@ -72,9 +73,12 @@
       var dep = d.otherDept ? d.departmentId : '', k = [d.productId, d.orderNo || '', d.defectTypeId, dep].join('|');
       if (!groups[k]) {
         var it = F.items.filter(function (i) { return i.productId === d.productId && (i.orderNo || null) === (d.orderNo || null); })[0];
-        groups[k] = { key: P.uid('df'), itemKey: it ? it.key : null, defectTypeId: d.defectTypeId, other: !!d.otherDept, departmentId: dep || null, guilty: [] };
+        groups[k] = { key: P.uid('df'), itemKey: it ? it.key : null, defectTypeId: d.defectTypeId, other: !!d.otherDept, departmentId: dep || null, guilty: [], photos: [] };
         F.defects.push(groups[k]);
       }
+      (Array.isArray(d.photos) ? d.photos : []).forEach(function (src) {   // фото зберігаються при виправленні
+        if (AF.isPhoto(src) && groups[k].photos.length < AF.PHOTO_MAX && groups[k].photos.indexOf(src) < 0) groups[k].photos.push(src);
+      });
       groups[k].guilty.push({ workerCode: d.workerCode || '', qty: String(d.qty) });
     });
   };

@@ -36,13 +36,16 @@
     },
 
     canOf: function (role) {
-      return {
+      var can = {
         recordAudit: role === 'auditor' || role === 'senior_auditor' || role === 'admin',
         editCatalogs: role === 'senior_auditor' || role === 'admin',
         editOthersAudits: role === 'senior_auditor' || role === 'admin',
         viewAllLocations: role === 'manager' || role === 'admin',
         manageWhitelist: role === 'senior_auditor' || role === 'admin'
       };
+      var o = C.roleOverrides && Object.prototype.hasOwnProperty.call(C.roleOverrides, role) ? C.roleOverrides[role] : null;
+      if (o) Object.keys(can).forEach(function (k) { if (typeof o[k] === 'boolean') can[k] = o[k]; });
+      return can;
     },
 
     buildMe: function (u, ix) {
@@ -51,7 +54,8 @@
         id: u.id, name: u.name, role: role, roleLabel: P.demoDict.roleLabels[role], email: u.email,
         locations: u.locationIds.map(function (id) { return { id: id, name: ix.loc[id].name }; }),
         defaultLocationId: u.locationIds[0],
-        can: C.canOf(role)
+        can: C.canOf(role),
+        rules: { editWindowMin: C.LIMITS.editWindowMin, sessionDays: C.SESSION_DAYS }
       };
     },
 

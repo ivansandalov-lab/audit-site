@@ -138,6 +138,7 @@
           err(F, gp) + err(F, gp + '.qty');
       }).join('') +
       (d.guilty.length < F.ctx.limits.maxGuiltyPerDefect ? '<div class="row"><button type="button" class="ui-btn ui-btn--quiet ui-btn--sm" data-a="g-add" data-k="' + esc(d.key) + '">' + P.ic('add') + 'Ще винний</button></div>' : '') +
+      AF.photoField(F, d) + err(F, pre + '.photos') +
       (d.other ? '<p class="form-sec__hint">Цей брак зарахується відділу, звідки прийшов; у цьому аудиті він теж записаний.</p>' : '') +
       err(F, pre + '.departmentId') + err(F, pre + '.productId') + err(F, pre + '.defectTypeId') + err(F, pre + '.guilty') + err(F, pre) + '</div>';
   }
@@ -181,6 +182,15 @@
 
   AF.doneView = function (F, r) {
     var t = AF.totals(F);
+    if (r.queued) {
+      return '<div class="ui-card"><div class="done"><span class="done__icon done__icon--wait">' + P.ic('clock') + '</span>' +
+        '<h2 class="ui-title-lg done__title">Збережено на телефоні</h2>' +
+        '<p class="ui-text-sm"><b>Надішлеться саме, щойно зʼявиться звʼязок.</b> Закривати додаток можна.</p>' +
+        '<p class="ui-text-sm ui-soft">' + esc((AF.dept(F, F.departmentId) || {}).name || '') + ' · перевірено ' + f.num(t.checked) + ' шт · знайдено браку ' + f.num(t.rejected) + ' шт' + (t.pct != null ? ' (' + f.pct(t.pct) + ')' : '') + '</p>' +
+        (r.photosDropped ? '<p class="ui-caption ui-soft">Фото не вмістились у памʼять телефона — аудит збережено без фото.</p>' : '') +
+        '<div class="done__actions"><button type="button" class="ui-btn ui-btn--primary" data-a="again">' + P.ic('add') + 'Ще один аудит</button>' +
+        '<button type="button" class="ui-btn ui-btn--quiet" data-a="home">' + P.ic('home') + 'На головну</button></div></div></div>';
+    }
     return '<div class="ui-card"><div class="done"><span class="done__icon">' + P.ic('success') + '</span>' +
       '<h2 class="ui-title-lg done__title">' + (F.editId ? 'Аудит виправлено' : 'Аудит записано') + '</h2>' +
       '<p class="ui-text-sm ui-soft">' + esc(r.auditId) + ' · ' + esc((AF.dept(F, F.departmentId) || {}).name || '') + '</p>' +

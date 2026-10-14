@@ -11,11 +11,29 @@
   }
   function minutesLeft(iso) { return iso ? Math.max(0, Math.ceil((Date.parse(iso) - Date.now()) / 60000)) : 0; }
   function stat(v, label) { return '<div class="total"><span class="total__val">' + v + '</span><span class="total__label">' + label + '</span></div>'; }
+  function audits(n) { return n + ' ' + P.plural(n, 'аудит', 'аудити', 'аудитів'); }
+  function queueBanners(me) {
+    if (!P.offline) return '';
+    var list = P.offline.list(me.id), wait = list.filter(function (x) { return !x.error; }), bad = list.filter(function (x) { return x.error; }), html = '';
+    if (wait.length) {
+      html += '<div class="ui-banner ui-banner--info q-banner">' + P.ic('clock') + '<div class="ui-banner__body"><p class="ui-banner__title">' + audits(wait.length) + ' ' +
+        P.plural(wait.length, 'чекає', 'чекають', 'чекають') + ' звʼязку</p><p class="ui-banner__text">Збережено на телефоні · надішлеться саме, щойно зʼявиться звʼязок.' +
+        (P.offline.simulated() ? ' Увімкнено «Імітувати відсутність звʼязку» — у профілі.' : '') + '</p></div>' +
+        '<div class="ui-banner__actions"><button class="ui-btn ui-btn--primary ui-btn--sm" type="button" data-act="q-send">' + P.ic('refresh') + 'Надіслати зараз</button></div></div>';
+    }
+    bad.forEach(function (x) {
+      html += '<div class="ui-banner ui-banner--warn q-banner">' + P.ic('warning') + '<div class="ui-banner__body"><p class="ui-banner__title">Аудит не прийнято</p>' +
+        '<p class="ui-banner__text">' + esc(x.summary) + ' · збережено ' + f.time(new Date(x.savedAt)) + '. Причина: ' + esc(x.error) + '</p></div>' +
+        '<div class="ui-banner__actions"><button class="ui-btn ui-btn--secondary ui-btn--sm" type="button" data-act="q-retry" data-id="' + esc(x.clientId) + '">' + P.ic('refresh') + 'Спробувати ще раз</button>' +
+        '<button class="ui-btn ui-btn--quiet ui-btn--sm" type="button" data-act="q-drop" data-id="' + esc(x.clientId) + '">' + P.ic('delete') + 'Видалити</button></div></div>';
+    });
+    return html;
+  }
 
   function view(r, ctx) {
     var draft = draftOf(ctx.me, ctx.loc), mine = r.myToday || [], checked = 0, rejected = 0;
     mine.forEach(function (a) { checked += a.checked || 0; rejected += a.rejected || 0; });
-    var html = '<div class="stack">';
+    var html = '<div class="stack">' + queueBanners(ctx.me);
     if (draft) {
       html += '<div class="ui-banner ui-banner--warn">' + P.ic('clock') + '<div class="ui-banner__body"><p class="ui-banner__title">Чернетка аудиту</p>' +
         '<p class="ui-banner__text">' + esc(draft.summary || 'Чернетка') + ' · ' + f.time(new Date(draft.savedAt)) + '</p></div>' +
@@ -41,12 +59,37 @@
     title: function (ctx) { return { title: 'Добрий день, ' + ctx.me.name, sub: P.shell.locName(ctx.loc) + ' · ' + todayLabel() }; },
     render: function (ctx) {
       return P.srv('homeAuditor', { locationId: ctx.loc }).then(function (r) {
-        if (!r.ok) return P.state.error('Не вдалося завантажити головну', r.error);
+        if (!r.ok) return '<div class="stack">' + queueBanners(ctx.me) + P.state.error('Не вдалося завантажити головну', r.error) + '</div>';
         return view(r, ctx);
       });
     },
     mount: function (el, ctx) {
       P.delegate(el, 'click', '[data-act="retry"]', function () { P.shell.rerender(); });
+      P.delegate(el, 'click', '[data-act="q-send"]', function (e, t) {
+        if (P.offline.isOff()) return P.toast('warn', 'Звʼязку поки немає', 'Аудити надішлються самі, щойно він зʼявиться.');
+        t.disabled = true;
+        P.offline.flush(ctx.me.id).then(function (res) {
+          P.offline.report(res);
+          if (res.offline) P.toast('warn', 'Звʼязок зник', 'Неодіслані аудити лишились на телефоні.');
+          else if (!res.sent && !res.failed) P.toast('warn', 'Поки не вдалося надіслати', 'Аудити лишились на телефоні — спробуйте трохи згодом.');
+          if (ctx.alive()) P.shell.rerender();
+        });
+      });
+      P.delegate(el, 'click', '[data-act="q-retry"]', function (e, t) {
+        if (P.offline.isOff()) return P.toast('warn', 'Звʼязку поки немає', 'Аудит надішлеться сам, щойно він зʼявиться.');
+        t.disabled = true;
+        P.offline.mark(ctx.me.id, t.getAttribute('data-id'), null);
+        P.offline.flush(ctx.me.id).then(function (res) { P.offline.report(res); if (ctx.alive()) P.shell.rerender(); });
+      });
+      P.delegate(el, 'click', '[data-act="q-drop"]', function (e, t) {
+        var id = t.getAttribute('data-id');
+        P.confirm({ title: 'Видалити неприйнятий аудит?', text: 'Він зникне з телефона. Запишіть його знову, якщо потрібно.', okLabel: 'Видалити', danger: true }).then(function (ok) {
+          if (!ok) return;
+          P.offline.remove(ctx.me.id, id);
+          P.toast('ok', 'Аудит видалено з телефона');
+          if (ctx.alive()) P.shell.rerender();
+        });
+      });
       P.delegate(el, 'click', '[data-act="new"]', function () { P.router.go('/audit/new', { loc: ctx.loc }); });
       P.delegate(el, 'click', '[data-audit]', function (e, t) { P.router.go('/audit/' + t.getAttribute('data-audit')); });
       P.delegate(el, 'click', '[data-act="draft-go"]', function () { P.router.go('/audit/new', { loc: ctx.loc, draft: '1' }); });

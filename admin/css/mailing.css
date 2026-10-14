@@ -1,0 +1,77 @@
+
+
+
+.rz { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.rz-head { display: flex; align-items: flex-start; gap: 12px 16px; flex-wrap: wrap; }
+.rz-head > div:first-child { flex: 1 1 260px; min-width: 0; }
+.rz-note { display: flex; align-items: flex-start; gap: 8px; color: var(--text-2); }
+.rz-note .ui-icon { flex: none; margin-top: 1px; color: var(--info); }
+.rz-filter { max-width: 320px; }
+.rz-sel { height: 44px; }
+.rz-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 440px), 1fr)); gap: 12px; align-items: start; }
+.rz-card { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.rz-card .card-head { flex-wrap: nowrap; }
+.rz-card .card-title { overflow-wrap: anywhere; }
+.rz-card .card-title .badge { vertical-align: middle; margin-left: 4px; }
+.rz-card--off .card-title { color: var(--text-3); }
+.rz-kv dd { min-width: 0; overflow-wrap: anywhere; }
+.rz-tpl { padding: 10px 12px; border-left: 3px solid var(--line-mid); border-radius: 4px; background: var(--surface-2); color: var(--text-2);
+  font-size: var(--fs-sm); line-height: 1.45; overflow-wrap: anywhere; }
+
+.rz-tpl__in { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; line-clamp: 3; overflow: hidden; }
+.rz-mi { width: 100%; border: 0; background: transparent; font: inherit; text-align: left; cursor: pointer; }
+.rz-mi--danger .menu__ic { background: var(--danger-soft); color: var(--danger); }
+.rz-mi--danger .menu__t { color: var(--danger); }
+
+
+.rz-probe { border-top: 1px solid var(--line); padding-top: 12px; }
+.rz-probe__sum { display: flex; align-items: center; gap: 8px; min-height: 44px; font-weight: 700; color: var(--text); cursor: pointer; list-style: none; }
+.rz-probe__sum::-webkit-details-marker { display: none; }
+.rz-probe__sum::after { content: "▾"; margin-left: 4px; color: var(--text-3); }
+.rz-probe[open] > .rz-probe__sum::after { content: "▴"; }
+.rz-probe[open] > .rz-probe__sum { margin-bottom: 12px; }
+
+
+.rz-ed { display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start; }
+.rz-ed__form { flex: 1 1 440px; min-width: 0; display: flex; flex-direction: column; gap: 20px; }
+.rz-ed__prev { flex: 1 1 340px; min-width: 0; display: flex; flex-direction: column; gap: 12px; position: sticky; top: 0; }
+.rz-f { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.rz-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr)); gap: 12px; }
+.rz-grid--2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.rz-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.rz-time { width: 140px; height: 44px; }
+.rz-pct { display: inline-flex; align-items: center; gap: 6px; }
+.rz-pct .input { width: 90px; height: 44px; text-align: center; }
+.rz-pick { height: 40px; padding: 0 14px; }
+.rz-addrow { display: flex; gap: 8px; align-items: center; }
+.rz-addrow .input { flex: 1; min-width: 0; height: 44px; }
+.rz-addrow .btn { flex: none; }
+.rz-ta { color: var(--text); min-height: 150px; resize: vertical; }
+.rz-help { width: 32px; height: 32px; vertical-align: middle; margin-left: 4px; }
+.rz-phs { display: flex; flex-direction: column; gap: 10px; }
+.rz-ph { display: flex; flex-direction: column; gap: 6px; }
+.rz-ph__t { font-size: var(--fs-xs); font-weight: 700; color: var(--text-3); text-transform: uppercase; letter-spacing: .04em; }
+.rz-chip { height: 34px; padding: 0 12px; font-size: var(--fs-xs); }
+.rz-modal .seg { flex-wrap: wrap; }
+.rz-modal .seg__btn { flex: 1 1 auto; }
+.rz-modal .btn[disabled] { opacity: .5; cursor: not-allowed; }
+
+
+.rz-prev__head { display: flex; align-items: center; gap: 8px 12px; flex-wrap: wrap; }
+.rz-prev__head .label { flex: 1 1 auto; }
+.rz-prev__head .rz-sel { width: auto; max-width: 100%; }
+.rz-prev__send { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
+.rz-slack { display: flex; gap: 12px; padding: 16px; border: 1px solid var(--line); border-radius: var(--r-md); background: var(--surface-2); }
+.rz-slack__ava { display: grid; place-items: center; width: 40px; height: 40px; flex: none; border-radius: 10px; background: var(--brand-soft); color: var(--brand-ink); font-weight: 700; }
+.rz-slack__msg { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.rz-slack__who { margin: 0; }
+.rz-slack__who .hint { display: inline; }
+.rz-slack__text { font-size: 15px; line-height: 1.45; color: var(--text); overflow-wrap: anywhere; }
+.rz-link { color: var(--info); text-decoration: underline; }
+
+@media (max-width: 560px) {
+  .rz-filter { max-width: none; }
+  .rz-ed__prev { position: static; }
+  .rz-addrow { flex-wrap: wrap; }
+  .rz-modal .modal__foot { flex-wrap: wrap; }
+}

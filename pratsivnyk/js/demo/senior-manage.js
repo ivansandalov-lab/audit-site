@@ -4,7 +4,7 @@
   P.demoApis = P.demoApis || []; P.demoLoadHooks = P.demoLoadHooks || []; P.demoResetKeys = P.demoResetKeys || [];
 
   var K = { users: 'demo:sr:mg:users', workers: 'demo:sr:mg:workers', depts: 'demo:sr:mg:depts', products: 'demo:sr:mg:products',
-    defects: 'demo:sr:mg:defects', blocks: 'demo:sr:mg:blocks', imp: 'demo:sr:mg:import', mail: 'demo:sr:mg:mailing' };
+    defects: 'demo:sr:mg:defects', blocks: 'demo:sr:mg:blocks', imp: 'demo:sr:mg:import', mail: 'demo:sr:mg:mailing', journal: 'demo:sr:mg:journal' };
   var EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
   var LEVELS = { fix: 1, repair: 1, scrap: 1 };
   var INCLUDE = ['checked', 'levels', 'norms', 'noAudits', 'worst', 'topDefects', 'kd', 'auditors', 'orders', 'compare', 'link'];
@@ -52,6 +52,34 @@
     return env.ix.dt[env.ix.dep[depId].deptTypeId].letter + '-' + pad3(n + 1);
   }
 
+  var J_SECTIONS = { team: 'Працівники', workers: 'Виробничі працівники', depts: 'Відділи', products: 'Вироби', defects: 'Види браку',
+    merge: 'Обʼєднання', blocks: 'Блоки замовлень', import: 'Виробництво', mailing: 'Розсилки' };
+  var JOURNAL_DAYS = 30, JOURNAL_MAX = 1500, JOURNAL_SHOW = 300;
+  var DAY_NAMES = ['нд', 'пн', 'вт', 'ср', 'чт', 'пт', 'сб'];
+  var DAILY_LABELS = { all: 'усе', defects: 'тільки з браком', over5: 'тільки понад 5%' };
+  function jv(v) { return v === true ? 'увімкнено' : v === false ? 'вимкнено' : v == null || v === '' ? '—' : String(v); }
+  function diff(rows) {
+    return rows.map(function (x) { return { label: x[0], from: jv(x[1]), to: jv(x[2]) }; }).filter(function (c) { return c.from !== c.to; });
+  }
+  function journalFrom(env) { return new Date(env.now().getTime() - JOURNAL_DAYS * 86400000).toISOString(); }
+  function journal(env, me, locId, section, action, what, changes) {
+    if (action === 'edit' && !changes.length) return;
+    var from = journalFrom(env), n = 0;
+    var list = arr(env.storage.get(K.journal, [])).filter(function (x) { return x && typeof x.at === 'string' && x.at >= from; });
+    list.forEach(function (x) { n = Math.max(n, numOf(x.id)); });
+    list.push({ id: 'J' + (n + 1), at: env.now().toISOString(), locationId: locId, section: section, action: action, what: String(what == null ? '' : what),
+      by: me.id, byName: me.name, changes: changes });
+    env.storage.set(K.journal, list.slice(-JOURNAL_MAX));
+  }
+  function tableFacts(env, t) {
+    return { title: t.title, sheet: t.sheet, rows: 'шапка ' + t.headerRow + ', дані з ' + t.dataRow, cols: 'дата ' + t.dateCol + ' · замовлення ' + t.orderCol,
+      depts: arr(t.depts).map(function (x) { return depName(env, x.departmentId) + ' ' + x.doneCol + (x.planCol ? '/' + x.planCol : ''); }).join(', ') };
+  }
+  function dailyFacts(d) {
+    return { to: d.to.join(', '), time: d.time, days: d.days.slice().sort().map(function (x) { return DAY_NAMES[x]; }).join(', '),
+      include: INCLUDE.filter(function (k) { return d.include[k]; }).length + ' з ' + INCLUDE.length };
+  }
+
   function joinItems(items) {
     var out = [], at = {};
     items.forEach(function (i) {
@@ -72,6 +100,7 @@
         if (same) same.qty += g.qty; else t.guilty.push(g);
       });
       if (!t.photo && d.photo) t.photo = d.photo;
+      if (Array.isArray(d.photos) && d.photos.length) t.photos = arr(t.photos).concat(d.photos).slice(0, 3);   // фото обох рядків — до 3 (межа форми) v1.2
     });
     return out;
   }
@@ -341,6 +370,31 @@
   }
 
   var api = {
+    srMgJournal: function (p, me, env) {
+      var r = guard(p, me, env); if (r.err) return r.err;
+      var from = journalFrom(env), seen = {}, people = [];
+      var all = arr(env.storage.get(K.journal, [])).filter(function (x) {
+        return x && x.locationId === r.loc.id && typeof x.at === 'string' && x.at >= from && has(J_SECTIONS, x.section);
+      });
+      all.forEach(function (x) {
+        if (!has(seen, x.by)) { seen[x.by] = { id: String(x.by), name: String(x.byName || x.by), n: 0 }; people.push(seen[x.by]); }
+        seen[x.by].n++;
+      });
+      var sec = typeof p.section === 'string' && has(J_SECTIONS, p.section) ? p.section : '';
+      var by = typeof p.by === 'string' && has(seen, p.by) ? p.by : '';
+      var list = all.filter(function (x) { return (!sec || x.section === sec) && (!by || x.by === by); })
+        .sort(function (a, b) { return a.at < b.at ? 1 : a.at > b.at ? -1 : numOf(b.id) - numOf(a.id); });
+      return { ok: true, location: { id: r.loc.id, name: r.loc.name }, counts: counts(env, r.loc.id), days: JOURNAL_DAYS, from: from,
+        section: sec, by: by, total: list.length, shown: Math.min(list.length, JOURNAL_SHOW),
+        sections: Object.keys(J_SECTIONS).map(function (k) { return { id: k, label: J_SECTIONS[k], n: all.filter(function (x) { return x.section === k; }).length }; }),
+        people: people.sort(function (a, b) { return b.n - a.n || a.name.localeCompare(b.name, 'uk'); }),
+        items: list.slice(0, JOURNAL_SHOW).map(function (x) {
+          return { id: x.id, at: x.at, section: x.section, sectionLabel: J_SECTIONS[x.section], action: x.action, what: String(x.what || ''),
+            by: String(x.by), byName: String(x.byName || x.by),
+            changes: arr(x.changes).filter(Boolean).map(function (c) { return { label: String(c.label), from: String(c.from), to: String(c.to) }; }) };
+        }) };
+    },
+
     srMgTeam: function (p, me, env) {
       var r = guard(p, me, env); if (r.err) return r.err;
       var list = locAudits(env, r.loc.id), today = env.day();
@@ -351,7 +405,7 @@
           if (!last) login = { kind: 'never' };
           else { var until = S.addDays(P.fmt.dayKey(last), C.SESSION_DAYS); login = until >= today ? { kind: 'ok', until: until } : { kind: 'expired' }; }
         }
-        return { id: u.id, name: u.name, email: S.maskEmail(u.email), active: u.active !== false, lastAuditAt: last, login: login, addedAt: u.addedAt || null };
+        return { id: u.id, name: u.name, email: S.maskEmail(u.email), active: u.active !== false && !u.accessOff, byAdmin: !!u.accessOff, lastAuditAt: last, login: login, addedAt: u.addedAt || null };
       }).sort(function (a, b) { return (a.active ? 0 : 1) - (b.active ? 0 : 1) || a.name.localeCompare(b.name, 'uk'); });
       return { ok: true, location: { id: r.loc.id, name: r.loc.name }, counts: counts(env, r.loc.id), items: items };
     },
@@ -374,8 +428,9 @@
         else patch.email = email;
       }
       if (p.active !== undefined) patch.active = !!p.active;
+      if (p.active === true && p.id && env.ix.user[p.id] && env.ix.user[p.id].accessOff) return C.fail('forbidden', 'Доступ цій людині вимкнув адміністратор — увімкнути може лише він.');
       if (errs.length) return verr(errs);
-      var id = p.id;
+      var was = u ? { name: u.name, email: S.maskEmail(u.email), active: u.active !== false } : {}, id = p.id;
       if (!id) {
         var pre = 'u_aud_' + r.loc.id.slice(4).toLowerCase(), n = 0;
         env.db.users.forEach(function (x) { if (x.id.indexOf(pre) === 0 && /^\d+$/.test(x.id.slice(pre.length))) n = Math.max(n, +x.id.slice(pre.length)); });
@@ -385,6 +440,8 @@
       } else st.edit[id] = Object.assign(st.edit[id] || {}, patch);
       save(env, K.users, st);
       var x = env.ix.user[id];
+      journal(env, me, r.loc.id, 'team', p.id ? 'edit' : 'add', x.name,
+        diff([['Імʼя', was.name, x.name], ['Пошта', was.email, S.maskEmail(x.email)], ['Доступ', was.active, x.active !== false]]));
       return { ok: true, id: id, name: x.name, active: x.active !== false, created: !p.id };
     },
 
@@ -422,6 +479,7 @@
       }
       if (p.active !== undefined) patch.active = !!p.active;
       if (errs.length) return verr(errs);
+      var was = w ? { name: w.name, dep: depName(env, w.departmentId), active: w.active !== false, pending: w.pending === true } : {};
       var code = w ? w.code : null;
       if (!w) {
         code = nextWorkerCode(env, r.loc.id, patch.departmentId);
@@ -433,6 +491,8 @@
       }
       save(env, K.workers, st);
       var x = env.ix.worker[r.loc.id + ':' + code];
+      journal(env, me, r.loc.id, 'workers', w ? 'edit' : 'add', x.name, diff([['Підпис', was.name, x.name], ['Відділ', was.dep, depName(env, x.departmentId)],
+        ['Стан', was.active, x.active !== false], ['Підтверджено старшим', was.pending ? 'ні' : null, was.pending ? (x.pending === true ? 'ні' : 'так') : null]]));
       return { ok: true, code: code, name: x.name, active: x.active !== false, pending: x.pending === true, created: !w };
     },
 
@@ -455,6 +515,7 @@
           st.edit[k] = Object.assign(st.edit[k] || {}, { active: true }, S.canManage(me) ? {} : { pending: true, addedBy: me.id, addedByName: me.name, addedAt: env.now().toISOString() });
           save(env, K.workers, st);
           twin = env.ix.worker[k];
+          journal(env, me, r.loc.id, 'workers', 'edit', twin.name, diff([['Стан', false, true], ['Звідки', null, 'форма аудиту']]));
         }
         return out(twin, true);
       }
@@ -462,6 +523,7 @@
       st.add.push({ code: code, name: name, departmentId: d.id, locationId: r.loc.id, active: true, addedAt: env.now().toISOString(),
         addedBy: me.id, addedByName: me.name, pending: !S.canManage(me) });   // доданого старшим підтверджувати нема кому
       save(env, K.workers, st);
+      journal(env, me, r.loc.id, 'workers', 'add', name, diff([['Підпис', null, name], ['Відділ', null, d.name], ['Звідки', null, 'форма аудиту']]));
       return out(env.ix.worker[r.loc.id + ':' + code], false);
     },
 
@@ -509,7 +571,8 @@
       if (p.active !== undefined) { if (typeof p.active !== 'boolean') errs.push({ field: 'active', message: 'Оберіть: відділ працює чи вимкнений.' }); else patch.active = p.active; }
       if (d && !errs.length && norm === undefined && !Object.keys(patch).length) errs.push({ field: 'name', message: 'Немає змін.' });
       if (errs.length) return verr(errs);
-      var st = deptStore(env.storage), id = d ? d.id : null;
+      var st = deptStore(env.storage), id = d ? d.id : null, old = d ? env.db.norms.filter(function (q) { return q.departmentId === d.id; })[0] : null;
+      var was = d ? { name: d.name, active: d.active !== false, norm: old ? old.sampleTarget + ' шт' : null } : {};
       if (!d) {
         var n = 0; env.db.departments.forEach(function (x) { var m = /_N(\d+)$/.exec(x.id); if (m) n = Math.max(n, +m[1]); });
         id = 'DEP_' + r.loc.id.slice(4) + '_N' + (n + 1);
@@ -518,6 +581,8 @@
       if (norm !== undefined) st.norms[id] = norm;
       save(env, K.depts, st);
       var x = env.ix.dep[id], row = env.db.norms.filter(function (q) { return q.departmentId === id; })[0];
+      journal(env, me, r.loc.id, 'depts', d ? 'edit' : 'add', x.name, diff([['Назва', was.name, x.name], ['Тип відділу', null, d ? null : env.ix.dt[x.deptTypeId].name],
+        ['Норма вибірки на день', was.norm, row ? row.sampleTarget + ' шт' : null], ['Стан', was.active, x.active !== false]]));
       return { ok: true, id: id, name: x.name, active: x.active !== false, sampleTarget: row ? row.sampleTarget : null, created: !d };
     },
 
@@ -536,7 +601,7 @@
       }
       if (p.active !== undefined) patch.active = !!p.active;
       if (errs.length) return verr(errs);
-      var id = p.id;
+      var id = p.id, was = x ? { name: x.name, active: x.active !== false } : {};
       if (!id) {
         var n = 0; env.db.products.concat(arr(st.add)).forEach(function (y) { n = Math.max(n, numOf(y.id)); });
         Object.keys(st.merge || {}).forEach(function (k) { n = Math.max(n, numOf(k)); });
@@ -545,6 +610,8 @@
       } else st.edit[id] = Object.assign(st.edit[id] || {}, patch);
       save(env, K.products, st);
       var y = env.ix.prod[id];
+      journal(env, me, r.loc.id, 'products', x ? 'edit' : 'add', y.name, diff([['Назва', was.name, y.name], ['Тип відділу', null, x ? null : env.ix.dt[dt].name],
+        ['Стан', was.active, y.active !== false]]));
       return { ok: true, id: id, name: y.name, active: y.active !== false, created: !p.id };
     },
 
@@ -589,7 +656,7 @@
       }
       if (p.active !== undefined) patch.active = !!p.active;
       if (errs.length) return verr(errs);
-      var id = p.id;
+      var id = p.id, was = x ? { name: x.name, level: S.LEVEL_LABELS[x.level] || null, active: x.active !== false } : {};
       if (!id) {
         var n = 0; env.db.defectTypes.concat(arr(st.add)).forEach(function (y) { n = Math.max(n, numOf(y.id)); });
         Object.keys(st.merge || {}).forEach(function (k) { n = Math.max(n, numOf(k)); });
@@ -598,6 +665,8 @@
       } else st.edit[id] = Object.assign(st.edit[id] || {}, patch);
       save(env, K.defects, st);
       var y = env.ix.def[id];
+      journal(env, me, r.loc.id, 'defects', x ? 'edit' : 'add', y.name, diff([['Назва', was.name, y.name], ['Тип відділу', null, x ? null : env.ix.dt[dt].name],
+        ['Рівень', was.level, S.LEVEL_LABELS[y.level] || null], ['Стан', was.active, y.active !== false]]));
       return { ok: true, id: id, name: y.name, level: y.level, active: y.active !== false, created: !p.id };
     },
 
@@ -630,7 +699,12 @@
       st.merge = st.merge || {}; st.edit = st.edit || {};
       otherIds.forEach(function (id) { st.merge[id] = m.keep.id; });
       if (kind === 'defects' && p.level) st.edit[m.keep.id] = Object.assign(st.edit[m.keep.id] || {}, { level: p.level });
+      var oldLevel = S.LEVEL_LABELS[m.keep.level] || null;
       save(env, key, st);
+      if (kind === 'defects' && P.demoKd) P.demoKd.remapDefect(env, otherIds, m.keep.id);
+      journal(env, me, r.loc.id, 'merge', 'merge', m.keep.name, [{ label: kind === 'products' ? 'Вироби' : 'Види браку',
+        from: m.list.map(function (x) { return x.name; }).join(' · '), to: m.keep.name }]
+        .concat(kind === 'defects' ? diff([['Рівень', oldLevel, S.LEVEL_LABELS[env.ix.def[m.keep.id].level] || null]]) : []));
       return { ok: true, keepId: m.keep.id, keepName: m.keep.name, removed: m.others.map(function (x) { return x.name; }),
         moved: kind === 'products' ? { audits: moved.audits, orders: moved.orders } : { audits: moved.audits, records: moved.records } };
     },
@@ -671,7 +745,7 @@
         if (other) errs.push({ field: 'orders', message: 'Замовлення ' + no + ' уже в «' + other.name + '».' });
       });
       if (errs.length) return verr(errs);
-      var id = p.id;
+      var id = p.id, was = cur ? { name: cur.name, orders: cur.orders.join(', ') } : {};
       if (cur) { cur.name = name; cur.orders = orders; }
       else {
         var pre = 'BLK_' + r.loc.id.slice(4), n = 0;
@@ -681,6 +755,7 @@
       }
       var all = env.storage.get(K.blocks, {}); all[r.loc.id] = list;
       save(env, K.blocks, all);
+      journal(env, me, r.loc.id, 'blocks', cur ? 'edit' : 'add', name, diff([['Назва', was.name, name], ['Замовлення', was.orders, orders.join(', ')]]));
       return { ok: true, id: id, name: name, orders: orders, created: !p.id };
     },
 
@@ -692,6 +767,7 @@
       var all = env.storage.get(K.blocks, {});
       all[r.loc.id] = list.filter(function (x) { return x.id !== p.id; }).map(function (x) { return { id: x.id, locationId: x.locationId, name: x.name, orders: x.orders.slice() }; });
       save(env, K.blocks, all);
+      journal(env, me, r.loc.id, 'blocks', 'delete', b.name, diff([['Замовлення', b.orders.join(', '), null]]));
       return { ok: true, id: b.id, name: b.name };
     },
 
@@ -719,7 +795,8 @@
 
     srMgImportSave: function (p, me, env) {
       var r = guardW(p, me, env); if (r.err) return r.err;
-      var s = importState(env, r.loc), list = arr(p.tables), errs = [], busy = {}, saved = [];
+      var s = importState(env, r.loc), list = arr(p.tables), errs = [], busy = {}, saved = [], before = {}, oldWeek = s.weekStart;
+      s.tables.forEach(function (t) { before[t.id] = tableFacts(env, t); });
       if (p.weekStart !== undefined) {
         if (p.weekStart !== 'mon' && p.weekStart !== 'sun') errs.push({ field: 'weekStart', message: 'Тиждень — з понеділка або з неділі.' }); else s.weekStart = p.weekStart;
       }
@@ -752,6 +829,13 @@
       s.tables.sort(function (a, b) { return a.mark - b.mark; });
       if (saved.length) s.updatedAt = env.now().toISOString();   // сама зміна «тиждень з…» часу оновлення не чіпає
       saveImport(env, r.loc, s);
+      saved.forEach(function (t) {
+        var a = has(before, t.id) ? before[t.id] : {}, b = tableFacts(env, t);
+        journal(env, me, r.loc.id, 'import', has(before, t.id) ? 'edit' : 'add', 'Таблиця ' + MARKS[t.mark] + ' · ' + t.title, diff([['Назва', a.title, b.title],
+          ['Аркуш', a.sheet, b.sheet], ['Рядки', a.rows, b.rows], ['Колонки', a.cols, b.cols], ['Відділи й колонки', a.depts, b.depts]]));
+      });
+      var wk = { mon: 'з понеділка', sun: 'з неділі' };
+      journal(env, me, r.loc.id, 'import', 'edit', 'Тиждень', diff([['Тиждень починається', wk[oldWeek], wk[s.weekStart]]]));
       return { ok: true, updatedAt: s.updatedAt, weekStart: s.weekStart, warnings: overlaps(env, r.loc, s.tables),
         saved: saved.map(function (t) { return { id: t.id, mark: t.mark, label: MARKS[t.mark], title: t.title, departments: t.depts.length }; }) };
     },
@@ -762,6 +846,7 @@
       if (!t) return C.fail('not_found', 'Цієї таблиці вже немає — оновіть сторінку.');
       s.tables = s.tables.filter(function (x) { return x !== t; });
       saveImport(env, r.loc, s);
+      journal(env, me, r.loc.id, 'import', 'delete', 'Таблиця ' + MARKS[t.mark] + ' · ' + t.title, diff([['Відділи й колонки', tableFacts(env, t).depts, null]]));
       return { ok: true, id: t.id, label: MARKS[t.mark], title: t.title, left: s.tables.length };
     },
 
@@ -793,6 +878,7 @@
       var m = MAILS.filter(function (x) { return x.id === p.id; })[0];
       if (!m) return C.fail('not_found', 'Такої розсилки немає — оновіть сторінку.');
       var s = mailState(env, r.loc), o = s.items[m.id] = Object.assign({}, s.items[m.id] || {}), errs = [];
+      var was = { on: o.on !== undefined ? o.on : m.on, level: m.hasLevel ? DAILY_LABELS[o.level || m.level] : null, daily: m.id === 'daily' ? dailyFacts(s.daily) : {} };
       if (p.on !== undefined) o.on = !!p.on;
       if (p.level !== undefined) { if (!m.hasLevel || !pick(DAILY_LEVELS, p.level)) errs.push({ field: 'level', message: 'Оберіть: усе, тільки з браком чи тільки понад 5%.' }); else o.level = p.level; }
       if (p.daily !== undefined) {
@@ -809,6 +895,10 @@
       }
       if (errs.length) return verr(errs);
       saveMail(env, r.loc, s);
+      var now = m.id === 'daily' ? dailyFacts(s.daily) : {};
+      journal(env, me, r.loc.id, 'mailing', 'edit', m.title, diff([['Розсилка', was.on, o.on !== undefined ? o.on : m.on],
+        ['Що надсилати', was.level, m.hasLevel ? DAILY_LABELS[o.level || m.level] : null], ['Кому', was.daily.to, now.to], ['Час', was.daily.time, now.time],
+        ['Дні', was.daily.days, now.days], ['Показників', was.daily.include, now.include]]));
       return { ok: true, id: m.id, title: m.title, on: o.on !== undefined ? o.on : m.on, level: m.hasLevel ? (o.level || m.level) : null };
     },
 

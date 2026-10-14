@@ -52,7 +52,7 @@
     var layer = P.sr.drawer({ title: 'Працівник', sub: 'Виробничий працівник', body: h.loading(),
       foot: '<button class="btn btn--quiet btn--sm" type="button" data-ov-close>Закрити</button>' +
         '<button class="btn btn--secondary btn--sm" type="button" data-act="hist" style="margin-left:auto">' + h.ic('audit', 'ui-icon--sm') + 'Аудити працівника</button>',
-      on: { hist: function (t, e, l) { l.close(); P.router.go('/history', { worker: code }); }, retry: function () { load(); } },
+      on: { hist: function (t, e, l) { l.close(); P.router.go('/history', { worker: code }); }, retry: function () { load(); }, 'kd-retry': function () { loadKd(); } },
       onClose: function () { if (chart) chart.destroy(); } });
     function load() {
       layer.body(h.loading());
@@ -62,11 +62,40 @@
         var w = r.worker;
         layer.el.querySelector('.modal__title').textContent = w.name + ' · ' + w.departmentName;
         var sub = layer.el.querySelector('.modal__head .hint'); if (sub) sub.textContent = 'Виробничий працівник · ' + (A.diff(r.from, r.to) + 1) + ' дн., ' + h.dayShort(r.from) + ' — ' + h.dayShort(r.to);
-        layer.body(workerBody(r, ctx.loc.name));
+        layer.body(workerBody(r, ctx.loc.name) + '<div class="pp-block" data-pp-kd>' + kdHead(w.departmentName, r) + h.loading() + '</div>');
         chart = mountWeeks(layer.el.querySelector('[data-chart="pp-weeks"]'), r);
+        loadKd();
+      });
+    }
+    function loadKd() {
+      var slot = layer.el.querySelector('[data-pp-kd]');
+      if (!slot) return;
+      P.srv('srKdWorker', { locationId: ctx.loc.id, code: code, from: period.from, to: period.to }).then(function (r) {
+        if (layer.closed || !slot.isConnected) return;
+        slot.innerHTML = kdHead(r.ok ? r.worker.departmentName : '', r) + (r.ok ? kdBody(r)
+          : '<p class="hint">Не вдалося завантажити коригуючі дії. ' + esc(r.error || '') + '</p>' +
+            '<button class="btn btn--secondary btn--sm" type="button" data-act="kd-retry" style="align-self:flex-start">' + h.ic('refresh', 'ui-icon--sm') + 'Спробувати ще раз</button>');
       });
     }
     load();
+  }
+  function kdHead(depName, r) {
+    return '<div><p class="pp-h">Коригуючі дії</p><p class="hint">Дії відділу' + (depName ? ' ' + esc(depName) : '') + ' по видах браку, у яких працівник винний' +
+      (r && r.from ? ' · ' + esc(A.span(r.from, r.to)) : '') + '</p></div>';
+  }
+  function kdBody(r) {
+    var K = P.srKd;
+    var types = r.types.length ? '<p class="hint">Види браку працівника за період: </p><div class="pp-kd-types">' + r.types.map(function (t) {
+      return '<span class="chip chip--plain">' + esc(t.name) + ' · ' + h.num(t.pieces) + ' шт</span>'; }).join('') + '</div>' : '';
+    if (!r.items.length) return '<p style="margin:0"><b>Коригуючих дій у цьому періоді немає.</b></p>' + types;
+    return '<div class="pp-kd-list">' + r.items.map(function (a) {
+      return '<a class="pp-kd-item" data-ov-close href="#/kd/dept/' + encodeURIComponent(a.departmentId) + '?p=' + a.period + '&t=' + encodeURIComponent(a.defectTypeId) + '">' +
+        '<span class="pp-kd-item__head"><b>' + esc(a.name) + '</b>' + K.stateBadge(a, r.today) + '</span>' +
+        '<span class="hint">' + esc(K.actMeta(a)) + '</span>' +
+        (a.after != null ? '<span class="hint">Результат: ' + esc(K.result(a, r.threshold)) + '</span>'
+          : '<span class="hint">Частка виду у відділі за розбір: ' + esc(K.rates(a)) + '</span>') +
+        (a.plan ? '<span class="hint">Що робимо: ' + esc(a.plan) + '</span>' : '') + '</a>';
+    }).join('') + '</div>' + types;
   }
   function mountWeeks(slot, r) {
     if (!slot) return null;

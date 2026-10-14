@@ -9,7 +9,10 @@
   var MSG_DEF_TYPE = 'Оберіть тип браку зі списку. Немає потрібного — попросіть старшого аудитора додати його на сайті.';
   var MSG_SRC_DEP = 'Оберіть відділ, звідки брак.';
   var MSG_NO_CHANGE = 'Відділ аудиту змінити не можна — запишіть новий аудит.';
-  var MSG_UPD_DENIED = 'Виправити можна лише свій аудит протягом 15 хвилин.';
+  function msgUpdDenied() { var n = C.LIMITS.editWindowMin; return 'Виправити можна лише свій аудит протягом ' + n + ' ' + P.plural(n, 'хвилини', 'хвилин', 'хвилин') + '.'; }   // правило адміна
+  var PHOTOS_MAX = 3, PHOTO_MAX_BYTES = 100 * 1024, PHOTOS_TOTAL = 1500 * 1024, PHOTO_RE = /^data:image\/jpeg;base64,[A-Za-z0-9+\/]+={0,2}$/;
+  var MSG_PHOTOS_MAX = 'До ' + PHOTOS_MAX + ' фото на один брак.';
+  var MSG_PHOTO = 'Фото має бути знімком JPEG до 100 КБ. Додайте його ще раз.';
 
   function toNum(v) {
     if (typeof v === 'number') return v;
@@ -17,6 +20,10 @@
   }
   function isInt(v) { return typeof v === 'number' && isFinite(v) && Math.floor(v) === v; }
   function arr(v) { return Array.isArray(v) ? v : []; }
+
+  function photoBytes(s) { var b = s.length - s.indexOf(',') - 1; return Math.floor(b * 3 / 4); }
+  function photoOk(s) { return typeof s === 'string' && s.length < PHOTO_MAX_BYTES * 2 && PHOTO_RE.test(s) && photoBytes(s) <= PHOTO_MAX_BYTES; }
+  P.demoPhotoOk = photoOk;
 
   function rowQty(d) {
     return arr(d && d.guilty).reduce(function (s, g) { var q = toNum(g && g.qty); return s + (isInt(q) && q >= 1 ? q : 0); }, 0);
@@ -36,6 +43,10 @@
     if (defects.length > L.maxDefects) add('defects', 'Забагато видів браку: не більше ' + L.maxDefects + '.');
     defects.forEach(function (d, j) {
       if (arr(d && d.guilty).length > L.maxGuiltyPerDefect) add('defects[' + j + '].guilty', 'Забагато винних: не більше ' + L.maxGuiltyPerDefect + '.');
+      var ph = d ? d.photos : null;
+      if (ph != null && !Array.isArray(ph)) add('defects[' + j + '].photos', MSG_PHOTO);
+      else if (arr(ph).length > PHOTOS_MAX) add('defects[' + j + '].photos', MSG_PHOTOS_MAX);
+      else if (!arr(ph).every(photoOk)) add('defects[' + j + '].photos', MSG_PHOTO);
     });
 
     var qty = items.map(function (it) { return toNum(it && it.qty); });
@@ -149,6 +160,7 @@
     var defects = arr(p.defects).map(function (d) {
       return { productId: d.productId, orderNo: d.orderNo || null, defectTypeId: d.defectTypeId, departmentId: d.departmentId || p.departmentId,
         photo: d.photo ? { name: String(d.photo.name), size: Number(d.photo.size) || 0 } : null,
+        photos: arr(d.photos).slice(0, PHOTOS_MAX),
         guilty: d.guilty.map(function (g) { return { workerCode: g.workerCode, qty: toNum(g.qty) }; }) };
     });
     items.forEach(function (it) {
@@ -162,6 +174,22 @@
     return { orders: usedOrders, items: items, defects: defects };
   }
 
+  function persist(env, fresh, rec) {
+    var total = 0;
+    for (var i = fresh.length - 1; i >= 0; i--) {
+      (fresh[i].defects || []).forEach(function (d) {
+        var keep = [];
+        (d.photos || []).forEach(function (ph) { if (fresh[i] === rec || total + ph.length <= PHOTOS_TOTAL) { total += ph.length; keep.push(ph); } });
+        if (d.photos) d.photos = keep;
+      });
+    }
+    if (env.storage.set('demo:audits:new', fresh) !== false) return false;
+    var had = rec.defects.some(function (d) { return d.photos && d.photos.length; });
+    if (!had) return null;
+    rec.defects.forEach(function (d) { d.photos = []; });
+    return env.storage.set('demo:audits:new', fresh) !== false ? true : null;
+  }
+
   function windowEnd(createdAt) { return new Date(Date.parse(createdAt) + C.LIMITS.editWindowMin * 60000).toISOString(); }
 
   P.demoSubmitApi = {
@@ -170,14 +198,15 @@
       if (p.locationId && env.ix.loc[p.locationId] && !C.hasLoc(me, p.locationId)) return C.forbidden();
       var nowMs = env.now().getTime(), db = env.db;
       if (p.clientId) {
-        var same = db.audits.filter(function (a) { return a.clientId === p.clientId && a.auditorId === me.id && nowMs - Date.parse(a.createdAt) < 86400000; })[0];
+        var same = db.audits.filter(function (a) { return a.clientId === p.clientId && a.auditorId === me.id; })[0];
         if (same) return { ok: true, auditId: same.id, createdAt: same.createdAt, editableUntil: new Date(Date.parse(same.createdAt) + C.LIMITS.editWindowMin * 60000).toISOString() };
       }
       var errors = P.demoValidateAudit(p, { db: db });
       if (errors.length) return C.fail('validation', 'Перевірте поля форми.', errors);
 
       var body = buildBody(p);
-      var createdAt = env.now().toISOString(), day = P.fmt.dayKey(createdAt);
+      var rt = typeof p.recordedAt === 'string' ? Date.parse(p.recordedAt) : NaN;
+      var createdAt = isFinite(rt) && rt <= nowMs && nowMs - rt <= 3 * 86400000 ? new Date(rt).toISOString() : env.now().toISOString(), day = P.fmt.dayKey(createdAt);
       var rec = { id: newId(day, db), day: day, createdAt: createdAt, clientId: p.clientId || null, locationId: p.locationId,
         departmentId: p.departmentId, auditorId: me.id, orders: body.orders, items: body.items, checkedWorkers: arr(p.checkedWorkers).slice(),
         helpers: helpersOf(p, db),
@@ -185,7 +214,8 @@
       db.audits.push(rec);
       var fresh = env.storage.get('demo:audits:new', []);
       fresh.push(rec);
-      env.storage.set('demo:audits:new', fresh);
+      var dropped = persist(env, fresh, rec);
+      if (dropped === null) return C.fail('quota', 'Памʼять браузера заповнена — аудит не збережено.');
       var wish = p.wishId ? db.wishes.filter(function (w) { return w.id === p.wishId && w.locationId === p.locationId && w.status === 'open'; })[0] : null;
       if (wish) {
         wish.status = 'done'; wish.doneAuditId = rec.id;
@@ -193,8 +223,9 @@
         doneMap[wish.id] = rec.id;
         env.storage.set('demo:wishes:done', doneMap);
       }
-      return { ok: true, auditId: rec.id, createdAt: createdAt,
-        editableUntil: new Date(nowMs + C.LIMITS.editWindowMin * 60000).toISOString() };
+      var out = { ok: true, auditId: rec.id, createdAt: createdAt, editableUntil: new Date(nowMs + C.LIMITS.editWindowMin * 60000).toISOString() };
+      if (dropped) out.photosDropped = true;
+      return out;
     },
 
     auditUpdate: function (p, me, env) {
@@ -204,7 +235,7 @@
       if (!rec) return C.fail('not_found', 'Аудит не знайдено.');
       var senior = me.can.editOthersAudits && C.hasLoc(me, rec.locationId);
       if (!senior && (rec.auditorId !== me.id || !C.hasLoc(me, rec.locationId) || env.now().getTime() >= Date.parse(rec.createdAt) + C.LIMITS.editWindowMin * 60000)) {
-        return C.fail('forbidden', MSG_UPD_DENIED);
+        return C.fail('forbidden', msgUpdDenied());
       }
       if (p.locationId !== rec.locationId || p.departmentId !== rec.departmentId) {
         return C.fail('validation', 'Перевірте поля форми.', [{ field: 'departmentId', message: MSG_NO_CHANGE }]);
@@ -219,8 +250,9 @@
       var fresh = env.storage.get('demo:audits:new', []), at = -1;
       fresh.forEach(function (a, i) { if (a.id === rec.id) at = i; });
       if (at >= 0) fresh[at] = rec; else fresh.push(rec);
-      env.storage.set('demo:audits:new', fresh);
-      return { ok: true, auditId: rec.id, editableUntil: windowEnd(rec.createdAt) };
+      var out = { ok: true, auditId: rec.id, editableUntil: windowEnd(rec.createdAt) };
+      if (persist(env, fresh, rec)) out.photosDropped = true;
+      return out;
     }
   };
 

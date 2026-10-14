@@ -56,7 +56,7 @@
       auditorName: au ? au.name : a.auditorId, auditorRole: au ? au.role : null,
       items: a.items.map(function (i) { return { productName: nm(ix.prod, i.productId, 'Невідомий виріб'), orderNo: i.orderNo || null }; }),
       checked: checked, rejected: rejected, pct: C.pct(rejected, checked), over: C.pct(rejected, checked) > env.db.settings.criticalPct,
-      photos: a.defects.filter(function (d) { return !!d.photo; }).length, hasComment: !!a.comment, edited: !!a.updatedAt };
+      photos: a.defects.reduce(function (n, d) { return n + (Array.isArray(d.photos) && d.photos.length ? d.photos.length : d.photo ? 1 : 0); }, 0), hasComment: !!a.comment, edited: !!a.updatedAt };
     if (defect) o.defectPieces = defectPieces(env, a, defect);
     return o;
   }

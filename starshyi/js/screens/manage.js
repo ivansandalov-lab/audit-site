@@ -9,7 +9,8 @@
     { id: 'defects', label: 'Види браку', count: 'defects' },
     { id: 'blocks', label: 'Блоки замовлень', count: 'blocks' },
     { id: 'import', label: 'Виробництво: план і факт' },
-    { id: 'mailing', label: 'Розсилки', count: 'mailing' }
+    { id: 'mailing', label: 'Розсилки', count: 'mailing' },
+    { id: 'journal', label: 'Журнал змін' }
   ];
   var counts = {};   // останні лічильники меню зліва (щоб не блимали між розділами)
 

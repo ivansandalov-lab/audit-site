@@ -3,6 +3,7 @@
   var P = root.P = root.P || {}, C = P.demoCommon, S = P.demoSenior;
   var KD = S.KD, KEY = 'demo:sr:kd:actions';
   var DEPT_BARS = 12, MINI_BARS = 7, TREND_SPAN = 5, MAX_BACK = 60, PERIOD_LIST = 24;
+  var GEN_THRESHOLD = 5;   // поріг для генерації тестової історії — сталий, незалежний від правил адміністратора
 
   var CAUSES = [
     { id: 'skill', label: 'Не знав / не вміє' },
@@ -52,7 +53,7 @@
   function setRate(db, rnd, depId, typeId, n, target, culprit) {
     var list = genAudits(db, depId, n), st = genStat(list, depId, typeId);
     if (!st.checked) return;
-    var want = target > KD.THRESHOLD ? Math.ceil(target / 100 * st.checked) : Math.floor(target / 100 * st.checked);
+    var want = target > GEN_THRESHOLD ? Math.ceil(target / 100 * st.checked) : Math.floor(target / 100 * st.checked);
     if (want > st.pieces) addPieces(list, rnd, typeId, want - st.pieces, culprit);
   }
   function makeLowData(db, rnd, depId, n, typeId, culprit) {
@@ -411,6 +412,30 @@
     return { ok: true, action: view(cx, findAction(cx, id)), totals: totals(cx) };
   }
 
+  var DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
+  function rangeOf(p, env) {
+    var today = env.day(), to = DAY_RE.test(p.to || '') && p.to <= today ? p.to : today;
+    var from = DAY_RE.test(p.from || '') && p.from <= to ? p.from : S.addDays(to, -29);
+    if (from < S.addDays(to, -365)) from = S.addDays(to, -365);
+    return { from: from, to: to };
+  }
+
+  function remapDefect(env, fromIds, toId) {
+    var set = Object.create(null), all = S.get(env, KEY, {}) || {}, n = 0, taken = Object.create(null);
+    function slot(a) { return a.departmentId + '|' + a.period; }
+    (fromIds || []).forEach(function (id) { if (typeof id === 'string' && id !== toId) set[id] = 1; });
+    (env.db.kdActions || []).forEach(function (a) { if (a.defectTypeId === toId) taken[slot(a)] = 1; });
+    (env.db.kdSeed || []).forEach(function (a) { if (set[a.defectTypeId] && !has(all, a.id)) all[a.id] = clone(a); });
+    Object.keys(all).forEach(function (id) {
+      var a = all[id];
+      if (!a || typeof a !== 'object' || !has(set, a.defectTypeId) || taken[slot(a)]) return;
+      taken[slot(a)] = 1; a.defectTypeId = toId; n++;
+    });
+    if (n) { S.set(env, KEY, all); env.reload(); }
+    return n;
+  }
+  P.demoKd = { remapDefect: remapDefect };
+
   P.demoApis.push({
     srKdCauses: function () { return { ok: true, causes: clone(CAUSES) }; },
 
@@ -571,6 +596,31 @@
           running: cnt(['started', 'check']), notNeeded: cnt(['not_needed']), waiting: cx.news.length },
         beforeAfter: real.map(function (a) { return view(cx, a); }).sort(function (a, b) { return b.period - a.period || (a.name < b.name ? -1 : 1); }),
         byReview: byReview, causes: causes, depts: depts, threshold: KD.THRESHOLD, minSample: KD.MIN_SAMPLE };
+    },
+
+    srKdWorker: function (p, me, env) {
+      var r = S.loc(p, me, env); if (r.err) return r.err;
+      var w = typeof p.code === 'string' && has(env.ix.worker, r.loc.id + ':' + p.code) ? env.ix.worker[r.loc.id + ':' + p.code] : null;
+      if (!w) return C.fail('not_found', 'Працівника не знайдено. Оновіть сторінку.');
+      var rg = rangeOf(p, env), pieces = Object.create(null);
+      S.audits(env, r.loc.id, rg.from, rg.to).forEach(function (a) {
+        a.defects.forEach(function (d) {
+          d.guilty.forEach(function (g) { if (g.workerCode === w.code && g.qty > 0) pieces[d.defectTypeId] = (pieces[d.defectTypeId] || 0) + g.qty; });
+        });
+      });
+      var cx = makeCx(env, r.loc), rank = { 'new': 0, started: 1, check: 2 };
+      var items = cx.news.concat(cx.actions).filter(function (a) {
+        return a.departmentId === w.departmentId && has(pieces, a.defectTypeId) && S.periodStart(a.period) <= rg.to && !(a.finishedOn && a.finishedOn < rg.from);
+      }).map(function (a) { return view(cx, a); }).sort(function (a, b) {
+        var ra = has(rank, a.status) ? rank[a.status] : 3, rb = has(rank, b.status) ? rank[b.status] : 3;
+        return ra - rb || b.period - a.period || (a.name < b.name ? -1 : 1);
+      });
+      var types = Object.keys(pieces).filter(function (id) { return has(env.ix.def, id); }).map(function (id) {
+        return { id: id, name: env.ix.def[id].name, pieces: pieces[id], actions: items.filter(function (a) { return a.defectTypeId === id; }).length };
+      }).sort(function (a, b) { return b.pieces - a.pieces || (a.name < b.name ? -1 : 1); });
+      return { ok: true, from: rg.from, to: rg.to, today: cx.today, threshold: KD.THRESHOLD,
+        worker: { name: w.name, departmentId: w.departmentId, departmentName: env.ix.dep[w.departmentId] ? env.ix.dep[w.departmentId].name : '' },
+        types: types, items: items };
     },
 
     srKdStart: function (p, me, env) {

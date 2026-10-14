@@ -10,7 +10,7 @@
     function row(u) {
       var login = !u.login ? '—' : u.login.kind === 'never' ? H.badge('ще не входив', 'info') : u.login.kind === 'expired' ? H.badge('треба увійти знову', 'warn') : 'до ' + H.dayShort(u.login.until);
       return '<tr' + (u.active ? '' : ' class="mg-off"') + '><td><b>' + esc(u.name) + '</b>' +
-        (!u.active ? '<span class="sub">доступ вимкнено</span>' : u.addedAt ? '<span class="sub">' + M.added(u.addedAt) + '</span>' : '') + '</td>' +
+        (!u.active ? '<span class="sub">' + (u.byAdmin ? 'доступ вимкнув адміністратор' : 'доступ вимкнено') + '</span>' : u.addedAt ? '<span class="sub">' + M.added(u.addedAt) + '</span>' : '') + '</td>' +
         '<td>' + esc(u.email) + '</td><td class="mg-nowrap">' + M.ago(u.lastAuditAt) + '</td><td>' + login + '</td>' +
         '<td>' + M.sw(u.active, 'mg-access', da('id', u.id), (u.active ? 'Доступ увімкнено' : 'Доступ вимкнено') + ' · ' + u.name) + '</td>' +
         '<td>' + M.pen('mg-edit', da('id', u.id), 'Редагувати ' + u.name) + '</td></tr>';

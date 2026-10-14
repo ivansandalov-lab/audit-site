@@ -19,7 +19,7 @@
       departmentId: a.departmentId, departmentName: nm(env.ix.dep, a.departmentId, a.departmentId),
       auditorId: a.auditorId, auditorName: nm(env.ix.user, a.auditorId, a.auditorId),
       products: names, orders: a.orders.slice(), checked: checked, rejected: rejected, pct: C.pct(rejected, checked),
-      hasPhoto: a.defects.some(function (d) { return !!d.photo; }), isTest: a.isTest !== false,
+      hasPhoto: a.defects.some(function (d) { return !!d.photo || (Array.isArray(d.photos) && d.photos.length > 0); }), isTest: a.isTest !== false,
       editableUntil: editableUntil(a, env)
     };
   }
@@ -152,16 +152,18 @@
       audit.defects = [];
       a.defects.forEach(function (d) {
         var srcId = d.departmentId || a.departmentId;
-        d.guilty.forEach(function (g) {
+        d.guilty.forEach(function (g, k) {
           audit.defects.push({ productId: d.productId, productName: nm(ix.prod, d.productId, NO_PROD), orderNo: d.orderNo,
             defectTypeId: d.defectTypeId, defectTypeName: nm(ix.def, d.defectTypeId, NO_DEF), severity: ix.def[d.defectTypeId] ? ix.def[d.defectTypeId].severity : null,
             level: ix.def[d.defectTypeId] ? (ix.def[d.defectTypeId].level || 'fix') : null,
             workerCode: g.workerCode, workerName: g.workerCode === '' ? NO_WORKER : nm(ix.worker, a.locationId + ':' + g.workerCode, g.workerCode),
             helper: !!g.workerCode && srcId === a.departmentId && helpers.indexOf(g.workerCode) >= 0, qty: g.qty, photo: d.photo || null,
             departmentId: srcId, departmentName: nm(ix.dep, srcId, srcId), otherDept: srcId !== a.departmentId });
+          if (k === 0 && Array.isArray(d.photos) && d.photos.length) audit.defects[audit.defects.length - 1].photos = d.photos.slice();
         });
       });
       audit.canEdit = me.can.editOthersAudits || (a.auditorId === me.id && audit.editableUntil !== null);
+      audit.editWindowMin = C.LIMITS.editWindowMin;   // для текстів «виправити можна N хвилин» (правило адміністратора)
       return { ok: true, audit: audit };
     }
   };

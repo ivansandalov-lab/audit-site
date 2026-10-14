@@ -19,9 +19,21 @@
     };
   }
 
+  function storageReachable(opts) {
+    if (opts.storage || typeof window === 'undefined') return true;
+    try { window.localStorage.getItem('audit-demo:probe'); return true; } catch (e) { return false; }
+  }
+  function accessOffNow(storage, u) { return P.demoAccessOff ? P.demoAccessOff(storage, u.id) : !!u.accessOff; }
+
   P.createDemoServer = function (opts) {
     opts = opts || {};
-    var storage = opts.storage || (typeof window !== 'undefined' ? P.store : memoryStore());
+    var baseStore = opts.storage || (typeof window !== 'undefined' ? P.store : memoryStore());
+    var failedKeys = Object.create(null), track = storageReachable(opts);
+    var storage = {
+      get: function (k, def) { return baseStore.get(k, def); },
+      set: function (k, v) { var ok = baseStore.set(k, v) !== false; if (ok || !track) delete failedKeys[k]; else failedKeys[k] = 1; return ok; },
+      del: function (k) { delete failedKeys[k]; return baseStore.del(k); }
+    };
     var now = opts.now || function () { return new Date(); };
     var lat = opts.latencyMs || [120, 320];
     var seed = opts.seed == null ? 20261007 : opts.seed;
@@ -50,14 +62,15 @@
       P.demoLoadHooks.forEach(function (h) { h(db, { storage: storage, today: today, now: now }); });
       env.db = db; env.ix = C.index(db);
       meId = storage.get(KEY_ME, null);
-      if (meId && !has(env.ix.user, meId)) meId = null;
+      if (meId && (!has(env.ix.user, meId) || env.ix.user[meId].accessOff)) meId = null;
       loggedAt = storage.get(KEY_AT, null);
       if (meId && !loggedAt) { loggedAt = now().toISOString(); storage.set(KEY_AT, loggedAt); }
       syncAdmin();
     }
     function syncAdmin() {
       var a = VIEW_ROLE ? storage.get(KEY_ADMIN, null) : null;
-      var ok = a && typeof a === 'object' && typeof a.userId === 'string' && has(env.ix.user, a.userId) && env.ix.user[a.userId].role === 'admin';
+      var ok = a && typeof a === 'object' && typeof a.userId === 'string' && has(env.ix.user, a.userId) && env.ix.user[a.userId].role === 'admin' &&
+        !env.ix.user[a.userId].accessOff && !(P.demoAccessOff && P.demoAccessOff(storage, a.userId));
       adminS = ok ? { userId: a.userId, locationId: a.locationId } : null;
     }
     load();
@@ -72,7 +85,7 @@
 
     var own = {
       demoUsers: function () {
-        return { ok: true, users: env.db.users.map(function (u) {
+        return { ok: true, users: env.db.users.filter(function (u) { return !accessOffNow(storage, u); }).map(function (u) {
           var m = C.buildMe(u, env.ix);
           return { id: m.id, name: m.name, role: m.role, roleLabel: m.roleLabel, locations: m.locations };
         }) };
@@ -80,6 +93,7 @@
       authDemoLogin: function (p) {
         if (typeof p.userId !== 'string' || !has(env.ix.user, p.userId)) return C.fail('not_found', 'Користувача не знайдено.');
         var u = env.ix.user[p.userId];
+        if (accessOffNow(storage, u)) return C.fail('forbidden', 'Доступ вимкнено адміністратором.');
         if (VIEW_ROLE && u.role === 'admin') {
           adminS = { userId: u.id, locationId: has(env.ix.loc, p.locationId) ? p.locationId : u.locationIds[0] };
           storage.set(KEY_ADMIN, adminS);
@@ -103,7 +117,7 @@
         dropSession();
         return { ok: true };
       },
-      demoReset: function () { reset(); return { ok: true }; },
+      demoReset: function () { var m = currentMe(); reset(!(m && (m.admin || m.role === 'admin'))); return { ok: true }; },
       demoReload: function () { load(); return { ok: true }; },
       demoMeta: function () {
         var d = env.db;
@@ -112,9 +126,9 @@
       }
     };
 
-    function reset() {
+    function reset(keepAdmin) {
       storage.del(KEY_ME); storage.del(KEY_AT); storage.del('demo:audits:new'); storage.del('demo:wishes:done');
-      P.demoResetKeys.forEach(function (k) { storage.del(k); });
+      P.demoResetKeys.forEach(function (k) { if (!(keepAdmin && k.indexOf('demo:adm:') === 0)) storage.del(k); });
       load();
     }
 
@@ -122,6 +136,7 @@
       if (typeof fn !== 'string') return C.fail('not_found', 'Невідома функція.');
       if (failQueue[fn]) { delete failQueue[fn]; return C.fail('server', 'Демо: імітація збою сервера.'); }
       syncAdmin();
+      if (meId && P.demoAccessOff && P.demoAccessOff(storage, meId)) dropSession();
       var me = currentMe();
       if (!has(OPEN_FNS, fn) && !me) return C.auth();
       if (has(own, fn)) return own[fn](payload || {});
@@ -134,8 +149,14 @@
     return {
       call: function (fn, payload) {
         var res;
+        failedKeys = Object.create(null);
         try { res = JSON.parse(JSON.stringify(handle(fn, payload))); }
         catch (e) { res = C.fail('server', String((e && e.message) || e)); }
+        if (Object.keys(failedKeys).length) {
+          failedKeys = Object.create(null);
+          try { load(); } catch (e) { /* лишаємо як є */ }
+          res = C.fail('quota', 'Памʼять браузера заповнена — зміни не збережено. Звільніть місце: «Скинути тестові дані» в меню профілю.');
+        }
         var ms = lat[1] > 0 ? lat[0] + Math.random() * (lat[1] - lat[0]) : 0;
         if (ms <= 0) return Promise.resolve(res);
         return new Promise(function (resolve) { setTimeout(function () { resolve(res); }, ms); });

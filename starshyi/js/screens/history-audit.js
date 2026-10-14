@@ -7,7 +7,8 @@
   function openAudit(id) {
     var audit = null;
     var layer = P.sr.drawer({ title: 'Аудит ' + id, sub: 'Завантаження…', body: h.loading(),
-      on: { edit: function () { editAudit(audit); }, del: function () { deleteAudit(audit); }, retry: function () { load(); } } });
+      on: { edit: function () { editAudit(audit); }, del: function () { deleteAudit(audit); }, retry: function () { load(); },
+        'ph-open': function (t) { openPhoto(photosOf(audit), Number(t.getAttribute('data-i')) || 0); } } });
     function load() {
       layer.body(h.loading());
       P.srv('auditGet', { id: id }).then(function (r) {
@@ -43,13 +44,37 @@
     var workers = '<div class="hs-block"><p class="group-label" style="padding:0">Перевірені працівники · ' + a.checkedWorkers.length + '</p><div class="chips">' +
       a.checkedWorkers.map(function (w) { return '<span class="chip chip--plain hs-wchip">' + esc(w.name) + helperBadge(w.helper) + '</span>'; }).join('') + '</div></div>';
     var comment = a.comment ? '<div class="hs-block"><p class="group-label" style="padding:0">Коментар</p><p class="note-box" style="margin:0;font-size:16px;color:var(--text)">' + esc(a.comment) + '</p></div>' : '';
-    var photos = a.defects.filter(function (d) { return d.photo; });
-    var ph = photos.length ? '<div class="hs-block"><p class="group-label" style="padding:0">Фото браку · ' + photos.length + '</p><div class="hs-photos">' +
+    var shots = photosOf(a), photos = a.defects.filter(function (d) { return d.photo && !(d.photos && d.photos.length); });
+    var ph = shots.length ? '<div class="hs-block"><p class="group-label" style="padding:0">Фото браку · ' + shots.length + '</p><div class="hs-ph-grid">' +
+      shots.map(function (x, i) {
+        return '<button class="hs-ph-btn" type="button" data-act="ph-open" data-i="' + i + '" aria-label="Фото ' + (i + 1) + ' · ' + esc(x.type) + ' — на весь екран">' +
+          '<img src="' + esc(x.src) + '" alt="Фото браку · ' + esc(x.type) + '" loading="lazy"></button>';
+      }).join('') + '</div><p class="hs-ph-cap">Клік по фото — на весь екран.</p></div>' : '';
+    ph += photos.length ? '<div class="hs-block"><p class="group-label" style="padding:0">Фото браку (без зображення) · ' + photos.length + '</p><div class="hs-photos">' +
       photos.map(function (d) { return '<div class="hs-photo" title="' + esc(d.photo.name || '') + '">' + h.ic('photo') + '<span>фото · ' + esc(d.defectTypeName) + '</span></div>'; }).join('') +
-      '</div><p class="hint">У тестовій версії замість фото — заглушки.</p></div>' : '';
+      '</div><p class="hint">У згенерованих тестових аудитах замість фото — заглушки.</p></div>' : '';
     var info = a.canEdit ? '<div class="banner">' + h.ic('info', 'icon') + '<div class="banner__body"><p class="banner__text"><b>Ви можете правити цей аудит будь-коли</b> — ви старший цієї локації. ' +
-      'Аудитор править свій аудит лише 15 хвилин після запису.</p></div></div>' : '';
+      'Аудитор править свій аудит лише ' + (a.editWindowMin || 15) + ' хв після запису.</p></div></div>' : '';
     return kpis + items + defects + workers + comment + ph + info;
+  }
+  function photosOf(a) {
+    var out = [];
+    (a ? a.defects : []).forEach(function (d) {
+      (Array.isArray(d.photos) ? d.photos : []).forEach(function (src) { if (/^data:image\/jpeg;base64,/.test(src)) out.push({ src: src, type: d.defectTypeName }); });
+    });
+    return out;
+  }
+  function openPhoto(list, i) {
+    if (!list.length) return;
+    function body(k) { return '<div class="hs-ph-full"><img src="' + esc(list[k].src) + '" alt="Фото браку · ' + esc(list[k].type) + '"></div>'; }
+    function foot(k) {
+      return list.length < 2 ? '' : '<button class="btn btn--secondary btn--sm" type="button" data-act="ph-prev"' + (k ? '' : ' disabled') + '>' + h.ic('chevron-left', 'ui-icon--sm') + 'Попереднє</button>' +
+        '<span class="hint" style="margin:0 auto">' + (k + 1) + ' з ' + list.length + '</span>' +
+        '<button class="btn btn--secondary btn--sm" type="button" data-act="ph-next"' + (k < list.length - 1 ? '' : ' disabled') + '>Наступне' + h.ic('chevron-right', 'ui-icon--sm') + '</button>';
+    }
+    function show(layer, k) { i = k; layer.body(body(k)); layer.foot(foot(k)); layer.el.querySelector('.modal__title').textContent = 'Фото браку · ' + list[k].type; }
+    P.sr.modal({ title: 'Фото браку · ' + list[i].type, body: body(i), foot: foot(i) || ' ',
+      on: { 'ph-prev': function (t, e, layer) { if (i > 0) show(layer, i - 1); }, 'ph-next': function (t, e, layer) { if (i < list.length - 1) show(layer, i + 1); } } });
   }
   function editAudit(a) {
     if (!a) return;

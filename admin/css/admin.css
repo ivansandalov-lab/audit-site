@@ -1,0 +1,103 @@
+
+
+
+.adm-col { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.adm-head { display: flex; align-items: flex-start; gap: 12px 16px; flex-wrap: wrap; }
+.adm-head > div:first-child { flex: 1; min-width: 240px; }
+.adm-dim { color: var(--text-3); }
+.adm-lockic { display: inline-grid; place-items: center; width: 44px; height: 44px; color: var(--text-3); flex: none; }
+.adm-form { display: flex; flex-direction: column; gap: 16px; }
+.adm-locked { color: var(--text-2); cursor: default; }
+.adm-sw { padding: 0; border: 0; font: inherit; cursor: pointer; }
+.adm-sw:disabled { opacity: .6; cursor: progress; }
+.adm-sw:focus-visible, .adm-mi:focus-visible { outline: 3px solid var(--brand-line); outline-offset: 2px; }
+.adm-mi { width: 100%; border: 0; background: transparent; font: inherit; text-align: left; cursor: pointer; }
+.adm-group { margin: 8px 0 0; font-size: var(--fs-md); font-weight: 700; }
+.adm-card-t { display: flex; align-items: center; gap: 8px; margin: 0; font-size: var(--fs-md); font-weight: 700; }
+.adm-flat { gap: 0; padding-top: 4px; padding-bottom: 8px; }
+.adm-flat > .hint:empty { display: none; }
+.adm-flat > .hint { padding: 8px 0; }
+
+
+.adm-loc__top { display: flex; align-items: center; gap: 4px; min-width: 0; }
+.adm-loc__top .dtile__name { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.adm-loc__acts { display: flex; gap: 2px; margin: -6px -8px -6px 0; flex: none; }
+.adm-loc__set { display: flex; flex-direction: column; gap: 4px; font-size: var(--fs-sm); }
+.adm-loc__set p { display: flex; align-items: flex-start; gap: 8px; margin: 0; min-width: 0; }
+.adm-loc__set .ui-icon { flex: none; margin-top: 2px; color: var(--text-3); }
+.adm-loc__set p > span { min-width: 0; overflow-wrap: anywhere; }
+.adm-loc--off { background: var(--surface-2); border-style: dashed; box-shadow: none; }
+.adm-loc--off .dtile__name, .adm-loc--off .dtile__nums b { color: var(--text-2); }
+.adm-badge-off { align-self: flex-start; display: inline-flex; align-items: center; gap: 4px; }
+.adm-rem { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.adm-rem[hidden] { display: none; }
+
+
+.adm-subnav { align-self: flex-start; max-width: 100%; overflow-x: auto; }
+.adm-subnav .pill { display: inline-flex; align-items: center; text-decoration: none; white-space: nowrap; }
+.adm-tools { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+.adm-search { flex: 1 1 280px; min-width: 0; max-width: 480px; }
+.adm-search .input { width: 100%; }
+.adm-select { flex: 0 1 220px; min-width: 0; height: 52px; }
+.adm-chips { display: flex; gap: 8px; flex-wrap: wrap; }
+.adm-chips .chip-pick { gap: 6px; cursor: pointer; font: inherit; font-size: var(--fs-sm); font-weight: 600; }
+.adm-people { display: flex; flex-direction: column; }
+.adm-person { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-top: 1px solid var(--line); min-width: 0; }
+.adm-person:first-child { border-top: 0; }
+.adm-person .avatar { flex: none; }
+.adm-person__main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.adm-person__name { display: flex; align-items: center; gap: 6px 8px; flex-wrap: wrap; }
+.adm-person__name .badge { height: 24px; }
+.adm-person__meta { font-size: var(--fs-xs); color: var(--text-3); overflow-wrap: anywhere; }
+.adm-person__acts { display: flex; align-items: center; gap: 4px; flex: none; }
+.adm-person--off b, .adm-person--off .adm-person__name { color: var(--text-2); }
+.adm-person--off .avatar { opacity: .6; }
+
+
+.adm-roles { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(320px, 100%), 1fr)); gap: 16px; align-items: start; }
+.adm-role { gap: 0; }
+.adm-role__head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; padding-bottom: 8px; }
+.adm-role__title { margin: 0; font-size: var(--fs-md); font-weight: 700; }
+.adm-right { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-top: 1px solid var(--line); }
+.adm-right__main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.adm-right__was .badge { height: 24px; }
+
+
+.adm-rules { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(340px, 100%), 1fr)); gap: 16px; align-items: start; }
+.adm-rule__head { display: flex; align-items: center; gap: 8px; margin: -6px -8px -6px 0; }
+.adm-rule__title { flex: 1; min-width: 0; margin: 0; font-size: var(--fs-md); font-weight: 700; }
+.adm-rule__val { margin: 0; font-size: 32px; font-weight: 700; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.adm-rule--locked .adm-rule__val { color: var(--text-2); }
+.adm-rule__kv { grid-template-columns: auto minmax(0, 1fr); }
+
+
+.adm-status { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(380px, 100%), 1fr)); gap: 16px; align-items: start; }
+.adm-status .kv dd { overflow-wrap: anywhere; }
+.adm-locstat { display: flex; flex-direction: column; }
+.adm-locstat__row { display: flex; align-items: center; gap: 6px 16px; flex-wrap: wrap; padding: 10px 0; border-top: 1px solid var(--line); }
+.adm-locstat__row:first-child { border-top: 0; }
+.adm-locstat__row > b { flex: 1 1 160px; min-width: 0; }
+.adm-locstat__v { font-variant-numeric: tabular-nums; }
+.adm-log { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.adm-log__item { display: flex; flex-direction: column; gap: 4px; padding: 10px 0; border-top: 1px solid var(--line); }
+.adm-log__item:first-child { border-top: 0; padding-top: 0; }
+.adm-log__top { display: flex; align-items: baseline; gap: 4px 12px; flex-wrap: wrap; font-size: var(--fs-sm); }
+.adm-log__what { margin: 0; font-size: var(--fs-sm); overflow-wrap: anywhere; }
+
+
+@media (max-width: 720px) {
+  .adm-head > div:first-child { min-width: 0; flex-basis: 100%; }
+  .adm-search { flex-basis: 100%; max-width: none; }
+  .adm-select { flex: 1 1 100%; }
+  .adm-rem { grid-template-columns: 1fr 1fr; }
+  .adm-rem > [data-f="remEvery"] { grid-column: 1 / -1; }
+  .adm-modal .modal__foot { flex-wrap: wrap; }
+  .adm-modal .seg { flex-wrap: wrap; }
+  .adm-modal .seg__btn { flex: 1 1 auto; }
+  .adm-person { align-items: flex-start; flex-wrap: wrap; }
+  .adm-person .avatar { display: none; }
+  .adm-person__acts { margin-left: auto; }
+  .adm-rule__val { font-size: 28px; }
+  .adm-status .kv, .adm-rule__kv { grid-template-columns: 1fr; gap: 2px 0; }
+  .adm-status .kv dt:not(:first-child), .adm-rule__kv dt:not(:first-child) { margin-top: 8px; }
+}

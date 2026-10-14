@@ -13,7 +13,7 @@
   function newDefect() {
     var ready = F.items.filter(function (i) { return i.productId; });
     return { key: P.uid('df'), itemKey: ready.length === 1 ? ready[0].key : null, defectTypeId: null, other: false, departmentId: null,
-      guilty: [{ workerCode: F.workers.length === 1 ? F.workers[0] : null, qty: '' }] };
+      guilty: [{ workerCode: F.workers.length === 1 ? F.workers[0] : null, qty: '' }], photos: [] };
   }
   function typeFor(d) { var dep = AF.dept(F, d && d.other ? d.departmentId : F.departmentId); return dep && dep.deptTypeId; }
   function active(form) { return F && F === form && F.alive && F.alive() && el && el.isConnected; }
@@ -57,7 +57,7 @@
       defects: F.mode !== 'defects' ? [] : F.defects.map(function (d) {
         var it = itemByKey(d.itemKey) || {};
         return { productId: it.productId || null, orderNo: it.orderNo || null, defectTypeId: d.defectTypeId,
-          departmentId: d.other ? d.departmentId : null,
+          departmentId: d.other ? d.departmentId : null, photos: (d.photos || []).slice(0, AF.PHOTO_MAX),
           guilty: d.guilty.map(function (g) { return { workerCode: g.workerCode, qty: Number(g.qty) }; }) };
       })
     };
@@ -70,18 +70,35 @@
     if (bad) bad.scrollIntoView({ behavior: 'smooth', block: 'start' });
     P.toast('warn', 'Перевірте позначені поля', text || '');
   }
+  function queue(form, sent, key) {
+    var t = AF.totals(form), dep = AF.dept(form, form.departmentId);
+    var q = P.offline.enqueue(form.uid, sent, (dep ? dep.name : '') + ' · перевірено ' + t.checked + ' шт · брак ' + t.rejected + ' шт');
+    form.saving = false;
+    if (!q.ok) {
+      if (active(form)) drawSummary();
+      return P.toast('danger', 'Не вдалося зберегти на телефоні', 'Памʼять браузера заповнена. Чернетку збережено — запишіть аудит, коли зʼявиться звʼязок.');
+    }
+    form.done = { queued: true, photosDropped: q.photosDropped };
+    if (!form.lockDraft) P.store.del(key);
+    P.toast('ok', 'Збережено на телефоні', 'Надішлеться саме, щойно зʼявиться звʼязок.' + (q.photosDropped ? ' Фото не вмістились у памʼять — аудит без фото.' : ''));
+    if (active(form)) { draw(); root.scrollTo(0, 0); }
+  }
   function submit() {
     var e = clientCheck();
     if (Object.keys(e).length) return showErrors(e);
-    var form = F, key = AF.draft.key(F.uid, F.loc), editing = !!F.editId;
+    var form = F, key = AF.draft.key(F.uid, F.loc), editing = !!F.editId, off = !!(P.offline && P.offline.isOff());
+    if (off && editing) return P.toast('warn', 'Немає звʼязку', 'Зміни ще не збережено. Натисніть «Зберегти зміни», щойно звʼязок повернеться.');
     F.saving = true; drawSummary();
     var sent = payload();
+    if (off) return queue(form, sent, key);
     P.srv(editing ? 'auditUpdate' : 'auditSubmit', sent).then(function (r) {
       form.saving = false;
+      if (!r.ok && r.code === 'offline' && !editing && P.offline) return queue(form, sent, key);
       if (r.ok) {
         form.done = r;   // відкладений запис чернетки цієї форми тепер нічого не запише
         if (!form.lockDraft && !editing) P.store.del(key);
         P.toast('ok', editing ? 'Аудит виправлено' : 'Аудит записано', r.auditId);
+        if (r.photosDropped) P.toast('warn', 'Фото не збережено', 'Памʼять браузера заповнена — аудит записано без фото.');
         if (P.embed && root.parent && root.parent !== root) {
           var chk = sent.items.reduce(function (s, i) { return s + (Number(i.qty) || 0); }, 0);
           var bad = sent.defects.reduce(function (s, d) { return s + d.guilty.reduce(function (a, g) { return a + (Number(g.qty) || 0); }, 0); }, 0);
@@ -313,6 +330,22 @@
     if (kind === 'gqty') { var dd = defByKey(k), gg = dd && dd.guilty[Number(t.getAttribute('data-j'))]; if (gg) gg.qty = clean; }
     changed(false);
   }
+  function onPhotoFile(e) {
+    var t = e.target;
+    if (!t.hasAttribute || !t.hasAttribute('data-photo-in')) return;
+    var form = F, d = defByKey(t.getAttribute('data-k')), files = Array.prototype.slice.call(t.files || []);
+    t.value = '';
+    if (!d || !files.length) return;
+    d.photoBusy = true; changed(true);
+    AF.photoAdd(d, files).then(function (res) {
+      d.photoBusy = false;
+      if (!active(form)) return;
+      changed(true);
+      if (res.added) P.toast('ok', res.added > 1 ? 'Фото додано: ' + res.added : 'Фото додано', 'У цьому браку: ' + d.photos.length + ' з ' + AF.PHOTO_MAX);
+      if (res.failed) P.toast('warn', 'Фото не вдалося додати', 'Зробіть знімок ще раз або оберіть інше фото.');
+      if (res.skipped) P.toast('info', 'До ' + AF.PHOTO_MAX + ' фото на один брак', 'Зайві знімки не додано.');
+    });
+  }
   function blank(ctx, fc) {
     return { clientId: P.uid('aud'), uid: ctx.me.id, loc: fc.location ? fc.location.id : ctx.loc, ctx: fc, alive: ctx.alive, departmentId: null,
       orders: [], items: [], workers: [], helpers: [], comment: '', mode: null, defects: [], errors: {}, saving: false, done: null,
@@ -321,8 +354,13 @@
   function mount(host) {
     el = host;
     if (!F) return P.delegate(el, 'click', '[data-act="retry"]', function () { P.shell.rerender(); });
-    P.delegate(el, 'click', '[data-a]', function (e, t) { var fn = ACT[t.getAttribute('data-a')]; if (fn && !t.disabled) fn(t); });   // галочки теж (data-a на самому полі)
+    P.delegate(el, 'click', '[data-a]', function (e, t) {   // галочки теж (data-a на самому полі)
+      var a = t.getAttribute('data-a'), fn = ACT[a], ph = AF.photoActs[a];
+      if (t.disabled) return;
+      if (fn) fn(t); else if (ph) ph(t, F, defByKey, changed);
+    });
     el.addEventListener('input', onInput);
+    el.addEventListener('change', onPhotoFile);
     if (F.pendingDraft) {
       var form = F, d = F.pendingDraft;
       P.confirm({ title: 'Є незавершений аудит', text: d.summary + ' · збережено о ' + P.fmt.time(new Date(d.savedAt)) + '. Продовжити його чи почати новий?',
@@ -364,7 +402,7 @@
         if (!ctx.alive()) return '';
         if (!r.ok) { F = null; return r.code === 'not_found' ? P.state.empty('search', 'Аудит не знайдено', '') : P.state.error('Не вдалося відкрити аудит', r.error); }
         var a = r.audit;
-        if (!a.canEdit) { F = null; return P.state.empty('lock', 'Виправити вже не можна', 'Свій аудит можна виправити лише протягом 15 хвилин після запису.'); }
+        if (!a.canEdit) { F = null; return P.state.empty('lock', 'Виправити вже не можна', 'Свій аудит можна виправити лише протягом ' + (a.editWindowMin || 15) + ' хв після запису.'); }
         return P.srv('auditFormContext', { locationId: a.locationId }).then(function (fc) {
           if (!ctx.alive()) return '';
           if (!fc.ok) { F = null; return P.state.error('Не вдалося відкрити форму', fc.error); }
