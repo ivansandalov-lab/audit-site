@@ -16,15 +16,15 @@
         '<section class="ui-card"><div class="card-head"><span class="avatar">' + esc(P.initials(me.name)) + '</span>' +
         '<div class="grow"><h2 class="card-title">' + esc(me.name) + '</h2><p class="card-sub">' + esc(maskEmail(me.email)) + '</p></div></div>' +
         '<dl class="kv"><dt>Роль</dt><dd>' + (me.admin ? 'Адміністратор · дивитесь як працівник' : 'Працівник (аудитор)') + '</dd><dt>Локація</dt><dd>' + esc(P.shell.locName(ctx.loc)) + '</dd>' +
-        '<dt>Вхід</dt><dd>' + (me.admin ? 'Google' : 'Google · раз на ' + ((me.rules && me.rules.sessionDays) || 7) + ' дн.') + '</dd></dl></section>' +
+        '<dt>Вхід' + P.help.btn('w.profile.session') + '</dt><dd>' + (me.admin ? 'Google' : 'Google · раз на ' + ((me.rules && me.rules.sessionDays) || 7) + ' дн.') + '</dd></dl></section>' +
         (me.admin ? '<section class="ui-card">' + P.profileSwitch.html(me) + '</section>' : '') +
         '<section class="ui-card"><h2 class="card-title">Тема</h2><div class="ui-seg" role="group" aria-label="Тема">' +
         '<button class="ui-seg__btn" type="button" data-theme-set="dark" aria-pressed="' + dark + '">' + P.ic('theme-dark') + 'Темна</button>' +
         '<button class="ui-seg__btn" type="button" data-theme-set="light" aria-pressed="' + !dark + '">' + P.ic('theme-light') + 'Світла</button></div></section>' +
         '<button class="ui-btn ui-btn--secondary home-cta" type="button" data-act="logout">' + P.ic('logout') + 'Вийти</button>' +
         '<section class="ui-card"><h2 class="card-title">Тестова версія</h2><p class="card-sub">Записані аудити лежать лише в цьому браузері.</p>' +
-        (P.offline && P.offline.canSimulate() ? '<label class="ui-switch"><input type="checkbox" role="switch" data-act="sim-offline"' + (P.offline.simulated() ? ' checked' : '') + '>' +
-          '<span class="ui-switch__track"></span>Імітувати відсутність звʼязку</label>' +
+        (P.offline && P.offline.canSimulate() ? '<div class="row"><label class="ui-switch"><input type="checkbox" role="switch" data-act="sim-offline"' + (P.offline.simulated() ? ' checked' : '') + '>' +
+          '<span class="ui-switch__track"></span>Імітувати відсутність звʼязку</label>' + P.help.btn('w.profile.sim') + '</div>' +
           '<p class="card-sub">Увімкнено — аудити зберігаються на телефоні, як без інтернету. Вимкнете — надішлються самі.</p>' : '') +
         '<button class="ui-btn ui-btn--quiet" type="button" data-act="reset">' + P.ic('refresh') + 'Скинути тестові дані</button></section></div>';
     },

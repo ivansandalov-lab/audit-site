@@ -50,7 +50,7 @@
 
   AF.photoField = function (F, d) {
     var list = Array.isArray(d.photos) ? d.photos : [], k = esc(d.key);
-    return '<div class="ui-field ph-field"><span class="ui-label">Фото · ' + list.length + ' з ' + MAX + ' <span class="ui-hint">можна без фото</span></span>' +
+    return '<div class="ui-field ph-field"><span class="ui-label">Фото · ' + list.length + ' з ' + MAX + ' <span class="ui-hint">можна без фото</span>' + P.help.btn('w.form.photo') + '</span>' +
       '<div class="ph-row">' + list.map(function (src, i) {
         return '<span class="ph-item"><button type="button" class="ph-thumb" data-a="photo-view" data-k="' + k + '" data-i="' + i + '" aria-label="Фото ' + (i + 1) + ' — на весь екран">' +
           '<img src="' + esc(src) + '" alt="Фото браку ' + (i + 1) + '"></button>' +

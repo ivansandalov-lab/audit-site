@@ -41,7 +41,7 @@
     function draw() {
       var cards = data.items.map(function (b) { return b.id === st.edit ? editor() : card(b); });
       if (st.edit === 'new') cards.unshift(editor());
-      v.col.innerHTML = M.head('Блоки замовлень', 'Блок — кілька замовлень під однією назвою; у формі аудиту обирається одним натиском.', M.btnNew('Новий блок')) +
+      v.col.innerHTML = M.head('Блоки замовлень', 'Блок — кілька замовлень під однією назвою; у формі аудиту обирається одним натиском.', M.btnNew('Новий блок'), 'sr.mg.blocks') +
         (cards.length ? '<div class="mg-blocks">' + cards.join('') + '</div>' : '<section class="card">' + H.empty('Блоків ще немає', '') + '</section>') +
         '<p class="hint">Записані аудити зберігають ті замовлення, які були на момент запису.</p>';
     }

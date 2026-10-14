@@ -44,7 +44,15 @@
       }).join('') + '</select>';
     },
     asOf: function (iso) { return 'станом на ' + P.fmt.time(iso); },
-    help: function (text) { return '<span class="mgr-help" tabindex="0" role="note" title="' + esc(text) + '" aria-label="' + esc(text) + '">?</span>'; },
+    help: function (key) { return P.help ? P.help.btn(key) : ''; },
+    kpi: function (val, label, key) {
+      return '<div class="kpi"><span class="kpi__val">' + esc(val) + '</span><span class="kpi__label">' + esc(label) + (key ? K.help(key) : '') + '</span></div>';
+    },
+    kd: function (o) {
+      if (!o) return '<span class="mgr-dim">—</span>';
+      return '<span class="mgr-kd">' + h().kdState('work', 'почато ' + o.started) + h().kdState('watch', 'впроваджено ' + o.implemented) +
+        h().kdState('skip', 'не потрібно ' + o.notNeeded) + '</span>';
+    },
 
     cell: function (v) {
       if (v == null) return '';
@@ -54,7 +62,7 @@
     monthRows: function (r) {
       var head = ['Локація', 'Відділ', 'Аудитів', 'Перевірено, шт', 'Брак, шт', 'Брак, %'].concat(LV.map(function (k) { return LV_WORD[k] + ', шт'; }),
         ['Найчастіші види браку']);
-      if (r.hasKd) head = head.concat(['КД почато', 'КД впроваджено', 'КД не потрібно']);
+      if (r.hasKd) head = head.concat(['Коригуючі дії: почато', 'Коригуючі дії: впроваджено', 'Коригуючі дії: не потрібно']);
       function row(loc, dep, o) {
         var x = [loc, dep, o.audits, o.checked, o.rejected, o.pct].concat(LV.map(function (k) { return o.levels[k]; }),
           [(o.top || []).map(function (t) { return t.name + ' (' + t.pieces + ' шт)'; }).join(', ')]);

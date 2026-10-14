@@ -37,10 +37,11 @@
     return '<button type="button" class="select-btn' + (text ? '' : ' is-empty') + (invalid ? ' is-invalid' : '') + '" ' + attrs + '>' +
       '<span class="select-btn__text">' + esc(text || placeholder) + '</span></button>';
   }
-  function numInput(attrs, value, label, invalid, hint) {
-    return '<label class="ui-field"><span class="ui-label">' + label + '</span><input class="ui-input qty' + (invalid ? ' is-invalid' : '') +
-      '" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" ' + attrs + ' value="' + esc(value) + '">' +
-      (hint ? '<span class="ui-hint">' + esc(hint) + '</span>' : '') + '</label>';
+  function numInput(attrs, value, label, invalid, hint, help) {
+    var inp = '<input class="ui-input qty' + (invalid ? ' is-invalid' : '') + '" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" ' +
+      (help ? 'aria-label="' + esc(label) + '" ' : '') + attrs + ' value="' + esc(value) + '">' + (hint ? '<span class="ui-hint">' + esc(hint) + '</span>' : '');
+    return help ? '<div class="ui-field"><span class="ui-label">' + label + P.help.btn(help) + '</span>' + inp + '</div>'
+      : '<label class="ui-field"><span class="ui-label">' + label + '</span>' + inp + '</label>';
   }
   function deptNorm(n) {
     var left = n.sampleTarget - n.todayChecked;
@@ -52,13 +53,14 @@
     return b.orders.map(function (o) { return o === mark ? '<mark class="hl">' + esc(o) + '</mark>' : esc(o); }).join(', ');
   }
   var SEC_FIELDS = { defects: ['defects', 'mode'] };
-  function sec(F, id, num, title, hint, body, done) {
+  function sec(F, id, num, title, hint, body, done, help, hintHelp) {
     var ids = SEC_FIELDS[id] || [id];
     var bad = Object.keys(F.errors).some(function (k) { return ids.some(function (x) { return k === x || k.indexOf(x + '[') === 0 || k.indexOf(x + '.') === 0; }); });
     var ok = done && !bad;   // секція з помилкою не показує галочку «готово»
     return '<section class="ui-card form-sec' + (ok ? ' is-done' : '') + (bad ? ' is-invalid' : '') + '" id="sec-' + id + '">' +
       '<div class="card-head"><span class="form-sec__num">' + (ok ? P.ic('check', 'ui-icon--sm') : num) + '</span>' +
-      '<h2 class="card-title">' + esc(title) + '</h2></div>' + (hint ? '<p class="form-sec__hint">' + esc(hint) + '</p>' : '') + body + '</section>';
+      '<h2 class="card-title">' + esc(title) + (help ? P.help.btn(help) : '') + '</h2></div>' +
+      (hint ? '<p class="form-sec__hint">' + esc(hint) + (hintHelp ? P.help.btn(hintHelp) : '') + '</p>' : '') + body + '</section>';
   }
 
   function secDept(F) {
@@ -69,7 +71,7 @@
       return '<button type="button" class="pick-btn" data-a="dept" data-v="' + esc(d.id) + '" aria-pressed="' + (F.departmentId === d.id) + '"' + (locked ? ' disabled' : '') + '>' + esc(d.name) +
         (n && n.sampleTarget ? deptNorm(n) : '') + '</button>';
     }).join('') + '</div>' + err(F, 'departmentId');
-    return sec(F, 'departmentId', 1, 'Відділ', F.editId ? 'У записаному аудиті відділ не змінюється.' : 'Де перевіряєте. Під відділом видно, скільки ще перевірити сьогодні.', body, !!F.departmentId);
+    return sec(F, 'departmentId', 1, 'Відділ', F.editId ? 'У записаному аудиті відділ не змінюється.' : 'Де перевіряєте. Під відділом видно, скільки ще перевірити сьогодні.', body, !!F.departmentId, '', F.editId ? '' : 'w.form.deptLeft');
   }
   function secOrders(F) {
     var body = '<div class="chips-input">' + F.orders.map(function (o) {
@@ -81,7 +83,7 @@
       var b = AF.blockOf(F, o);
       return b ? '<p class="form-sec__hint">' + esc(o) + ' входить у блок <b>' + esc(b.name) + '</b>: ' + blockLine(b, o) + '.</p>' : '';
     }).join('');
-    return sec(F, 'orders', 2, 'Замовлення', 'Можна пропустити. Додайте до ' + Number(F.ctx.limits.maxOrders) + ' замовлень або цілий блок.', body, F.orders.length > 0);
+    return sec(F, 'orders', 2, 'Замовлення', 'Можна пропустити. Додайте до ' + Number(F.ctx.limits.maxOrders) + ' замовлень або цілий блок.', body, F.orders.length > 0, '', 'w.form.block');
   }
   function secItems(F) {
     var many = F.orders.length > 1;
@@ -94,7 +96,7 @@
         (many ? '<div class="ui-field span-2"><span class="ui-label">Замовлення</span>' +
           selectBtn('data-a="item-order" data-k="' + esc(it.key) + '"', it.orderNo, 'Оберіть замовлення', F.errors[pre + '.orderNo']) + '</div>' : '') +
         numInput('data-in="qty" data-k="' + esc(it.key) + '"', it.qty, 'Перевірено, шт', F.errors[pre + '.qty']) +
-        numInput('data-in="rejected" data-k="' + esc(it.key) + '"', it.rejected, 'Відбраковано, шт', F.errors[pre + '.rejected']) +
+        numInput('data-in="rejected" data-k="' + esc(it.key) + '"', it.rejected, 'Відбраковано, шт', F.errors[pre + '.rejected'], '', 'w.form.rejected') +
         '</div>' + err(F, pre + '.productId') + err(F, pre + '.orderNo') + err(F, pre + '.qty') + err(F, pre + '.rejected') + err(F, pre) + '</div>';
     }).join('') + '</div>' +
       (F.items.length < F.ctx.limits.maxProducts ? '<button type="button" class="ui-btn ui-btn--secondary" data-a="item-add">' + P.ic('add') + 'Додати виріб</button>' : '') + err(F, 'items');
@@ -107,7 +109,7 @@
       return '<div class="wk-row"><span class="wk-row__main"><span class="wk-row__name">' + esc(name) + '</span>' +
         (other ? '<span class="wk-row__meta">з відділу «' + esc(from ? from.name : '—') + '»</span>' : '') + '</span>' +
         (c === '' ? '' : '<label class="wk-help' + (other ? ' is-locked' : '') + '"><input type="checkbox" data-a="worker-help" data-v="' + esc(c) + '"' +
-          (AF.isHelper(F, c) ? ' checked' : '') + (other ? ' disabled' : '') + '><span>це була допомога</span></label>') +
+          (AF.isHelper(F, c) ? ' checked' : '') + (other ? ' disabled' : '') + '><span>це була допомога</span>' + P.help.btn('term.helper') + '</label>') +
         '<button type="button" class="icon-btn" data-a="worker-del" data-v="' + esc(c) + '" aria-label="Прибрати ' + esc(name) + '">' + P.ic('close') + '</button></div>';
     }).join('') + '</div>' : '') +
       '<button type="button" class="ui-btn ui-btn--secondary ui-btn--sm" data-a="worker-add"' + (F.departmentId ? '' : ' disabled') + '>' + P.ic('people') + (F.workers.length ? 'Змінити список' : 'Обрати працівників') + '</button>' +
@@ -116,22 +118,22 @@
   }
   function defectCard(F, d, i) {
     var pre = 'defects[' + i + ']', it = F.items.filter(function (x) { return x.key === d.itemKey; })[0], t = AF.defType(F, d.defectTypeId), src = AF.dept(F, d.departmentId);
-    var owner = '<div class="ui-seg ui-seg--sm" role="group" aria-label="Чий брак">' +
+    var owner = '<div class="row"><div class="ui-seg ui-seg--sm" role="group" aria-label="Чий брак">' +
       '<button type="button" class="ui-seg__btn" data-a="def-owner" data-v="own" data-k="' + esc(d.key) + '" aria-pressed="' + !d.other + '">Наш відділ</button>' +
-      '<button type="button" class="ui-seg__btn" data-a="def-owner" data-v="other" data-k="' + esc(d.key) + '" aria-pressed="' + !!d.other + '">Інший відділ</button></div>';
-    return '<div class="entry entry--defect' + (d.other ? ' entry--other' : '') + '"><div class="entry__head"><h3 class="entry__title">Брак ' + (i + 1) + '</h3>' +
-      '<button type="button" class="icon-btn" data-a="def-del" data-k="' + esc(d.key) + '" aria-label="Прибрати брак ' + (i + 1) + '">' + P.ic('delete') + '</button></div>' + owner +
+      '<button type="button" class="ui-seg__btn" data-a="def-owner" data-v="other" data-k="' + esc(d.key) + '" aria-pressed="' + !!d.other + '">Інший відділ</button></div>' + P.help.btn('term.otherDept') + '</div>';
+    return '<div class="entry entry--defect' + (d.other ? ' entry--other' : '') + '"><div class="entry__head"><h3 class="entry__title">Вид браку ' + (i + 1) + '</h3>' +
+      '<button type="button" class="icon-btn" data-a="def-del" data-k="' + esc(d.key) + '" aria-label="Прибрати вид браку ' + (i + 1) + '">' + P.ic('delete') + '</button></div>' + owner +
       '<div class="entry__grid">' +
       (d.other ? '<div class="ui-field span-2"><span class="ui-label">Звідки брак (відділ)</span>' +
         selectBtn('data-a="def-dept" data-k="' + esc(d.key) + '"', src && src.name, 'Оберіть відділ', F.errors[pre + '.departmentId']) + '</div>' : '') +
       '<div class="ui-field span-2"><span class="ui-label">На якому виробі</span>' +
       selectBtn('data-a="def-item" data-k="' + esc(d.key) + '"', it && AF.itemLabel(F, it), 'Оберіть виріб', F.errors[pre + '.productId']) + '</div>' +
-      '<div class="ui-field span-2"><span class="ui-label">Вид браку' + (d.other && src ? ' — відділ «' + esc(src.name) + '»' : '') + '</span>' +
+      '<div class="ui-field span-2"><span class="ui-label">Вид браку' + (d.other && src ? ' — відділ «' + esc(src.name) + '»' : '') + P.help.btn('term.defectType') + '</span>' +
       selectBtn('data-a="def-type" data-k="' + esc(d.key) + '"', t && (t.name + ' · ' + AF.lvlLabel(t.level)), 'Оберіть вид браку', F.errors[pre + '.defectTypeId']) + '</div></div>' +
       d.guilty.map(function (g, j) {
         var gp = pre + '.guilty[' + j + ']';
         var who = g.workerCode == null ? '' : AF.workerName(F, g.workerCode) + (!d.other && AF.isHelper(F, g.workerCode) ? ' · допомога' : '');
-        return '<div class="guilty"><div class="ui-field"><span class="ui-label">Винний</span>' +
+        return '<div class="guilty"><div class="ui-field"><span class="ui-label">Винний' + (j ? '' : P.help.btn('w.form.guilty')) + '</span>' +
           selectBtn('data-a="def-worker" data-k="' + esc(d.key) + '" data-j="' + j + '"', who, 'Хто', F.errors[gp]) + '</div>' +
           numInput('data-in="gqty" data-k="' + esc(d.key) + '" data-j="' + j + '"', g.qty, 'Шт', F.errors[gp + '.qty']) +
           '<button type="button" class="icon-btn" data-a="g-del" data-k="' + esc(d.key) + '" data-j="' + j + '" aria-label="Прибрати винного"' + (d.guilty.length < 2 ? ' disabled' : '') + '>' + P.ic('close') + '</button></div>' +
@@ -149,7 +151,7 @@
       body += '<div class="stack">' + F.defects.map(function (d, i) { return defectCard(F, d, i); }).join('') + '</div>' +
         (F.defects.length < F.ctx.limits.maxDefects ? '<button type="button" class="ui-btn ui-btn--secondary" data-a="def-add">' + P.ic('add') + 'Додати вид браку</button>' : '');
     }
-    return sec(F, 'defects', 5, 'Брак', 'Знайшли брак — натисніть «Є брак» і додайте кожен вид. Брак зробили в іншому відділі — оберіть «Інший відділ».', body,
+    return sec(F, 'defects', 5, 'Брак', 'Знайшли брак — натисніть «Є брак» і додайте кожен вид браку. Брак зробили в іншому відділі — оберіть «Інший відділ».', body,
       F.mode === 'none' || (F.mode === 'defects' && F.defects.length > 0));
   }
   function secComment(F) {
@@ -159,8 +161,8 @@
   }
   function actionBar(F) {
     var t = AF.totals(F);
-    return '<div class="action-bar"><p class="action-bar__sum">Перевірено <b>' + f.num(t.checked) + '</b> шт · знайдено браку <b>' + f.num(t.rejected) + '</b>' +
-      (t.pct != null ? ' (<b>' + f.pct(t.pct) + '</b>)' : '') + (t.other ? '<br>з них <b>' + f.num(t.other) + '</b> — брак іншого відділу' : '') + '</p>' +
+    return '<div class="action-bar"><p class="action-bar__sum">Перевірено <b>' + f.num(t.checked) + '</b> шт · знайдено браку <b>' + f.num(t.rejected) + '</b> шт' +
+      (t.pct != null ? ' (<b>' + f.pct(t.pct) + '</b>)' : '') + (t.other ? '<br>з них <b>' + f.num(t.other) + '</b> шт — брак іншого відділу' : '') + P.help.btn('w.form.sum') + '</p>' +
       '<button type="button" class="ui-btn ui-btn--primary" data-a="save"' + (F.saving ? ' disabled' : '') + '>' +
       (F.saving ? '<span class="ui-spinner ui-spinner--sm" aria-hidden="true"></span>Записую…' : P.ic('save') + (F.editId ? 'Зберегти зміни' : 'Записати аудит')) + '</button></div>';
   }
@@ -195,7 +197,7 @@
       '<h2 class="ui-title-lg done__title">' + (F.editId ? 'Аудит виправлено' : 'Аудит записано') + '</h2>' +
       '<p class="ui-text-sm ui-soft">' + esc(r.auditId) + ' · ' + esc((AF.dept(F, F.departmentId) || {}).name || '') + '</p>' +
       '<p class="ui-text-sm">Перевірено ' + f.num(t.checked) + ' шт · знайдено браку ' + f.num(t.rejected) + ' шт' + (t.pct != null ? ' (' + f.pct(t.pct) + ')' : '') + '</p>' +
-      (r.editableUntil ? '<p class="ui-caption ui-soft">Помилились? Виправити можна до ' + f.time(r.editableUntil) + '.</p>' : '') +
+      (r.editableUntil ? '<p class="ui-caption ui-soft">Помилились? Виправити можна до ' + f.time(r.editableUntil) + '.' + P.help.btn('term.editWindow') + '</p>' : '') +
       '<div class="done__actions"><button type="button" class="ui-btn ui-btn--primary" data-a="again">' + P.ic('add') + 'Ще один аудит</button>' +
       '<button type="button" class="ui-btn ui-btn--secondary" data-a="view">' + P.ic('audit') + 'Переглянути аудит</button>' +
       '<button type="button" class="ui-btn ui-btn--quiet" data-a="home">' + P.ic('home') + 'На головну</button></div></div></div>';

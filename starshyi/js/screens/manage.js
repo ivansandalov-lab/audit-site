@@ -18,7 +18,7 @@
   function cnt(n, f) { return H.num(n) + ' ' + plural(n, f); }
   function inAudits(n) { return H.num(n) + ' ' + (n % 10 === 1 && n % 100 !== 11 ? 'аудиті' : 'аудитах'); }
   var W = { audit: ['аудит', 'аудити', 'аудитів'], order: ['замовлення', 'замовлення', 'замовлень'], rec: ['запис', 'записи', 'записів'],
-    dept: ['відділ', 'відділи', 'відділів'], prod: ['виріб', 'вироби', 'виробів'], kind: ['вид', 'види', 'видів'], table: ['таблиця', 'таблиці', 'таблиць'] };
+    dept: ['відділ', 'відділи', 'відділів'], prod: ['виріб', 'вироби', 'виробів'], kind: ['вид браку', 'види браку', 'видів браку'], table: ['таблиця', 'таблиці', 'таблиць'] };
   function today() { return P.fmt.dayKey(new Date()); }
   function daysBetween(a, b) { return Math.round((Date.parse(b + 'T12:00:00Z') - Date.parse(a + 'T12:00:00Z')) / 86400000); }
   function dateLong(iso) { var k = String(iso).length > 10 ? P.fmt.dayKey(iso) : iso; return new Date(Date.parse(k + 'T12:00:00Z')).toLocaleDateString('uk-UA', { day: 'numeric', month: 'long', timeZone: 'UTC' }); }
@@ -53,13 +53,19 @@
         '<span class="menu__ic">' + P.ic(i.ic) + '</span><span><span class="menu__t">' + esc(i.title) + '</span>' + (i.sub ? '<span class="menu__s">' + esc(i.sub) + '</span>' : '') + '</span></button>';
     }).join('') });
   }
-  function head(title, sub, btn) { return '<div class="mg-head"><div><h2 class="h2">' + esc(title) + '</h2>' + (sub ? '<p class="h2-sub">' + esc(sub) + '</p>' : '') + '</div>' + (btn || '') + '</div>'; }
+  function hq(key) { return key && P.help ? P.help.btn(key) : ''; }
+  function head(title, sub, btn, help) { return '<div class="mg-head"><div><h2 class="h2">' + esc(title) + hq(help) + '</h2>' + (sub ? '<p class="h2-sub">' + esc(sub) + '</p>' : '') + '</div>' + (btn || '') + '</div>'; }
   function btnNew(label) { return '<button class="btn btn--primary" type="button" data-act="mg-new">' + P.ic('add') + esc(label) + '</button>'; }
   function banner(kind, title, text) {
     return '<div class="banner' + (kind ? ' banner--' + kind : '') + '">' + P.ic(kind === 'warn' ? 'warning' : 'info', 'icon') +
       '<div class="banner__body"><p class="banner__title">' + esc(title) + '</p>' + (text ? '<p class="banner__text">' + esc(text) + '</p>' : '') + '</div></div>';
   }
-  function field(name, label, inner, hint) { return '<label class="field" data-f="' + name + '"><span class="label">' + esc(label) + '</span>' + inner + (hint ? '<span class="hint">' + esc(hint) + '</span>' : '') + '</label>'; }
+  function field(name, label, inner, hint, help) {
+    var tail = (hint ? '<span class="hint">' + esc(hint) + '</span>' : '');
+    if (help) return '<div class="field" data-f="' + name + '"><span class="label">' + esc(label) + hq(help) + '</span>' +
+      inner.replace(/^<(input|select|textarea)\b/, '<$1 aria-label="' + esc(label) + '"') + tail + '</div>';
+    return '<label class="field" data-f="' + name + '"><span class="label">' + esc(label) + '</span>' + inner + tail + '</label>';
+  }
   function input(name, value, attrs) { return '<input class="input" name="' + name + '" value="' + esc(value == null ? '' : value) + '"' + (attrs || '') + '>'; }
   function locked(label, text) { return '<div class="field"><span class="label">' + esc(label) + '</span><span class="select" style="color:var(--text-2);cursor:default">' + esc(text) + P.ic('lock', 'icon icon--sm') + '</span></div>'; }
   function seg(name, opts, cur, act) {
@@ -99,7 +105,7 @@
   }
   function ask(o) {
     return modal({ size: 'sm', title: o.title, sub: o.sub ? esc(o.sub) : '',
-      body: '<div class="mg-form">' + field(o.name, o.label, input(o.name, o.value, o.attrs), o.hint) + '</div>',
+      body: '<div class="mg-form">' + field(o.name, o.label, input(o.name, o.value, o.attrs), o.hint, o.help) + '</div>',
       foot: cancelBtn() + '<button class="btn btn--primary" type="button" data-act="mg-save">' + P.ic('save') + 'Зберегти</button>',
       onMount: function (el) { enterSubmits(el, 'mg-save'); var i = q(el, 'input.input'); if (i && i.select) i.select(); },
       on: { 'mg-save': function (t, e, layer) {
@@ -142,7 +148,7 @@
   P.sr.screen('/manage', { tab: 'manage', title: 'Керування', period: false, render: function (ctx) { ctx.go('/manage/team'); } });
 
   P.srMg = { section: section, plural: plural, cnt: cnt, inAudits: inAudits, W: W, today: today, daysBetween: daysBetween, dateLong: dateLong, ago: ago, added: added,
-    da: da, q: q, qa: qa, sw: sw, ck: ck, pen: pen, more: more, rowMenu: rowMenu, head: head, btnNew: btnNew, banner: banner, field: field, input: input,
+    da: da, q: q, qa: qa, hq: hq, sw: sw, ck: ck, pen: pen, more: more, rowMenu: rowMenu, head: head, btnNew: btnNew, banner: banner, field: field, input: input,
     locked: locked, seg: seg, levelOpts: levelOpts, val: val, modal: modal, cancelBtn: cancelBtn, showErrors: showErrors, failToast: failToast,
     enterSubmits: enterSubmits, ask: ask, LV_SHORT: { fix: 'неправильно', repair: 'пошкоджене', scrap: 'зламане' } };
 })(window);

@@ -51,19 +51,31 @@
       ['Брак', num(d.rejected) + ' шт · ' + pct(d.pct), d.over ? 'danger' : '']].concat(d.rows || []) });
   }
 
+  function areaOf(o, H) { return H - 12 - (o.items.some(function (x) { return x.mark; }) ? 18 : 0); }
+  function segsHtml(segs, total) {
+    var sum = segs.reduce(function (s, g) { return s + (g.v || 0); }, 0);
+    return sum ? segs.slice().reverse().map(function (g) {
+      return g.v ? '<i class="' + esc(g.cls || 'c-one') + '" style="height:' + (g.v / sum * total).toFixed(1) + 'px"></i>' : ''; }).join('') : '';
+  }
   function barsHtml(o, H, max) {
-    var area = H - 12;
+    var area = areaOf(o, H);
     return o.items.map(function (x, i) {
       var inner, v = x.v || 0;
       if (x.none) inner = '<i class="c-none"></i>';
       else if (!v) inner = '<i class="c-zero"></i>';
       else {
         var total = Math.max(3, v / max * area), lv = x.levels, t = lv ? (lv.fix || 0) + (lv.repair || 0) + (lv.scrap || 0) : 0;
-        inner = t ? ['scrap', 'repair', 'fix'].map(function (k) { return lv[k] ? '<i class="s-' + k + '" style="height:' + (lv[k] / t * total).toFixed(1) + 'px"></i>' : ''; }).join('')
-          : '<i class="' + (x.hot ? 'c-hot' : 'c-one') + '" style="height:' + total.toFixed(1) + 'px"></i>';
+        inner = x.segs ? segsHtml(x.segs, total)
+          : t ? ['scrap', 'repair', 'fix'].map(function (k) { return lv[k] ? '<i class="s-' + k + '" style="height:' + (lv[k] / t * total).toFixed(1) + 'px"></i>' : ''; }).join('')
+            : '<i class="' + (x.hot ? 'c-hot' : 'c-one') + '" style="height:' + total.toFixed(1) + 'px"></i>';
       }
-      return '<div class="cbar' + (x.cls ? ' ' + x.cls : '') + '" data-i="' + i + '">' + inner + '</div>';
+      var mark = x.mark ? '<b class="cbar__mark' + (x.mark.cls ? ' ' + esc(x.mark.cls) : '') + '"' + (x.mark.title ? ' title="' + esc(x.mark.title) + '"' : '') + '>' + esc(x.mark.text) + '</b>' : '';
+      return '<div class="cbar' + (x.cls ? ' ' + x.cls : '') + '" data-i="' + i + '">' + mark + inner + '</div>';
     }).join('');
+  }
+  function axisAllHtml(items, dens) {
+    return '<div class="chart-x chart-x--all' + (dens ? ' chart-x--' + dens : '') + (items.length > 12 ? ' chart-x--many' : '') + '" aria-hidden="true">' +
+      items.map(function (x) { return '<span>' + esc(x.x != null ? x.x : '') + '</span>'; }).join('') + '</div>';
   }
   function axisHtml(items) {
     var idx = [], k = Math.min(5, items.length);
@@ -76,11 +88,12 @@
     var items = o.items || [], H = o.height || (o.mini ? 44 : 220);
     var max = o.max || Math.max.apply(null, items.map(function (x) { return x.v || 0; }).concat([o.line ? o.line.v * 1.25 : 0, 1e-9]));
     var canRange = !o.mini && typeof o.tipRange === 'function';
+    var dens = items.length > 40 ? 'dense' : items.length > 20 ? 'mid' : '';
     el.classList.add('cchart-wrap');
-    el.innerHTML = '<div class="cchart' + (o.mini ? ' cchart--mini' : '') + (items.length > 40 ? ' cchart--dense' : items.length > 20 ? ' cchart--mid' : '') +
+    el.innerHTML = '<div class="cchart' + (o.mini ? ' cchart--mini' : '') + (dens ? ' cchart--' + dens : '') +
       '" style="height:' + H + 'px" tabindex="0" role="img" aria-label="' + esc(o.label || 'Графік') + '">' +
-      (o.line ? '<div class="cchart__line" style="bottom:' + Math.round(o.line.v / max * (H - 12)) + 'px">' + (o.line.label && !o.mini ? '<span>' + esc(o.line.label) + '</span>' : '') + '</div>' : '') +
-      barsHtml(o, H, max) + '</div>' + (o.mini || o.xLabels === false || !items.length ? '' : axisHtml(items));
+      (o.line ? '<div class="cchart__line" style="bottom:' + Math.round(o.line.v / max * areaOf(o, H)) + 'px">' + (o.line.label && !o.mini ? '<span>' + esc(o.line.label) + '</span>' : '') + '</div>' : '') +
+      barsHtml(o, H, max) + '</div>' + (o.mini || o.xLabels === false || !items.length ? '' : o.xAll ? axisAllHtml(items, dens) : axisHtml(items));
     var box = el.firstChild, bars = Array.prototype.slice.call(box.querySelectorAll('.cbar'));
     var st = { hot: -1, pin: -1, a: -1, b: -1, down: -1, drag: false };
     function indexOfKey(k) { for (var i = 0; i < items.length; i++) if (items[i].key === k) return i; return -1; }

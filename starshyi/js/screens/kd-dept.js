@@ -1,13 +1,14 @@
 (function (root) {
   'use strict';
   var P = root.P, H = P.sr.h, esc = P.esc, K = P.srKd;
+  var help = function (k) { return P.help ? P.help.btn(k) : ''; };
   var SORTS = [['pct', 'за %'], ['pcs', 'за шт'], ['name', 'за назвою']];
   var SORT_FN = {
     pct: function (a, b) { return (b.rate || 0) - (a.rate || 0) || b.pieces - a.pieces || a.name.localeCompare(b.name, 'uk'); },
     pcs: function (a, b) { return b.pieces - a.pieces || a.name.localeCompare(b.name, 'uk'); },
     name: function (a, b) { return a.name.localeCompare(b.name, 'uk'); }
   };
-  var ACT_SHOW = 5;   // скільки дій відділу видно без «Показати всі»
+  var ACT_SHOW = 4;   // скільки дій у групі етапу видно без «Показати всі»
 
   P.sr.screen('/kd/dept/:id', { tab: 'kd', title: 'Коригуючі дії', period: false, render: function (ctx) {
     var q = ctx.query, depId = ctx.params.id;
@@ -72,47 +73,50 @@
         P.ic('arrow-right', 'ui-icon--sm') + '</button></div></div>';
     }
     function factsHtml(r) {
-      var p = r.period, T = r.threshold, lv = p.levels, lt = (lv.fix || 0) + (lv.repair || 0) + (lv.scrap || 0), c = r.counts;
+      var p = r.period, T = r.threshold, lv = p.levels, lt = (lv.fix || 0) + (lv.repair || 0) + (lv.scrap || 0), per = K.rangeShort(p.start, p.end);
       var kind = p.current ? H.badge('розбір триває · день ' + p.daysDone + ' з ' + p.days, 'info') : p.n === r.review.n ? H.badge('останній повний розбір', 'brand') : H.badge('минулий розбір · лише перегляд');
       var levels = lt ? H.stack(lv, 14) + '<div class="legend">' + ['fix', 'repair', 'scrap'].map(function (k) {
-        return H.lvl(k, P.sr.LEVELS[k] + ' · ' + K.num(lv[k]) + ' шт · ' + Math.round(lv[k] / lt * 100) + '%'); }).join('') + '</div>' : '<p class="hint">Браку у відділі за розбір не записано.</p>';
-      var cnt = function (n, label, mod) { return '<span class="kd-cnt' + (n && mod ? ' kd-cnt--' + mod : '') + '"><b>' + n + '</b>' + label + '</span>'; };
-      return '<section class="card kd-facts"><div class="kd-facts__top"><h3 class="card-title">Розбір ' + esc(K.range(p.start, p.end)) + '</h3>' + kind +
+        return H.lvl(k, P.sr.LEVELS[k] + ' · ' + K.num(lv[k]) + ' шт · ' + Math.round(lv[k] / lt * 100) + '%'); }).join('') + '</div>' : '<p class="kd-text">Браку у відділі за розбір не записано.</p>';
+      return '<section class="card kd-facts"><div class="kd-facts__top"><h3 class="card-title">Розбір ' + esc(K.range(p.start, p.end)) + help('kd.review') + '</h3>' + kind +
         (r.decide ? '' : '<button class="btn btn--quiet btn--sm" type="button" data-act="kd-last">До останнього розбору</button>') + '</div>' +
-        '<div class="kpis kd-facts__kpis">' + H.kpi(K.num(p.audits), 'аудитів у відділі') +
-        H.kpi(K.num(p.checked), 'перевірено у відділі, шт · для розбору треба від ' + r.minSample) +
-        H.kpi(K.num(p.rejected) + ' шт · ' + K.pct(p.rate), 'брак відділу: шт і % від перевірених') +
-        H.kpi(p.low ? '—' : String(p.over), 'видів браку понад ' + T + '%' + (p.low ? ' — не рахується: перевірено менше ' + r.minSample + ' шт' : ' · з ' + r.types.length + ' у переліку'), p.over ? 'danger' : '') + '</div>' +
-        '<div class="kd-facts__row"><div class="kd-facts__col"><p class="group-label" style="padding:0">Рівні браку відділу за розбір · ' + K.num(p.rejected) + ' шт</p>' + levels + '</div>' +
-        '<div class="kd-facts__col"><p class="group-label" style="padding:0">Дії відділу · стан на сьогодні, за весь час</p><div class="kd-cnts">' + cnt(c['new'], 'нові', 'danger') + cnt(c.started, 'в роботі') +
-        cnt(c.check, 'на перевірці', 'info') + cnt(c.helped, 'допомогли', 'ok') + cnt(c.not_helped, 'не допомогли', 'warn') + cnt(c.not_needed, 'не потрібно') + '</div></div></div></section>';
+        '<div class="kd-big">' + K.big(K.num(p.audits), 'аудитів за ' + per, 'term.audit') +
+        K.big(K.num(p.rejected) + ' шт', 'брак, шт · з ' + K.num(p.checked) + ' перевірених', 'term.rejected') +
+        K.big(K.pct(p.rate), 'брак, % · ' + per, 'term.rate') +
+        K.big(p.low ? '—' : String(p.over), p.low ? 'видів браку понад норму — не рахується: перевірено менше ' + r.minSample + ' шт' : 'видів браку понад норму ' + T + '% · з ' + r.types.length, 'kd.threshold') + '</div>' +
+        '<div class="kd-facts__row"><div class="kd-facts__col"><p class="kd-sec">Рівні браку відділу · ' + K.num(p.rejected) + ' шт' + help('term.levels') + '</p>' + levels + '</div>' +
+        '<div class="kd-facts__col"><p class="kd-sec">Дії відділу за етапами · стан на сьогодні' + help('kd.stages') + '</p>' + K.stageTiles(r.stages, { note: { relapse: 'за весь час', closed: 'за весь час' } }) + '</div></div></section>';
     }
     function chartHtml(r) {
-      return '<section class="card col--wide"><div class="card-head kd-chart-head"><h3 class="card-title">Брак відділу по розборах</h3>' +
+      return '<section class="card col--wide"><div class="card-head kd-chart-head"><h3 class="card-title">Брак відділу по розборах' + help('kd.dept.chart') + '</h3>' +
         '<div class="seg seg--sm kd-unit" role="group" aria-label="Одиниці графіка">' + [['pct', '%'], ['pcs', 'шт']].map(function (u) {
           return '<button class="seg__btn" type="button" data-act="kd-unit" data-v="' + u[0] + '">' + u[1] + '</button>'; }).join('') + '</div></div>' +
         '<div data-kd-chartcap></div><div data-chart="kd-dept"></div>' + K.chartKeys('dept', r.threshold, r.minSample, 'рамка — обраний розбір') + '<div data-kd-pin="dept"></div></section>';
     }
+    function actRow(a, r, hide) {
+      return '<div class="row-item kd-act' + (hide ? ' kd-x' : '') + '" data-act="open"' + K.ref(a) + '><span class="row-item__main"><span class="row-item__title">' +
+        '<button class="link" type="button" data-act="open"' + K.ref(a) + '>' + esc(a.name) + '</button> · ' + esc(K.result(a, r.threshold)) + '</span>' +
+        '<span class="row-item__meta">' + esc(K.actMeta(a)) + '</span></span>' + K.stateBadge(a, r.today) + '</div>';
+    }
     function actionsHtml(r) {
-      var acts = r.actions, T = r.threshold;
-      return '<section class="card col" data-kd-more><div><h3 class="card-title">Дії відділу · ' + acts.length + '</h3>' +
-        K.cap('Нові перевищення й усі дії відділу за весь час. Число біля назви — частка виду в розборі дії (після стрілки — у розборі перевірки). Клік по рядку — картка дії.') + '</div>' +
-        (acts.length ? '<div class="list">' + acts.map(function (a, i) {
-          return '<div class="row-item kd-act' + (i >= ACT_SHOW ? ' kd-x' : '') + '" data-act="open"' + K.ref(a) + '><span class="row-item__main"><span class="row-item__title">' +
-            '<button class="link" type="button" data-act="open"' + K.ref(a) + '>' + esc(a.name) + '</button> · ' + esc(K.result(a, T)) + '</span>' +
-            '<span class="row-item__meta">' + esc(K.actMeta(a)) + '</span></span>' + K.stateBadge(a, r.today) + '</div>';
-        }).join('') + '</div>' + K.moreBtn(acts.length, ACT_SHOW, 'Показати всі') : '<p class="kd-text">Дій у відділі не було.</p>') + '</section>';
+      var acts = r.actions;
+      var groups = K.STAGES.map(function (s) { return { s: s, list: acts.filter(function (a) { return a.stage === s.id; }) }; }).filter(function (g) { return g.list.length; });
+      return '<section class="card col"><div><h3 class="card-title">Дії відділу · ' + acts.length + help('kd.stages') + '</h3>' +
+        K.cap('За весь час, згруповано за етапом на сьогодні. Число біля назви — частка виду браку в розборі дії (після стрілки — у розборі перевірки). Клік по рядку — картка дії.') + '</div>' +
+        (acts.length ? groups.map(function (g) {
+          return '<div class="kd-grp" data-kd-more><p class="kd-grp__t">' + K.stageMark(g.s) + esc(g.s.label) + ' · ' + g.list.length + help(g.s.help) + '</p><div class="list">' +
+            g.list.map(function (a, i) { return actRow(a, r, i >= ACT_SHOW); }).join('') + '</div>' + K.moreBtn(g.list.length, ACT_SHOW, 'Показати всі') + '</div>';
+        }).join('') : '<p class="kd-text">Дій у відділі не було.</p>') + '</section>';
     }
     function typesHtml(r) {
       var p = r.period, T = r.threshold, withDefect = r.types.filter(function (x) { return x.pieces > 0; }).length;
       return '<section class="card kd-types"><div class="kd-types__head"><div class="kd-types__title"><h3 class="card-title">Види браку відділу · розбір ' + esc(K.range(p.start, p.end)) + '</h3>' +
-        K.cap('У переліку ' + K.plural(r.types.length, 'вид', 'види', 'видів') + ' із довідника відділу; у цьому розборі з браком — ' + withDefect + (p.low ? '' : ', понад ' + T + '% — ' + p.over) +
-          '. % = шт виду ÷ ' + K.num(p.checked) + ' перевірених у відділі за розбір. Клік по рядку — усе про вид.') + '</div>' +
+        K.cap('У переліку ' + K.plural(r.types.length, 'вид браку', 'види браку', 'видів браку') + ' із довідника відділу; у цьому розборі з браком — ' + withDefect + (p.low ? '' : ', понад ' + T + '% — ' + p.over) +
+          '. % = шт виду браку ÷ ' + K.num(p.checked) + ' перевірених у відділі за розбір. Клік по рядку — усе про вид.') + '</div>' +
         '<div class="kd-types__tools"><div class="seg seg--sm" role="group" aria-label="Сортування">' + SORTS.map(function (s) {
           return '<button class="seg__btn" type="button" data-act="kd-sort" data-v="' + s[0] + '">' + s[1] + '</button>'; }).join('') + '</div>' +
         '<label class="kd-find">' + P.ic('search', 'ui-icon--sm') + '<input class="input" type="search" data-input="kd-find" value="' + esc(st.find) + '" placeholder="Назва виду браку" aria-label="Пошук виду браку за назвою"></label></div></div>' +
-        '<div class="kd-thead" aria-hidden="true"><span>Вид браку · рівень</span><span>% від перевірених</span><span>шт</span><span>шкала 0–10% · риска — поріг ' + T + '%</span>' +
-        '<span>7 розборів до обраного, %</span><span>стан дії на сьогодні</span><span></span></div><div data-kd-rows></div></section>';
+        '<div class="kd-thead"><span>Вид браку · рівень' + help('term.defectType') + '</span><span>% від перевірених' + help('kd.dept.typePct') + '</span><span>шт</span><span>шкала 0–10% · риска — норма ' + T + '%</span>' +
+        '<span>7 розборів до обраного, %' + help('kd.typeChart') + '</span><span>стан дії на сьогодні' + help('kd.typeState') + '</span><span></span></div><div data-kd-rows></div></section>';
     }
     function rowHtml(x, i, r) {
       var open = st.t === x.defectTypeId, T = r.threshold, id = esc(x.defectTypeId), s = x.state;
@@ -141,7 +145,7 @@
     }
     function pinFacts(x, T) {
       return K.plural(x.audits, 'аудит', 'аудити', 'аудитів') + ' · перевірено ' + K.num(x.checked) + ' шт · брак ' + K.num(x.rejected) + ' шт · ' + K.pct(x.rate) +
-        ' · видів понад ' + T + '%: ' + (x.low ? 'не рахується' : x.over);
+        ' · видів браку понад ' + T + '%: ' + (x.low ? 'не рахується' : x.over);
     }
     function drawChart() {
       var r = data, el = ctx.el.querySelector('[data-chart="kd-dept"]'), pin = ctx.el.querySelector('[data-kd-pin="dept"]');
@@ -163,7 +167,7 @@
       box.innerHTML = list.length ? list.map(function (x, i) { return rowHtml(x, i, r); }).join('')
         : '<p class="kd-text kd-types__none">' + (r.types.length ? 'Видів браку з такою назвою у відділі немає.' : 'У довіднику відділу немає видів браку.') + '</p>';
       list.forEach(function (x, i) {
-        K.typeChart(box.querySelector('[data-kd-mini="' + i + '"]'), x.dyn, { name: x.name, T: r.threshold, mini: true, height: 36, label: 'Частка виду «' + x.name + '», % · 7 розборів до обраного' });
+        K.typeChart(box.querySelector('[data-kd-mini="' + i + '"]'), x.dyn, { name: x.name, T: r.threshold, mini: true, height: 36, label: 'Частка виду браку «' + x.name + '», % · 7 розборів до обраного' });
       });
       if (st.t && box.querySelector('[data-kd-panel]')) showType();
     }

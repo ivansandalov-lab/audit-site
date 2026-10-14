@@ -13,6 +13,7 @@
   function everyLabel(n) { return n < 60 ? n + ' хв' : (n / 60) + ' год'; }
   function hourOpts(cur) { var h = ''; for (var i = 0; i < 24; i++) h += '<option value="' + i + '"' + (i === cur ? ' selected' : '') + '>' + (i < 10 ? '0' : '') + i + ':00</option>'; return h; }
   function q(sel) { return el.querySelector(sel); }
+  function hb(key) { return P.help ? P.help.btn(key) : ''; }
   function plain(s) { return String(s || '').replace(/\*/g, '').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&'); }
 
   function drawLogin(message) {
@@ -66,9 +67,9 @@
     var on = !s.paused;
     return '<section class="card cab-mail"><div class="card-head"><h3 class="card-title">Стан</h3>' +
       '<button class="btn btn--quiet btn--sm" type="button" data-mail-act="refresh">' + P.ic('refresh', 'ui-icon--sm') + 'Оновити</button></div>' +
-      '<dl class="kv cab-mail__kv"><dt>Будильник</dt><dd>' + beat + '</dd><dt>Ключ бота</dt><dd>' + token + '</dd>' +
-      '<dt>Тестовий канал</dt><dd>' + channel + '</dd>' +
-      '<dt>Розсилки</dt><dd class="cab-mail__chan"><button class="toggle' + (on ? ' toggle--on' : '') + '" type="button" role="switch" aria-checked="' + on + '" aria-label="Розсилки" data-mail-act="pause"></button>' +
+      '<dl class="kv cab-mail__kv"><dt>Будильник' + hb('admin.probe.beat') + '</dt><dd>' + beat + '</dd><dt>Ключ бота' + hb('admin.probe.token') + '</dt><dd>' + token + '</dd>' +
+      '<dt>Тестовий канал' + hb('admin.probe.channel') + '</dt><dd>' + channel + '</dd>' +
+      '<dt>Розсилки' + hb('admin.probe.pause') + '</dt><dd class="cab-mail__chan"><button class="toggle' + (on ? ' toggle--on' : '') + '" type="button" role="switch" aria-checked="' + on + '" aria-label="Розсилки" data-mail-act="pause"></button>' +
       (on ? 'працюють' : badge('warn', 'зупинено') + ' <span class="hint cab-mail__inl">нічого не надсилається</span>') + '</dd></dl>' +
       '<div class="cab-mail__btns"><button class="btn btn--primary" type="button" data-mail-act="test"' + (s.channelId && on ? '' : ' disabled') + '>' + P.ic('notification', 'ui-icon--sm') + 'Надіслати пробне зараз</button>' +
       '<button class="btn btn--quiet" type="button" data-mail-act="forget">' + P.ic('logout', 'ui-icon--sm') + 'Забути код у цьому браузері</button></div>' +
@@ -77,7 +78,7 @@
   }
 
   function rulesCard() {
-    return '<section class="card cab-mail"><div class="card-head"><h3 class="card-title">За розкладом</h3></div>' +
+    return '<section class="card cab-mail"><div class="card-head"><h3 class="card-title">За розкладом' + hb('admin.probe.rule') + '</h3></div>' +
       '<p class="hint">Підстановки в тексті: ' + data.options.placeholders.map(function (x) { return '{' + esc(x) + '}'; }).join(' ') + ' — київські день, дата й час надсилання.</p>' +
       data.rules.map(function (r) { return editRule === r.id ? ruleForm(r) : ruleView(r); }).join('') + '</section>';
   }
@@ -110,7 +111,7 @@
       '<label class="field" data-f="template"><span class="label">Текст повідомлення</span><textarea class="textarea cab-mail__ta" name="template" rows="4" maxlength="1500">' + esc(r.template) + '</textarea></label>' +
       '<div class="chips"><span class="hint">Вставити:</span>' + data.options.placeholders.map(function (x) {
         return '<button class="chip-pick" type="button" data-mail-act="ph" data-v="' + esc(x) + '">{' + esc(x) + '}</button>'; }).join('') + '</div>' +
-      '<div class="cab-mail__grid"><label class="field"><span class="label">Кнопка в повідомленні</span><input class="input" name="link_label" value="' + esc(r.link_label || '') + '" maxlength="60" placeholder="порожньо — без кнопки"></label>' +
+      '<div class="cab-mail__grid"><label class="field"><span class="label">Кнопка в повідомленні' + hb('admin.probe.link') + '</span><input class="input" name="link_label" value="' + esc(r.link_label || '') + '" maxlength="60" placeholder="порожньо — без кнопки"></label>' +
         '<label class="field" data-f="link_path"><span class="label">Веде на сторінку сайту</span><input class="input" name="link_path" value="' + esc(r.link_path || '') + '" maxlength="200" placeholder="напр. starshyi/ (порожньо — головна)"></label></div>' +
       '<div data-mail-err="form"></div>' +
       '<div class="cab-mail__btns"><button class="btn btn--primary" type="submit">' + P.ic('save', 'ui-icon--sm') + 'Зберегти</button>' +
@@ -119,7 +120,7 @@
 
   function logCard() {
     var rows = data.log || [];
-    return '<section class="card cab-mail"><div class="card-head"><h3 class="card-title">Журнал · останні ' + rows.length + '</h3></div>' +
+    return '<section class="card cab-mail"><div class="card-head"><h3 class="card-title">Журнал · останні ' + rows.length + hb('admin.probe.log') + '</h3></div>' +
       (rows.length ? '<div class="cab-mail__log">' + rows.map(logRow).join('') + '</div>' :
         P.state.empty('notification', 'Ще жодного повідомлення', 'Тут зʼявиться кожне повідомлення: коли поставлено в чергу, чи надіслано, і що відповів Slack.')) + '</section>';
   }

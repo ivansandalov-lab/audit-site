@@ -164,6 +164,7 @@
       });
       audit.canEdit = me.can.editOthersAudits || (a.auditorId === me.id && audit.editableUntil !== null);
       audit.editWindowMin = C.LIMITS.editWindowMin;   // для текстів «виправити можна N хвилин» (правило адміністратора)
+      audit.criticalPct = env.db.settings.criticalPct;   // критичний рівень браку (правило адміністратора) — для позначки «понад норму»
       return { ok: true, audit: audit };
     }
   };

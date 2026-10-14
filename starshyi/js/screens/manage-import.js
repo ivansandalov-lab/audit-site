@@ -42,14 +42,14 @@
     function draw() {
       var n = data.tables.length, on = data.week.rows.filter(function (r) { return r.connected; }).length, canAdd = n < data.maxTables;
       v.col.innerHTML = M.head('Виробництво: план і факт', 'Скільки зроблено й скільки треба по відділах — з таблиць цеху',
-        canAdd ? '<button class="btn btn--primary" type="button" data-act="mg-t-new">' + P.ic('add') + 'Додати таблицю</button>' : '') +
+        canAdd ? '<button class="btn btn--primary" type="button" data-act="mg-t-new">' + P.ic('add') + 'Додати таблицю</button>' : '', 'sr.mg.import') +
         '<section class="card mg-status"><span class="hero__logo hero__logo--ok" style="width:48px;height:48px">' + P.ic('check') + '</span>' +
         '<div style="flex:1;min-width:240px"><b>Оновлено ' + esc(when(data.updatedAt)) + '</b><p class="hint">Наступне оновлення — завтра о ' + P.fmt.time(data.nextAt) + ' · ' + M.cnt(n, W.table) + ' · підключено ' + on + ' з ' + data.week.rows.length + ' відділів</p></div>' +
         '<button class="btn btn--secondary btn--sm" type="button" data-act="mg-refresh">' + P.ic('refresh', 'ui-icon--sm') + 'Оновити зараз</button></section>' +
         '<section class="card"><div class="card-head" style="flex-wrap:wrap"><div style="flex:1;min-width:240px"><h2 class="card-title">Цей тиждень по відділах</h2><p class="hint">З ' + weekName(data.weekStart) + ', ' + esc(M.dateLong(data.week.from)) + ' · «зроблено» — до вчора включно · з усіх таблиць</p></div>' +
         '<div class="mg-actions"><span class="hint">Тиждень з</span><div class="seg seg--sm" role="radiogroup" aria-label="Тиждень починається">' + [['mon', 'понеділка'], ['sun', 'неділі']].map(function (o) {
           return '<button class="seg__btn' + (o[0] === data.weekStart ? ' seg__btn--on' : '') + '" type="button" aria-pressed="' + (o[0] === data.weekStart) + '" data-act="mg-week"' + da('v', o[0]) + '>' + o[1] + '</button>'; }).join('') + '</div></div></div>' +
-        (data.week.rows.length ? '<div class="tbl-box"><table class="tbl"><thead><tr><th>Відділ</th><th>Таблиця-джерело</th><th class="n">Зроблено вчора, шт</th><th class="n">Треба за тиждень, шт</th><th>Виконано тижня</th><th class="n">Норма вибірки на день</th></tr></thead><tbody>' +
+        (data.week.rows.length ? '<div class="tbl-box"><table class="tbl"><thead><tr><th>Відділ</th><th>Таблиця-джерело</th><th class="n">Зроблено вчора, шт</th><th class="n">Треба за тиждень, шт</th><th>Виконано тижня' + M.hq('sr.mg.weekDone') + '</th><th class="n">Норма вибірки на день' + M.hq('term.sample') + '</th></tr></thead><tbody>' +
           data.week.rows.map(weekRow).join('') + '</tbody></table></div>' : H.empty('Увімкнених відділів немає', '')) +
         (data.warnings.length ? '<p class="mg-warnline">' + P.ic('warning', 'ui-icon--sm') + 'Кількості складено з кількох таблиць: ' + esc(overlapText(data.warnings)) + '</p>' : '') + '</section>' +
         '<div class="mg-head"><div><h2 class="card-title">Таблиці-джерела · ' + n + '</h2><p class="hint">У кожної — своя літера й колір; дата й замовлення задаються раз на таблицю.</p></div></div>' +
@@ -127,14 +127,14 @@
             M.field('title', 'Назва таблиці', M.input('title', d.title, ' data-k="title" autocomplete="off" maxlength="60"')) +
             M.field('url', 'Посилання на таблицю', M.input('url', d.url, ' data-k="url" autocomplete="off" maxlength="400" placeholder="https://…"')) +
             '<div class="mg-wz__3">' + M.field('sheet', 'Аркуш', M.input('sheet', d.sheet, ' data-k="sheet" autocomplete="off" maxlength="60"')) +
-            M.field('headerRow', 'Рядок шапки', M.input('headerRow', d.headerRow, ' data-k="headerRow" type="number" min="1" max="50" inputmode="numeric"')) +
-            M.field('dataRow', 'Перший рядок даних', M.input('dataRow', d.dataRow, ' data-k="dataRow" type="number" min="2" max="60" inputmode="numeric"')) + '</div></div>') +
+            M.field('headerRow', 'Рядок шапки', M.input('headerRow', d.headerRow, ' data-k="headerRow" type="number" min="1" max="50" inputmode="numeric"'), '', 'sr.mg.headerRow') +
+            M.field('dataRow', 'Перший рядок даних', M.input('dataRow', d.dataRow, ' data-k="dataRow" type="number" min="2" max="60" inputmode="numeric"'), '', 'sr.mg.dataRow') + '</div></div>') +
           block(2, 'Спільне для всіх відділів таблиці ' + esc(d.label), 'Дата й замовлення — одні на всю таблицю.', '<div class="pair">' +
             '<label class="field" data-f="dateCol"><span class="label">Колонка дати</span><select class="input" data-k="dateCol">' + colOptions(d, d.dateCol, '— оберіть —', taken) + '</select></label>' +
             '<label class="field" data-f="orderCol"><span class="label">Колонка замовлення</span><select class="input" data-k="orderCol">' + colOptions(d, d.orderCol, '— оберіть —', taken) + '</select></label></div>') +
           block(3, 'Відділи · ' + d.depts.length, 'Кожному — колонка «скільки зроблено» і, якщо є, «скільки треба».',
             (d.matched ? '<p class="mg-wz__matched">' + P.ic('check', 'ui-icon--sm') + esc(d.matched) + '</p>' : '') +
-            '<div class="tbl-box" data-f="depts"><table class="tbl"><thead><tr><th>Відділ</th><th>Скільки зроблено</th><th>Скільки треба</th><th><span class="mg-vh">Прибрати</span></th></tr></thead><tbody>' +
+            '<div class="tbl-box" data-f="depts"><table class="tbl"><thead><tr><th>Відділ</th><th>Скільки зроблено' + M.hq('sr.mg.doneCol') + '</th><th>Скільки треба' + M.hq('sr.mg.planCol') + '</th><th><span class="mg-vh">Прибрати</span></th></tr></thead><tbody>' +
             (d.depts.length ? d.depts.map(function (x, k) {
               var f = 'depts[' + k + '].', also = elsewhere(i, x.departmentId);
               return '<tr><td data-f="' + f + 'departmentId"><select class="input mg-wz__sel" data-row="' + k + '" data-k="departmentId" aria-label="Відділ">' +

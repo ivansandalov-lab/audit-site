@@ -38,7 +38,7 @@
   }
 
   function presets(env) {
-    var seniors = env.db.users.filter(function (u) { return u.role === 'senior_auditor'; }).map(function (u) { return { type: 'user', id: u.id }; });
+    var seniors = env.db.users.filter(function (u) { return u.role === 'senior_auditor' && u.active !== false; }).map(function (u) { return { type: 'user', id: u.id }; });
     var W = function (o) { return Object.assign({ kind: 'daily', every_min: 60, hour_from: 9, hour_to: 18, days: [1, 2, 3, 4, 5], at_time: '18:00', weekday: 1, event: 'audit', pct: 5 }, o); };
     return [
       { key: 'remind', title: 'Нагадування «запишіть аудит»', enabled: true, locations: 'all', when: W({ kind: 'every' }), to: [{ type: 'channel', name: 'аудит-нагадування' }],
@@ -50,6 +50,8 @@
         condition: { kind: 'always', pct: 5 }, template: '🛠 *Новий розбір коригуючих дій · {локація}*\nНових дій: {кд_нових} · на перевірці: {кд_на_перевірці}\n{кабінет_старшого}' },
       { key: 'weekly', title: 'Тижневий підсумок керівникам', enabled: false, locations: 'all', when: W({ kind: 'weekly', at_time: '09:00' }), to: [{ type: 'channel', name: 'керівники' }],
         condition: { kind: 'always', pct: 5 }, template: '📅 *Тижневий підсумок · {локація} · {дата}*\nКоригуючі дії: нових {кд_нових}, на перевірці {кд_на_перевірці}\n{кабінет_старшого}' },
+      { key: 'over', title: 'Старшим — брак за сьогодні понад критичний рівень', enabled: true, locations: 'all', when: W({ kind: 'event', event: 'over', pct: env.db.settings.criticalPct || 5 }), to: seniors,   // поріг — критичний рівень з правил адміна
+        condition: { kind: 'always', pct: 5 }, template: '⚠️ *Брак за сьогодні понад критичний рівень · {локація}* · {час}\nЗа сьогодні: перевірено {перевірено} шт · брак {брак_шт} шт ({брак_%})\n{кабінет_старшого}' },
       { key: 'audit', title: 'Пост про кожен аудит із браком', enabled: true, locations: 'all', when: W({ kind: 'event', event: 'audit' }), to: [{ type: 'channel', name: 'якість-цехів' }],
         condition: { kind: 'over', pct: 0 }, template: '📝 *Новий аудит із браком · {локація}* · {час}\nЗа сьогодні: перевірено {перевірено} шт · брак {брак_шт} шт ({брак_%})\n{кабінет_старшого}' }
     ];

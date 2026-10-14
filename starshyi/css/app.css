@@ -272,3 +272,20 @@ mark.hl { padding: 0; border-radius: 2px; background: var(--brand-soft); color: 
 .hero__title { margin: 0; font-size: var(--fs-lg); font-weight: 700; line-height: 1.2; }
 .hero__lead { margin: 0; color: var(--text-2); font-size: var(--fs-sm); }
 .note { margin: 0; font-size: var(--fs-xs); color: var(--text-3); line-height: 1.5; }
+
+
+:root { --kd-ok: var(--line-strong); --kd-over: var(--danger-fill); --kd-work: var(--warn-fill); --kd-watch: var(--info); --kd-done: var(--ok); --kd-relapse: var(--danger); --kd-skip: var(--line-mid); }
+.kds { display: inline-flex; align-items: center; gap: 6px; font-size: var(--fs-xs); font-weight: 600; line-height: 1.3; color: var(--text-2); }
+.kds::before { content: ''; flex: none; width: 10px; height: 10px; border-radius: 3px; background: var(--kd-ok); }
+.kds--over::before { background: var(--kd-over); } .kds--over { color: var(--danger); }
+.kds--work::before { background: var(--kd-work); }
+.kds--watch::before { background: var(--kd-watch); } .kds--watch { color: var(--info); }
+.kds--done::before { background: var(--kd-done); } .kds--done { color: var(--ok); }
+.kds--relapse::before { content: '✕'; width: auto; height: auto; background: none; color: var(--kd-relapse); font-weight: 800; }
+.kds--relapse { color: var(--danger); }
+.kds--skip::before { background: none; border: 2px dashed var(--kd-skip); width: 6px; height: 6px; }
+.kdm { display: inline-block; flex: none; width: 14px; height: 14px; border-radius: 4px; background: var(--kd-ok); vertical-align: middle; }
+.kdm--over { background: var(--kd-over); } .kdm--work { background: var(--kd-work); } .kdm--watch { background: var(--kd-watch); }
+.kdm--done { background: var(--kd-done); } .kdm--skip { background: none; border: 2px dashed var(--kd-skip); }
+.kdm--relapse { background: none; position: relative; }
+.kdm--relapse::before { content: '✕'; position: absolute; inset: 0; display: grid; place-items: center; color: var(--kd-relapse); font: 800 13px/1 var(--font, system-ui); }

@@ -7,20 +7,20 @@
 
   function summary(view) {
     var r = view.data, t = r.totals, p = r.prev, n = t.days;
-    function cell(label, val, prev) {
-      return '<div class="an-sum__i"><span class="an-sum__l">' + label + '</span><b class="an-sum__v">' + val + '</b>' +
+    function cell(label, val, prev, help) {
+      return '<div class="an-sum__i"><span class="an-sum__l">' + label + A.q(help) + '</span><b class="an-sum__v">' + val + '</b>' +
         '<span class="an-sum__p">попередні ' + X.dn(n) + ' — <b>' + prev + '</b></span></div>';
     }
-    view.box('an-sum').innerHTML = '<div><h2 class="h2">За період · ' + esc(view.scope()) + '</h2><p class="h2-sub">' + esc(A.span(r.from, r.to)) + ' · ' + X.dn(n) +
+    view.box('an-sum').innerHTML = '<div><h2 class="h2">За період · ' + esc(view.scope()) + A.q('sr.an.period') + '</h2><p class="h2-sub">' + esc(A.span(r.from, r.to)) + ' · ' + X.dn(n) +
       ' · під кожним числом — те саме за попередні ' + X.dn(n) + ': ' + esc(A.span(p.from, p.to)) + '</p></div>' +
       '<div class="an-sum">' + cell('Аудитів', h.num(t.audits), h.num(p.audits)) +
-      cell('Днів з аудитами', t.daysWithAudits + ' з ' + n, p.daysWithAudits + ' з ' + n) +
-      cell('Перевірено, шт', h.num(t.checked), h.num(p.checked)) + cell('Брак, шт', h.num(t.rejected), h.num(p.rejected)) +
-      cell('Брак, % · брак ÷ перевірено', h.pct(t.pct), h.pct(p.pct)) + '</div>';
+      cell('Днів з аудитами', t.daysWithAudits + ' з ' + n, p.daysWithAudits + ' з ' + n, 'sr.an.daysWith') +
+      cell('Перевірено, шт', h.num(t.checked), h.num(p.checked), 'term.checked') + cell('Брак, шт', h.num(t.rejected), h.num(p.rejected), 'term.rejected') +
+      cell('Брак, % · брак, шт ÷ перевірено, шт', h.pct(t.pct), h.pct(p.pct), 'term.rate') + '</div>';
   }
 
   function pickRow(kind, title, s, norm, href, btn) {
-    var facts = [['аудитів', h.num(s.audits)], ['перевірено', h.num(s.checked) + ' шт']].concat(norm ? [norm] : [], [['брак', X.brak(s.rejected, s.pct)]]);
+    var facts = [['аудитів', h.num(s.audits)], ['перевірено', h.num(s.checked) + ' шт']].concat(norm ? [norm] : [], [['брак, шт · %', X.brak(s.rejected, s.pct)]]);
     return '<div class="an-pick"><div class="an-pick__title"><span class="hint">' + kind + '</span><b>' + esc(title) + '</b></div>' +
       '<div class="an-pick__facts">' + facts.map(function (f) { return '<span><i>' + f[0] + '</i><b>' + f[1] + '</b></span>'; }).join('') + '</div>' +
       (s.rejected ? h.legend(s.levels) : '') + '<span class="an-pick__btns">' +
@@ -60,7 +60,7 @@
       : mode === 'pct' ? { v: r.criticalPct, label: 'критичний рівень — ' + r.criticalPct + '%' } : null;
     var keys = mode === 'chk' ? [['an-key__one', 'перевірено, шт']].concat(line ? [['an-key__dash', line.label]] : [])
       : mode === 'pct' ? [['an-key__dash', line.label]] : [];
-    box.innerHTML = '<div class="card-head" style="flex-wrap:wrap"><div style="flex:1;min-width:220px"><h2 class="card-title">' + title + '</h2>' +
+    box.innerHTML = '<div class="card-head" style="flex-wrap:wrap"><div style="flex:1;min-width:220px"><h2 class="card-title">' + title + A.q('sr.an.days') + '</h2>' +
       '<p class="hint">' + esc(view.scope()) + ' · ' + esc(A.span(r.from, r.to)) + (mode === 'chk' ? '' : ' · колір — рівень браку') +
       ' · наведіть на день — його числа · клік — зафіксувати · протягніть — кілька днів</p></div>' +
       '<span class="pills" role="group" aria-label="Що показує графік">' + MODES.map(function (m) {
@@ -86,7 +86,7 @@
 
   function levelsCard(view) {
     var r = view.data, L = r.levels, t = L.total, tot = A.total(t), pt = A.total(L.prev), n = r.totals.days;
-    var head = '<div><h2 class="card-title">Рівні браку</h2><p class="hint">' + esc(view.scope()) + ' · ' + X.dn(n) + ' · ' + h.num(tot) + ' шт браку · частка рівня = його штуки ÷ увесь брак</p></div>';
+    var head = '<div><h2 class="card-title">Рівні браку' + A.q('term.levels') + '</h2><p class="hint">' + esc(view.scope()) + ' · ' + X.dn(n) + ' · ' + h.num(tot) + ' шт браку · частка рівня = його штуки ÷ увесь брак</p></div>';
     var box = view.box('an-levels');
     if (!tot && !pt) { box.innerHTML = head + h.empty('Браку за період не знайдено', view.scope() + ' · ' + A.span(r.from, r.to)); return; }
     function cellOf(o, k) { var s = A.total(o); return s ? '<b>' + A.share(o, k) + '%</b> · ' + h.num(o[k]) + ' шт' : '—'; }
@@ -107,7 +107,7 @@
   function topCard(view) {
     var r = view.data, dep = r.department, types = r.top.types, shown = ui.top ? types.slice(0, ui.top) : types, max = types.length ? types[0].pieces : 1;
     var q = dep ? '?dep=' + encodeURIComponent(dep.id) : '';
-    view.box('an-top').innerHTML = '<div class="card-head" style="flex-wrap:wrap"><div style="flex:1;min-width:220px"><h2 class="card-title">Що бракує найчастіше · ' + esc(view.scope()) + '</h2>' +
+    view.box('an-top').innerHTML = '<div class="card-head" style="flex-wrap:wrap"><div style="flex:1;min-width:220px"><h2 class="card-title">Що бракує найчастіше · ' + esc(view.scope()) + A.q('sr.an.top') + '</h2>' +
       '<p class="hint">' + esc(A.span(r.from, r.to)) + ' · ' + A.n(types.length, 'вид', 'види', 'видів') + ' браку · ' + h.num(r.top.pieces) + ' шт' +
       (dep ? ' · брак, зарахований відділу «' + esc(dep.name) + '»' : '') + ' · біля виду — його рівень і частка від усіх цих штук · клік — екран виду браку</p></div>' +
       '<span class="pills" role="group" aria-label="Скільки видів показати">' + [[10, 'Топ 10'], [30, 'Топ 30'], [0, 'Усі']].map(function (x) {

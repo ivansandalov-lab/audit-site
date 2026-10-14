@@ -50,7 +50,7 @@
   }
   function draw(view) {
     var r = view.data, box = view.box('an-orders');
-    var head = '<div class="card-head"><div style="flex:1"><h2 class="card-title">Аналітика по замовленнях</h2><p class="hint">Замовлення з аудитами за ' + esc(A.span(r.from, r.to)) +
+    var head = '<div class="card-head"><div style="flex:1"><h2 class="card-title">Аналітика по замовленнях' + A.q('sr.an.orders') + '</h2><p class="hint">Замовлення з аудитами за ' + esc(A.span(r.from, r.to)) +
       ' · числа — стан замовлення на зараз · % плану = перевірено у відділі ÷ план відділу на замовлення · «—» — аудитів замовлення у відділі не було · клік по рядку — вікно замовлення</p></div></div>';
     if (!r.orders.length) { box.innerHTML = head + h.empty('Аудитів по замовленнях за період не було', A.span(r.from, r.to)); return; }
     if (!view.box('an-oq')) {
@@ -84,7 +84,7 @@
       var s = X.sum(list), a = list[0].day, b = list[list.length - 1].day;
       var href = X.hist({ order: no, d1: a, d2: b, dep: dep === 'all' ? '' : dep });
       box.innerHTML = '<div class="an-pick"><div class="an-pick__title"><span class="hint">' + (pin.day ? 'Обраний день' : 'Обрані дні · ' + X.dn(s.days)) + '</span><b>' + esc(pin.day ? A.dcap(a) : A.span(a, b)) + '</b></div>' +
-        '<div class="an-pick__facts">' + [['аудитів', h.num(s.audits)], ['перевірено', h.num(s.checked) + ' шт'], ['брак', X.brak(s.rejected, s.pct)]].map(function (f) { return '<span><i>' + f[0] + '</i><b>' + f[1] + '</b></span>'; }).join('') + '</div>' +
+        '<div class="an-pick__facts">' + [['аудитів', h.num(s.audits)], ['перевірено', h.num(s.checked) + ' шт'], ['брак, шт · %', X.brak(s.rejected, s.pct)]].map(function (f) { return '<span><i>' + f[0] + '</i><b>' + f[1] + '</b></span>'; }).join('') + '</div>' +
         '<span class="an-pick__btns">' + (s.audits ? '<button class="btn btn--secondary btn--sm" type="button" data-act="days" data-href="' + esc(href) + '">' + h.ic('audit', 'ui-icon--sm') + (pin.day ? 'Аудити дня' : 'Ці дні в історії') + '</button>' : '') +
         '<button class="btn btn--quiet btn--sm" type="button" data-act="unpick">' + h.ic('close', 'ui-icon--sm') + 'Зняти вибір</button></span></div>';
     }
@@ -136,16 +136,16 @@
       r.departments.map(function (d) {
         return '<button class="seg__btn' + (dep === d.id ? ' seg__btn--on' : '') + '" type="button" data-act="dep" data-id="' + esc(d.id) + '"' + (d.audits ? '' : ' style="color:var(--text-3)"') + '>' +
           esc(d.name) + ' · ' + d.audits + '</button>'; }).join('') + '</div><p class="hint" style="margin-top:-8px">Число біля відділу — скільки в ньому аудитів цього замовлення.</p>';
-    var kpis = '<div class="kpis an-kpis6">' + h.kpi(h.num(v.checked), 'перевірено, шт') + h.kpi(A.pct0(v.planPct), 'плану · план ' + h.num(v.plan) + ' шт') +
-      h.kpi(h.num(v.rejected), 'брак, шт') + h.kpi(h.pct(v.pct), 'брак ÷ перевірено · у цеху за ці дні ' + h.pct(v.shopPct)) +
+    var kpis = '<div class="kpis an-kpis6">' + A.kpi(h.num(v.checked), 'перевірено, шт', 'term.checked') + A.kpi(A.pct0(v.planPct), 'плану · план ' + h.num(v.plan) + ' шт', 'sr.an.planPct') +
+      A.kpi(h.num(v.rejected), 'брак, шт', 'term.rejected') + A.kpi(h.pct(v.pct), 'брак, % · у цеху за ці дні ' + h.pct(v.shopPct), 'term.rate') +
       h.kpi(h.num(v.audits), P.plural(v.audits, 'аудит', 'аудити', 'аудитів')) + h.kpi(h.num(v.daysWithAudits), 'днів з аудитами · з ' + v.daysTotal) + '</div>';
     if (!v.audits) return seg + kpis + h.empty(depName + ': аудитів цього замовлення не було', '');
     var max = v.types.length ? v.types[0].pieces : 1;
     var cols = '24px minmax(0, 270px) minmax(0, 1fr) 40px';
-    var types = '<div class="col" style="display:flex;flex-direction:column;gap:10px"><div><h3 class="card-title">Що бракує в замовленні</h3><p class="hint">' + esc(depName) + ' · ' + h.num(v.rejected) + ' шт · біля кожного виду — його рівень</p></div>' +
+    var types = '<div class="col" style="display:flex;flex-direction:column;gap:10px"><div><h3 class="card-title">Що бракує в замовленні' + A.q('term.defectType') + '</h3><p class="hint">' + esc(depName) + ' · ' + h.num(v.rejected) + ' шт · біля кожного виду — його рівень</p></div>' +
       (v.types.length ? '<div>' + v.types.slice(0, 8).map(function (t, i) {
         return A.hbar({ rank: i + 1, name: t.name, sub: esc(t.depts.join(', ')) + ' · ' + h.lvl(t.level), share: t.pieces / max, n: t.pieces, cols: cols, href: '#/analytics/defect/' + encodeURIComponent(t.id) });
-      }).join('') + '</div>' + (v.types.length > 8 ? '<p class="hint">Показано 8 з ' + v.types.length + ' видів.</p>' : '') + A.levels(v.levels) : '<p class="hint">Браку в цьому замовленні не знайдено.</p>') + '</div>';
+      }).join('') + '</div>' + (v.types.length > 8 ? '<p class="hint">Показано 8 з ' + v.types.length + ' видів браку.</p>' : '') + A.levels(v.levels) : '<p class="hint">Браку в цьому замовленні не знайдено.</p>') + '</div>';
     var w = v.worstDay;
     var chart = '<div class="col" style="display:flex;flex-direction:column;gap:10px"><div><h3 class="card-title">Брак по днях, шт</h3><p class="hint">' + esc(depName) + ' · ' +
       esc(A.span(v.days[0].day, v.days[v.days.length - 1].day)) + ' · колір — рівень браку · наведіть на день — його числа</p></div>' +
@@ -153,7 +153,7 @@
       (w ? '<p class="hint">Найбільше за день — ' + h.num(w.rejected) + ' шт з ' + h.num(w.checked) + ' перевірених · ' + esc(A.span(w.day, w.day)) +
         (dep === 'all' ? ' · з них найбільше знайдено у відділі «' + esc(w.departmentName) + '»' : '') + '</p>' : '') + '<div data-an="opick"></div></div>';
     var table = '<div style="display:flex;flex-direction:column;gap:8px"><h3 class="card-title">Аудити замовлення · ' + v.audits + '</h3><div class="tbl-box"><table class="tbl">' +
-      '<thead><tr><th>Дата й час</th><th>Відділ</th><th>Аудитор</th><th class="n">Перевірено, шт</th><th class="n">Брак, шт · %</th></tr></thead><tbody>' +
+      '<thead><tr><th>Дата й час</th><th>Відділ</th><th>Аудитор</th><th class="n">Перевірено, шт</th><th class="n">Брак, шт · брак, %</th></tr></thead><tbody>' +
       v.rows.map(function (a) {
         var ov = a.pct != null && a.pct > crit;
         return '<tr data-act="aud" data-id="' + esc(a.id) + '"' + (ov ? ' class="exceed"' : '') + '><td>' + esc(A.dshort(a.day)) + ' · ' + P.fmt.time(a.createdAt) + '</td><td>' + esc(a.departmentName) + '</td>' +

@@ -9,8 +9,22 @@
   var period = (function () { var v = P.store.get('sr:period', null); return v && v.from && v.to ? v : { from: addDays(today(), -29), to: today(), preset: 30 }; })();
   S.period = function () { return { from: period.from, to: period.to, preset: period.preset || null }; };
   function setPeriod(p) { period = p; P.store.set('sr:period', p); render(); }
+  var DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
+  function periodFromUrl(r) {
+    var q = r.query || {};
+    if (!q.from && !q.to) return;
+    var rest = Object.keys(q).filter(function (k) { return k !== 'from' && k !== 'to'; })
+      .map(function (k) { return encodeURIComponent(k) + '=' + encodeURIComponent(q[k]); });
+    try { root.history.replaceState(null, '', '#' + r.path + (rest.length ? '?' + rest.join('&') : '')); } catch (e) { /* без історії — період однаково поставимо */ }
+    var to = q.to > today() ? today() : q.to;
+    if (!DAY_RE.test(q.from || '') || !DAY_RE.test(q.to || '') || q.from > to) return;
+    if (q.from === period.from && to === period.to) return;
+    period = { from: q.from, to: to, preset: null };
+    P.store.set('sr:period', period);
+    P.toast('info', 'Період: ' + S.h.dayShort(q.from) + ' — ' + S.h.dayShort(to), 'Як обрано на графіку. Змінити — у полях «Період» угорі.');
+  }
   function periodBar() {
-    return '<div class="wrap bar"><span class="hint">Період</span>' +
+    return '<div class="wrap bar"><span class="hint">Період' + (P.help ? P.help.btn('term.period') : '') + '</span>' +
       '<label class="date">' + P.ic('calendar', 'ui-icon--sm') + '<input type="date" data-period="from" value="' + period.from + '" max="' + period.to + '" style="border:0;background:transparent;font:inherit;color:inherit"></label>' +
       '<span class="hint">—</span>' +
       '<label class="date">' + P.ic('calendar', 'ui-icon--sm') + '<input type="date" data-period="to" value="' + period.to + '" max="' + today() + '" style="border:0;background:transparent;font:inherit;color:inherit"></label>' +
@@ -54,6 +68,7 @@
     var r = P.router.current(), m = P.router.match(r.path);
     if (!m) { P.router.go('/analytics'); return; }
     var def = m.screen, my = ++gen, handlers = {};
+    if (def.period !== false) periodFromUrl(r);   // П-14: до малювання шапки — поля «Період» одразу з новими датами
     S.closeAll();
     app.innerHTML = frame(def.tab, def.period !== false);
     main = app.querySelector('#sr-main');

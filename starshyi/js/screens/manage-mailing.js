@@ -19,7 +19,7 @@
         M.sw(m.on, 'mg-mail-on', da('id', m.id), (m.on ? 'Увімкнено' : 'Вимкнено') + ' · ' + m.title) +
         (m.id === 'daily' ? M.pen('mg-mail-edit', da('id', m.id), 'Редагувати денний звіт') : '') + '</div>' +
         '<dl class="kv"><dt>Кому</dt><dd>' + esc(m.to) + '</dd><dt>Коли</dt><dd>' + esc(m.when) + (off ? ' · вимкнено' : '') + '</dd>' +
-        (m.hasLevel ? '<dt>Що</dt><dd><span class="pills mg-pills">' + MAIL_LEVELS.map(function (l) {
+        (m.hasLevel ? '<dt>Що' + M.hq('sr.mg.mailWhat') + '</dt><dd><span class="pills mg-pills">' + MAIL_LEVELS.map(function (l) {
           return '<button class="pill' + (m.level === l[0] ? ' pill--on' : '') + '" type="button" aria-pressed="' + (m.level === l[0]) + '" data-act="mg-mail-lvl"' + da('id', m.id) + da('v', l[0]) + '>' + esc(l[1]) + '</button>'; }).join('') + '</span></dd>' : '') +
         (m.id === 'daily' ? '<dt>Що</dt><dd>' + esc(m.what) + '</dd>' : '') + '</dl>' +
         (m.id === 'daily' ? '<div class="mg-actions"><button class="btn btn--secondary btn--sm" type="button" data-act="mg-mail-send">' + P.ic('notification', 'ui-icon--sm') + 'Надіслати зараз</button>' +

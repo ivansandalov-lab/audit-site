@@ -48,9 +48,9 @@
             return '<option value="' + esc(l.id) + '"' + (l.id === flt.loc ? ' selected' : '') + '>' + esc(l.name) + (l.active ? '' : ' (вимкнена)') + '</option>'; }).join('') + '</select></div>' +
         '<div class="adm-chips" role="group" aria-label="Роль">' + [{ id: '', label: 'Усі ролі', count: on }].concat(data.roles).map(function (r) {
           return '<button class="chip-pick' + (flt.role === r.id ? ' chip-pick--on' : '') + '" type="button" data-act="pp-role"' + da('role', r.id) + ' aria-pressed="' + (flt.role === r.id) + '">' + esc(r.label) + '<small>' + r.count + '</small></button>';
-        }).join('') + '</div>' +
+        }).join('') + A.help('admin.people.role') + '</div>' +
         '<section class="card adm-flat"><p class="hint" data-pp-n></p><div class="adm-people" data-pp-list></div>' +
-        '<p class="hint">Вимкнений доступ: вхід закривається одразу, аудити людини лишаються в історії. Керівник і адміністратор бачать усі локації.</p></section></section>';
+        '<p class="hint">Вимкнений доступ: вхід закривається одразу, аудити людини лишаються в історії' + A.help('admin.people.access') + '. Керівник і адміністратор бачать усі локації.</p></section></section>';
       drawList();
     }
     function load() {
@@ -65,8 +65,8 @@
       var st = { role: u ? u.role : 'auditor', locs: u ? u.locationIds.slice() : (flt.loc ? [flt.loc] : []), active: u ? u.active : true };
       var roles = data.roles.filter(function (r) { return r.assignable || (u && r.id === u.role); });
       function locBlock() {
-        if (st.role === 'manager' || st.role === 'admin') return '<span class="label">Локації</span><span class="select adm-locked">Усі локації' + P.ic('lock', 'icon icon--sm') + '</span>';
-        return '<span class="label">Локації</span><div class="adm-chips">' + data.locations.map(function (l) {
+        if (st.role === 'manager' || st.role === 'admin') return '<span class="label">Локації' + A.help('admin.people.locs') + '</span><span class="select adm-locked">Усі локації' + P.ic('lock', 'icon icon--sm') + '</span>';
+        return '<span class="label">Локації' + A.help('admin.people.locs') + '</span><div class="adm-chips">' + data.locations.map(function (l) {
           var on = st.locs.indexOf(l.id) >= 0;
           return '<button class="chip-pick' + (on ? ' chip-pick--on' : '') + '" type="button" data-act="pp-pick"' + da('id', l.id) + ' aria-pressed="' + on + '">' + (on ? P.ic('check', 'ui-icon--sm') : '') + esc(l.name) + '</button>';
         }).join('') + '</div>';
@@ -75,10 +75,10 @@
         body: '<div class="adm-form">' +
           A.field('name', 'Імʼя та перша літера прізвища', A.input('name', u ? u.name : '', ' autocomplete="off" maxlength="60" placeholder="Олена К."')) +
           A.field('email', 'Робоча Google-пошта', A.input('email', '', ' type="email" autocomplete="off" maxlength="120" placeholder="' + (u ? esc(u.email) : 'olena.k@example.com') + '"'),
-            u ? 'Зараз: ' + u.email + '. Порожнє поле — пошта без змін.' : 'У тестовій версії — лише @example.com.') +
-          A.field('role', 'Роль', '<select class="input" name="role">' + roles.map(function (r) { return '<option value="' + esc(r.id) + '"' + (r.id === st.role ? ' selected' : '') + '>' + esc(r.label) + '</option>'; }).join('') + '</select>') +
+            u ? 'Зараз: ' + u.email + '. Порожнє поле — пошта без змін.' : 'У тестовій версії — лише @example.com.', 'admin.people.email') +
+          A.field('role', 'Роль', '<select class="input" name="role">' + roles.map(function (r) { return '<option value="' + esc(r.id) + '"' + (r.id === st.role ? ' selected' : '') + '>' + esc(r.label) + '</option>'; }).join('') + '</select>', '', 'admin.people.role') +
           '<div class="field" data-f="locationIds" data-pp-locs>' + locBlock() + '</div>' +
-          (u ? '<div class="field" data-f="active"><span class="label">Доступ</span>' + A.seg('active', [['true', 'Увімкнено'], ['false', 'Вимкнено']], String(st.active)) + '</div>' : '') +
+          (u ? '<div class="field" data-f="active"><span class="label">Доступ' + A.help('admin.people.access') + '</span>' + A.seg('active', [['true', 'Увімкнено'], ['false', 'Вимкнено']], String(st.active)) + '</div>' : '') +
           '</div>',
         foot: A.cancelBtn() + A.saveBtn(u ? 'Зберегти' : 'Додати людину', u ? 'save' : 'add'),
         onMount: function (el) {

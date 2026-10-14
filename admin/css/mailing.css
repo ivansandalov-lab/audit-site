@@ -47,7 +47,6 @@
 .rz-addrow .input { flex: 1; min-width: 0; height: 44px; }
 .rz-addrow .btn { flex: none; }
 .rz-ta { color: var(--text); min-height: 150px; resize: vertical; }
-.rz-help { width: 32px; height: 32px; vertical-align: middle; margin-left: 4px; }
 .rz-phs { display: flex; flex-direction: column; gap: 10px; }
 .rz-ph { display: flex; flex-direction: column; gap: 6px; }
 .rz-ph__t { font-size: var(--fs-xs); font-weight: 700; color: var(--text-3); text-transform: uppercase; letter-spacing: .04em; }

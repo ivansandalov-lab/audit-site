@@ -10,19 +10,19 @@
     return d && d.savedAt && Date.now() - d.savedAt < 24 * 3600 * 1000 ? d : null;
   }
   function minutesLeft(iso) { return iso ? Math.max(0, Math.ceil((Date.parse(iso) - Date.now()) / 60000)) : 0; }
-  function stat(v, label) { return '<div class="total"><span class="total__val">' + v + '</span><span class="total__label">' + label + '</span></div>'; }
+  function stat(v, label, help) { return '<div class="total"><span class="total__val">' + v + '</span><span class="total__label">' + label + (help ? P.help.btn(help) : '') + '</span></div>'; }
   function audits(n) { return n + ' ' + P.plural(n, 'аудит', 'аудити', 'аудитів'); }
   function queueBanners(me) {
     if (!P.offline) return '';
     var list = P.offline.list(me.id), wait = list.filter(function (x) { return !x.error; }), bad = list.filter(function (x) { return x.error; }), html = '';
     if (wait.length) {
       html += '<div class="ui-banner ui-banner--info q-banner">' + P.ic('clock') + '<div class="ui-banner__body"><p class="ui-banner__title">' + audits(wait.length) + ' ' +
-        P.plural(wait.length, 'чекає', 'чекають', 'чекають') + ' звʼязку</p><p class="ui-banner__text">Збережено на телефоні · надішлеться саме, щойно зʼявиться звʼязок.' +
+        P.plural(wait.length, 'чекає', 'чекають', 'чекають') + ' звʼязку' + P.help.btn('w.queue.wait') + '</p><p class="ui-banner__text">Збережено на телефоні · надішлеться саме, щойно зʼявиться звʼязок.' +
         (P.offline.simulated() ? ' Увімкнено «Імітувати відсутність звʼязку» — у профілі.' : '') + '</p></div>' +
         '<div class="ui-banner__actions"><button class="ui-btn ui-btn--primary ui-btn--sm" type="button" data-act="q-send">' + P.ic('refresh') + 'Надіслати зараз</button></div></div>';
     }
     bad.forEach(function (x) {
-      html += '<div class="ui-banner ui-banner--warn q-banner">' + P.ic('warning') + '<div class="ui-banner__body"><p class="ui-banner__title">Аудит не прийнято</p>' +
+      html += '<div class="ui-banner ui-banner--warn q-banner">' + P.ic('warning') + '<div class="ui-banner__body"><p class="ui-banner__title">Аудит не прийнято' + P.help.btn('w.queue.bad') + '</p>' +
         '<p class="ui-banner__text">' + esc(x.summary) + ' · збережено ' + f.time(new Date(x.savedAt)) + '. Причина: ' + esc(x.error) + '</p></div>' +
         '<div class="ui-banner__actions"><button class="ui-btn ui-btn--secondary ui-btn--sm" type="button" data-act="q-retry" data-id="' + esc(x.clientId) + '">' + P.ic('refresh') + 'Спробувати ще раз</button>' +
         '<button class="ui-btn ui-btn--quiet ui-btn--sm" type="button" data-act="q-drop" data-id="' + esc(x.clientId) + '">' + P.ic('delete') + 'Видалити</button></div></div>';
@@ -35,21 +35,21 @@
     mine.forEach(function (a) { checked += a.checked || 0; rejected += a.rejected || 0; });
     var html = '<div class="stack">' + queueBanners(ctx.me);
     if (draft) {
-      html += '<div class="ui-banner ui-banner--warn">' + P.ic('clock') + '<div class="ui-banner__body"><p class="ui-banner__title">Чернетка аудиту</p>' +
+      html += '<div class="ui-banner ui-banner--warn">' + P.ic('clock') + '<div class="ui-banner__body"><p class="ui-banner__title">Чернетка аудиту' + P.help.btn('w.draft') + '</p>' +
         '<p class="ui-banner__text">' + esc(draft.summary || 'Чернетка') + ' · ' + f.time(new Date(draft.savedAt)) + '</p></div>' +
         '<div class="ui-banner__actions"><button class="ui-btn ui-btn--primary ui-btn--sm" type="button" data-act="draft-go">Продовжити</button>' +
         '<button class="ui-btn ui-btn--quiet ui-btn--sm" type="button" data-act="draft-drop">Видалити</button></div></div>';
     }
     html += '<button class="ui-btn ui-btn--primary home-cta" type="button" data-act="new">' + P.ic('add') + 'Новий аудит</button>';
-    html += '<section class="ui-card" aria-labelledby="h-mine"><div class="card-head"><h2 class="card-title" id="h-mine">Мої аудити сьогодні</h2></div>';
+    html += '<section class="ui-card" aria-labelledby="h-mine"><div class="card-head"><h2 class="card-title" id="h-mine">Мої аудити сьогодні' + P.help.btn('w.home.mine') + '</h2></div>';
     if (!mine.length) return html + '<p class="card-sub">Тут зʼявляться аудити, які ви запишете сьогодні.</p></section></div>';
-    html += '<div class="totals">' + stat(f.num(mine.length), 'аудити') + stat(f.num(checked), 'перевірено, шт') +
-      stat(f.num(rejected) + (checked ? ' · ' + f.pct(Math.round(rejected / checked * 1000) / 10) : ''), 'брак, шт') + '</div>';
+    html += '<div class="totals">' + stat(f.num(mine.length), 'аудити') + stat(f.num(checked), 'перевірено, шт', 'term.checked') +
+      stat(f.num(rejected) + (checked ? ' · ' + f.pct(Math.round(rejected / checked * 1000) / 10) : ''), checked ? 'брак, шт · брак, %' : 'брак, шт', checked ? 'term.rate' : 'term.rejected') + '</div>';
     html += '<div class="mini-list">' + mine.map(function (a) {
       var left = minutesLeft(a.editableUntil);
       return '<button class="mini-item" type="button" data-audit="' + esc(a.id) + '">' + P.ic('audit') +
         '<span class="mini-item__main"><span class="mini-item__title">' + f.time(a.createdAt) + ' · ' + esc(a.departmentName) + '</span>' +
-        '<span class="mini-item__meta">перевірено ' + f.num(a.checked) + ' · брак ' + f.num(a.rejected) + ' (' + f.pct(a.pct) + ')</span></span>' +
+        '<span class="mini-item__meta">перевірено ' + f.num(a.checked) + ' шт · брак ' + f.num(a.rejected) + ' шт (' + f.pct(a.pct) + ')</span></span>' +
         (left ? '<span class="ui-badge ui-badge--info">ще ' + left + ' хв, щоб виправити</span>' : P.ic('chevron-right')) + '</button>';
     }).join('') + '</div></section></div>';
     return html;

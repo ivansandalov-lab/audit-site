@@ -4,15 +4,15 @@
   var DAYS = [[1, 'пн'], [2, 'вт'], [3, 'ср'], [4, 'чт'], [5, 'пт'], [6, 'сб'], [0, 'нд']];
   var WEEKDAYS = [[1, 'понеділок'], [2, 'вівторок'], [3, 'середа'], [4, 'четвер'], [5, 'пʼятниця'], [6, 'субота'], [0, 'неділя']];
   var KINDS = [['every', 'Кожні N хв'], ['daily', 'Щодня'], ['weekly', 'Щотижня'], ['event', 'Подія']];
-  var EVENTS = [['audit', 'Новий аудит'], ['over', 'Брак понад поріг'], ['kd', 'Новий розбір КД']];
-  var CONDS = [['always', 'Завжди'], ['audits', 'Лише якщо були аудити'], ['over', 'Лише якщо брак понад X%']];
-  var HELP = 'Натисніть кнопку — підстановка стане там, де курсор. У повідомленні замість неї буде число чи назва на момент надсилання ' +
-    '(для кожної локації — свої). *так* — жирний текст у Slack.';
+  var EVENTS = [['audit', 'Новий аудит'], ['over', 'Брак понад поріг'], ['kd', 'Новий розбір коригуючих дій']];
+  var CONDS = [['always', 'Завжди'], ['audits', 'Лише якщо були аудити'], ['over', 'Лише якщо брак, % понад X']];
+  var PH_HELP = { 'Сьогодні': 'admin.ml.ph.today', 'Відділи': 'admin.ml.ph.depts', 'Коригуючі дії': 'admin.ml.ph.kd', 'Посилання': 'admin.ml.ph.links' };
 
   function da(k, v) { return ' data-' + k + '="' + esc(v) + '"'; }
   function q(el, sel) { return el.querySelector(sel); }
   function qa(el, sel) { return Array.prototype.slice.call(el.querySelectorAll(sel)); }
   function pad(n) { return (n < 10 ? '0' : '') + n; }
+  function help(key) { return key ? P.help.btn(key) : ''; }
   function field(name, label, inner, extra) { return '<div class="field" data-f="' + name + '"><span class="label">' + esc(label) + (extra || '') + '</span>' + inner + '</div>'; }
   function seg(k, opts, cur) {
     return '<div class="seg rz-seg" role="radiogroup">' + opts.map(function (o) {
@@ -56,9 +56,9 @@
         h += f('weekday', select('weekday', WEEKDAYS, w.weekday)) + f('at_time', '<div class="rz-row"><span>о</span>' + timeInput(w.at_time) + '<span class="hint">за Києвом</span></div>');
       } else {
         h += f('event', seg('event', EVENTS, w.event)) +
-          (w.event === 'over' ? f('event_pct', '<div class="rz-row"><span>брак за сьогодні понад</span>' + pctInput('pct', w.pct) + '</div>') : '');
+          (w.event === 'over' ? f('event_pct', '<div class="rz-row"><span>брак, % за сьогодні понад</span>' + pctInput('pct', w.pct) + help('admin.ml.eventOver') + '</div>') : '');
       }
-      return field('kind', 'Коли', h);
+      return field('kind', 'Коли', h, help('admin.ml.when'));
     }
     function toHtml() {
       var chips = d.to.map(function (t, i) {
@@ -71,11 +71,11 @@
         '<div class="rz-addrow"><input class="input" data-rz-chan placeholder="#канал" aria-label="Канал Slack" maxlength="81">' +
         '<button class="btn btn--secondary" type="button" data-act="rz-to-chan">' + P.ic('add', 'ui-icon--sm') + 'Канал</button></div>' +
         '<select class="input" data-rz-user aria-label="Додати людину"><option value="">+ Людина особисто…</option>' + data.users.filter(function (u) { return !picked[u.id]; }).map(function (u) {
-          return '<option value="' + esc(u.id) + '">' + esc(u.name + ' · ' + u.roleLabel + ' · ' + u.locations.join(', ')) + '</option>'; }).join('') + '</select>');
+          return '<option value="' + esc(u.id) + '">' + esc(u.name + ' · ' + u.roleLabel + ' · ' + u.locations.join(', ')) + '</option>'; }).join('') + '</select>', help('admin.ml.to'));
     }
     function phHtml() {
       return '<div class="rz-phs">' + data.options.groups.map(function (g) {
-        return '<div class="rz-ph"><span class="rz-ph__t">' + esc(g.title) + '</span><div class="chips">' + g.items.map(function (x) {
+        return '<div class="rz-ph"><span class="rz-ph__t">' + esc(g.title) + help(PH_HELP[g.title]) + '</span><div class="chips">' + g.items.map(function (x) {
           return '<button class="chip-pick rz-chip" type="button" data-act="rz-ph"' + da('v', x[0]) + ' title="{' + esc(x[0]) + '}">' + esc(x[1]) + '</button>'; }).join('') + '</div></div>';
       }).join('') + '</div>';
     }
@@ -83,13 +83,11 @@
       var some = d.locations !== 'all';
       return field('title', 'Назва', '<input class="input" data-rz="title" value="' + esc(d.title) + '" maxlength="80" placeholder="Напр. Денний звіт цеху">') +
         field('locations', 'Локації', seg('loc', [['all', 'Усі локації'], ['some', 'Вибрані']], some ? 'some' : 'all') +
-          (some ? '<div class="chips">' + data.locations.map(function (l) { return chipPick(d.locations.indexOf(l.id) >= 0, 'rz-loc', da('id', l.id), l.name); }).join('') + '</div>' : '')) +
+          (some ? '<div class="chips">' + data.locations.map(function (l) { return chipPick(d.locations.indexOf(l.id) >= 0, 'rz-loc', da('id', l.id), l.name); }).join('') + '</div>' : ''), help('admin.ml.locs')) +
         whenHtml() + toHtml() +
         field('condition', 'Умова', seg('cond', CONDS, d.condition.kind) +
-          (d.condition.kind === 'over' ? f('cond_pct', '<div class="rz-row"><span>' + (d.when.kind === 'event' && d.when.event === 'audit' ? 'брак в аудиті понад' : 'брак за сьогодні понад') + '</span>' + pctInput('cond_pct', d.condition.pct) + '</div>') : '')) +
-        field('template', 'Текст повідомлення', '<p class="hint" data-rz-help hidden>' + esc(HELP) + '</p>' +
-          '<textarea class="textarea rz-ta" data-rz="template" rows="7" maxlength="1500" placeholder="Напр. Перевірено {перевірено} шт · брак {брак_%}">' + esc(d.template) + '</textarea>' + phHtml(),
-          ' <button class="icon-btn rz-help" type="button" data-act="rz-help" aria-label="Як працюють підстановки" title="Як працюють підстановки">' + P.ic('help', 'ui-icon--sm') + '</button>');
+          (d.condition.kind === 'over' ? f('cond_pct', '<div class="rz-row"><span>' + (d.when.kind === 'event' && d.when.event === 'audit' ? 'брак, % в аудиті понад' : 'брак, % за сьогодні понад') + '</span>' + pctInput('cond_pct', d.condition.pct) + '</div>') : ''), help('admin.ml.cond')) +
+        field('template', 'Текст повідомлення', '<textarea class="textarea rz-ta" data-rz="template" rows="7" maxlength="1500" placeholder="Напр. Перевірено {перевірено} шт · брак {брак_%}">' + esc(d.template) + '</textarea>' + phHtml(), help('admin.ml.placeholders'));
     }
     function drawForm() { q(layer.el, '[data-rz-form]').innerHTML = formHtml(); pv.locations(d.locations); }
 
@@ -167,7 +165,6 @@
         'rz-to-chan': addChannel,
         'rz-to-rm': function (t) { d.to.splice(+t.getAttribute('data-i'), 1); drawForm(); },
         'rz-ph': function (t) { insert(t.getAttribute('data-v')); },
-        'rz-help': function () { var h = q(layer.el, '[data-rz-help]'); h.hidden = !h.hidden; },
         'rz-test': function (t) { pv.send(t, d, showErrors); },
         'rz-save': save
       } });

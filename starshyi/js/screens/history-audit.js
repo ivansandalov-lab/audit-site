@@ -29,19 +29,21 @@
     load();
   }
   function auditBody(a) {
-    var over = a.pct != null && a.pct > 5;
-    var kpis = '<div class="kpis hs-kpis hs-kpis--3">' + h.kpi(h.num(a.checked), 'перевірено, шт') +
-      h.kpi(h.num(a.rejected), 'брак, шт', a.rejected ? 'danger' : '') + h.kpi(h.pct(a.pct), over ? 'понад норму 5%' : 'брак ÷ перевірено', over ? 'danger' : '') + '</div>';
-    var items = '<div class="hs-block"><p class="group-label" style="padding:0">Перевірка</p><table class="table"><thead><tr><th>Виріб · замовлення</th><th class="n">Перевірено</th><th class="n">Брак</th></tr></thead><tbody>' +
+    var crit = a.criticalPct != null ? a.criticalPct : 5, over = a.pct != null && a.pct > crit;   // поріг — з правил адміністратора
+    var kpis = '<div class="kpis hs-kpis hs-kpis--3">' + A.kpi(h.num(a.checked), 'перевірено, шт', 'term.checked') +
+      A.kpi(h.num(a.rejected), 'брак, шт', 'term.rejected', a.rejected ? 'danger' : '') + A.kpi(h.pct(a.pct), over ? 'брак, % · понад норму ' + String(crit).replace('.', ',') + '%' : 'брак, % = брак, шт ÷ перевірено, шт', 'term.rate', over ? 'danger' : '') + '</div>';
+    var items = '<div class="hs-block"><p class="group-label" style="padding:0">Перевірка</p><table class="table"><thead><tr><th>Виріб · замовлення</th><th class="n">Перевірено, шт</th><th class="n">Брак, шт</th></tr></thead><tbody>' +
       a.items.map(function (i) { return '<tr><td>' + esc(i.productName) + (i.orderNo ? '<span class="sub">' + esc(i.orderNo) + '</span>' : '') + '</td><td class="n">' + h.num(i.qty) + '</td><td class="n">' + h.num(i.rejected) + '</td></tr>'; }).join('') +
       '</tbody></table></div>';
-    var defects = '<div class="hs-block"><p class="group-label" style="padding:0">Брак · ' + h.num(a.rejected) + ' шт</p>' + (a.defects.length ? a.defects.map(function (d) {
+    var other = a.defects.some(function (d) { return d.otherDept; }), helpers = a.defects.concat(a.checkedWorkers).some(function (x) { return x.helper; });
+    var defects = '<div class="hs-block"><p class="group-label" style="padding:0">Види браку · ' + h.num(a.rejected) + ' шт' + (a.defects.length ? A.q('term.levels') : '') +
+      (other ? A.q('term.otherDept') : '') + '</p>' + (a.defects.length ? a.defects.map(function (d) {
       return '<div class="entry ' + (d.otherDept ? 'entry--other' : 'entry--defect') + '" style="gap:4px"><div class="entry__head"><p class="entry__title">' + esc(d.defectTypeName) + '</p>' +
         (d.otherDept ? h.badge('брак іншого відділу', 'info') : '') + '<b style="font-variant-numeric:tabular-nums;margin-left:auto">' + d.qty + ' шт</b></div>' + h.lvl(d.level) +
         '<span class="hint hs-who">' + esc(d.productName) + ' · ' + (d.workerCode ? 'працівник: ' + esc(d.workerName) : 'працівника не вказано') + helperBadge(d.helper) + '</span>' +
         (d.otherDept ? '<b style="font-size:14px;color:var(--info)">Зараховано відділу ' + esc(d.departmentName) + '</b>' : '') + '</div>';
     }).join('') : '<p class="hint">Браку немає</p>') + '</div>';
-    var workers = '<div class="hs-block"><p class="group-label" style="padding:0">Перевірені працівники · ' + a.checkedWorkers.length + '</p><div class="chips">' +
+    var workers = '<div class="hs-block"><p class="group-label" style="padding:0">Перевірені працівники · ' + a.checkedWorkers.length + (helpers ? A.q('term.helper') : '') + '</p><div class="chips">' +
       a.checkedWorkers.map(function (w) { return '<span class="chip chip--plain hs-wchip">' + esc(w.name) + helperBadge(w.helper) + '</span>'; }).join('') + '</div></div>';
     var comment = a.comment ? '<div class="hs-block"><p class="group-label" style="padding:0">Коментар</p><p class="note-box" style="margin:0;font-size:16px;color:var(--text)">' + esc(a.comment) + '</p></div>' : '';
     var shots = photosOf(a), photos = a.defects.filter(function (d) { return d.photo && !(d.photos && d.photos.length); });

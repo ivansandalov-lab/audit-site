@@ -4,10 +4,10 @@
   var DAYS = [[1, 'пн'], [2, 'вт'], [3, 'ср'], [4, 'чт'], [5, 'пт'], [6, 'сб'], [0, 'нд']];
   var DAY_ON = { 0: 'щонеділі', 1: 'щопонеділка', 2: 'щовівторка', 3: 'щосереди', 4: 'щочетверга', 5: 'щопʼятниці', 6: 'щосуботи' };
   var KINDS = [
-    { id: 'daily', title: 'Денний звіт по локаціях', what: 'Перевірено, брак шт і %, рівні браку — по кожній обраній локації за день.' },
-    { id: 'weekly', title: 'Тижневий підсумок', what: 'Підсумок тижня по локаціях і відділах: перевірено, брак шт і %, найчастіші види браку.' },
+    { id: 'daily', title: 'Денний звіт по локаціях', what: 'Перевірено, шт; брак, шт; брак, %; рівні браку — по кожній обраній локації за день.' },
+    { id: 'weekly', title: 'Тижневий підсумок', what: 'Підсумок тижня по локаціях і відділах: перевірено, шт; брак, шт; брак, %; найчастіші види браку.' },
     { id: 'monthly', title: 'Місячний звіт', what: 'Зведення за минулий місяць — те саме, що у вкладці «Звіт за місяць».' },
-    { id: 'alert', title: 'Сигнал «брак понад поріг»', what: 'Повідомлення, щойно брак локації за день стане понад поріг.' }
+    { id: 'alert', title: 'Сигнал «брак понад поріг»', what: 'Повідомлення, щойно брак, % локації за день стане понад поріг.' }
   ];
 
   function when(id, s) {
@@ -15,7 +15,7 @@
     if (id === 'daily') return 'щодня о ' + x.time;
     if (id === 'weekly') return DAY_ON[x.day] + ' о ' + x.time;
     if (id === 'monthly') return '1-го числа о ' + x.time;
-    return 'брак локації за день понад ' + H.pct(x.pct);
+    return 'брак, % локації за день понад ' + H.pct(x.pct);
   }
   function sw(on, id, title) {
     var label = (on ? 'Увімкнено' : 'Вимкнено') + ' · ' + title;
@@ -25,7 +25,7 @@
   function pen(act, id, label) { return '<button class="icon-btn" type="button" data-act="' + act + '" data-id="' + id + '" aria-label="' + esc(label) + '" title="Редагувати">' + P.ic('edit') + '</button>'; }
   function locNames(data, ids) { return data.locations.filter(function (l) { return ids.indexOf(l.id) >= 0; }).map(function (l) { return l.name; }); }
   function copy(o) { return JSON.parse(JSON.stringify(o)); }
-  function field(f, label, inner) { return '<div class="field" data-f="' + f + '"><span class="label">' + esc(label) + '</span>' + inner + '</div>'; }
+  function field(f, label, inner, key) { return '<div class="field" data-f="' + f + '"><span class="label">' + esc(label) + (key ? K.help(key) : '') + '</span>' + inner + '</div>'; }
   function showErrors(el, r) {
     Array.prototype.forEach.call(el.querySelectorAll('.mgr-err'), function (e) { e.remove(); });
     var shown = 0;
@@ -53,11 +53,11 @@
         '<div class="banner">' + P.ic('info', 'icon') + '<div class="banner__body"><p class="banner__text"><b>У тестовій версії звіти ще не надсилаються</b> — налаштування зберігаються й діятимуть у справжній.</p></div></div>' +
         '<section class="card">' + KINDS.map(function (k) {
           var on = s[k.id].on;
-          return '<div class="entry mgr-entry"><div class="entry__head"><h3 class="entry__title' + (on ? '' : ' mgr-off') + '">' + esc(k.title) + '</h3>' +
+          return '<div class="entry mgr-entry"><div class="entry__head"><h3 class="entry__title' + (on ? '' : ' mgr-off') + '">' + esc(k.title) + K.help('mgr.rep.' + k.id) + '</h3>' +
             sw(on, k.id, k.title) + pen('mgr-r-edit', k.id, 'Редагувати: ' + k.title) + '</div>' +
             '<dl class="kv"><dt>Коли</dt><dd>' + esc(when(k.id, s)) + (on ? '' : ' · вимкнено') + '</dd><dt>Що</dt><dd>' + esc(k.what) + '</dd></dl></div>';
         }).join('') + '</section>' +
-        '<section class="card"><div class="entry mgr-entry"><div class="entry__head"><h3 class="entry__title">Для яких локацій</h3>' + pen('mgr-r-locs', 'locations', 'Змінити локації') + '</div>' +
+        '<section class="card"><div class="entry mgr-entry"><div class="entry__head"><h3 class="entry__title">Для яких локацій' + K.help('mgr.rep.locs') + '</h3>' + pen('mgr-r-locs', 'locations', 'Змінити локації') + '</div>' +
         '<p class="hint">Усі звіти й сигнал — лише про ці локації.</p><div class="chips">' + names.map(function (n) {
           return '<span class="chip chip--plain">' + P.ic('location', 'ui-icon--sm') + esc(n) + '</span>'; }).join('') + '</div></div></section></section>';
     }
@@ -80,8 +80,8 @@
       var k = KINDS.filter(function (x) { return x.id === id; })[0], next = copy(data.settings), x = next[id];
       function body() {
         if (id === 'alert') {
-          return field('alert.pct', 'Поріг браку, %', '<input class="input" data-r-pct inputmode="decimal" value="' + esc(String(x.pct).replace('.', ',')) + '" style="max-width:160px" aria-label="Поріг браку, %">') +
-            '<p class="hint">Брак локації за день = штуки браку ÷ перевірені штуки. Від 0,5 до 50.</p>';
+          return field('alert.pct', 'Поріг: брак, %', '<input class="input" data-r-pct inputmode="decimal" value="' + esc(String(x.pct).replace('.', ',')) + '" style="max-width:160px" aria-label="Поріг: брак, %">', 'mgr.rep.alert') +
+            '<p class="hint">Брак, % локації за день = штуки браку ÷ перевірені штуки × 100. Від 0,5 до 50.</p>';
         }
         return (id === 'weekly' ? field('weekly.day', 'День тижня', '<div class="chips">' + DAYS.map(function (d) {
           var on = x.day === d[0];

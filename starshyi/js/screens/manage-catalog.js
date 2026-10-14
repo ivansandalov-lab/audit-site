@@ -5,7 +5,7 @@
 
   function selBar(n, words) {
     return '<div class="mg-mergebar"><b>Позначено ' + M.cnt(n, words) + '</b><span style="flex:1"></span><button class="btn btn--quiet btn--sm" type="button" data-act="mg-sel-clear">Зняти позначки</button>' +
-      '<button class="btn btn--primary btn--sm" type="button" data-act="mg-merge-sel">' + P.ic('merge') + 'Обʼєднати позначені…</button></div>';
+      '<button class="btn btn--primary btn--sm" type="button" data-act="mg-merge-sel">' + P.ic('merge') + 'Обʼєднати позначені…</button>' + M.hq('sr.mg.merge') + '</div>';
   }
   function showItem(active) { return active ? { act: 'show', ic: 'power', title: 'Сховати з форми аудиту', danger: true } : { act: 'show', ic: 'power', title: 'Показати у формі аудиту' }; }
 
@@ -33,7 +33,7 @@
       var d = dep(), list = prods(), ids = selIds(), allOn = list.length && list.every(function (x) { return st.sel[x.id]; });
       v.col.innerHTML = M.head('Відділи й вироби', 'Відділи ' + data.location.name + ' і вироби кожного — так їх бачить форма аудиту') +
         '<div class="row" style="align-items:flex-start">' +
-        '<section class="card" style="flex:1 1 320px;min-width:0"><div class="card-head"><h3 class="card-title">Відділи · ' + data.departments.length + '</h3>' +
+        '<section class="card" style="flex:1 1 320px;min-width:0"><div class="card-head"><h3 class="card-title">Відділи · ' + data.departments.length + M.hq('term.sample') + '</h3>' +
         (data.canAddDept ? '<button class="btn btn--secondary btn--sm" type="button" data-act="mg-dep-new">' + P.ic('add', 'ui-icon--sm') + 'Новий відділ</button>' : '') + '</div>' +
         '<div class="mg-deps">' + data.departments.map(depRow).join('') + '</div></section>' +
         '<section class="card" style="flex:2 1 520px;min-width:0">' + (!d ? H.empty('Відділів немає', '') :
@@ -41,7 +41,7 @@
           '<div class="mg-actions">' + (list.length > 1 ? '<button class="btn btn--secondary btn--sm" type="button" data-act="mg-merge">' + P.ic('merge', 'ui-icon--sm') + 'Обʼєднати…</button>' : '') +
           '<button class="btn btn--primary btn--sm" type="button" data-act="mg-new">' + P.ic('add') + 'Новий виріб</button></div></div>' +
           (d.active ? '' : M.banner('warn', 'Відділ вимкнено — його виробів у формі аудиту зараз немає.', '')) +
-          (list.length ? '<div class="tbl-box"><table class="tbl"><thead><tr><th>' + M.ck(allOn, 'mg-sel-all', '', 'Позначити всі') + '</th><th>Виріб</th><th class="n">В аудитах цеху</th><th><span class="mg-vh">Дії</span></th></tr></thead><tbody>' +
+          (list.length ? '<div class="tbl-box"><table class="tbl"><thead><tr><th>' + M.ck(allOn, 'mg-sel-all', '', 'Позначити всі') + '</th><th>Виріб</th><th class="n">В аудитах цеху' + M.hq('sr.mg.inAudits') + '</th><th><span class="mg-vh">Дії</span></th></tr></thead><tbody>' +
             list.map(prodRow).join('') + '</tbody></table></div>' : H.empty('Виробів ще немає', '')) +
           (ids.length ? selBar(ids.length, W.prod) : '') +
           '<p class="hint">Довідник виробів спільний для всіх цехів.</p>') + '</section></div>';
@@ -55,7 +55,7 @@
         done: function (r) { P.toast('ok', 'Відділ перейменовано · ' + d.name + ' → ' + r.name); afterDept(); } });
     }
     function norm(d) {
-      M.ask({ title: 'Норма вибірки на день', sub: d.name, name: 'sampleTarget', label: 'Скільки штук перевірити за день', value: d.sampleTarget || '',
+      M.ask({ title: 'Норма вибірки на день', sub: d.name, name: 'sampleTarget', label: 'Скільки штук перевірити за день', value: d.sampleTarget || '', help: 'term.sample',
         attrs: ' type="number" min="1" max="10000" step="1" inputmode="numeric"',
         save: function (val) { return saveDept({ id: d.id, sampleTarget: val === '' ? null : +val }); },
         done: function (r) { P.toast('ok', 'Норма вибірки · ' + r.name + ' — ' + H.num(r.sampleTarget) + ' шт на день'); afterDept(); } });
@@ -80,7 +80,7 @@
           '<label class="field" data-f="deptTypeId"><span class="label">Тип відділу</span><select class="input" name="deptTypeId">' +
           data.deptTypes.map(function (t) { return '<option value="' + esc(t.id) + '"' + (dep() && t.id === dep().deptTypeId ? ' selected' : '') + '>' + esc(t.name) + '</option>'; }).join('') + '</select>' +
           '<span class="hint">Від типу — вироби й види браку відділу.</span></label>' +
-          M.field('sampleTarget', 'Норма вибірки на день, шт', M.input('sampleTarget', 120, ' type="number" min="1" max="10000" step="1" inputmode="numeric"')) + '</div>',
+          M.field('sampleTarget', 'Норма вибірки на день, шт', M.input('sampleTarget', 120, ' type="number" min="1" max="10000" step="1" inputmode="numeric"'), '', 'term.sample') + '</div>',
         foot: M.cancelBtn() + '<button class="btn btn--primary" type="button" data-act="mg-save">' + P.ic('add') + 'Додати відділ</button>',
         onMount: function (el) { M.enterSubmits(el, 'mg-save'); },
         on: { 'mg-save': function (t, e, layer) {
@@ -101,7 +101,7 @@
       M.modal({ size: 'sm', title: x ? 'Редагувати виріб' : 'Новий виріб', sub: esc(d.name),
         body: '<div class="mg-form">' + M.field('name', 'Назва виробу', M.input('name', x ? x.name : '', ' autocomplete="off" maxlength="80" placeholder="Худі базове"')) +
           M.locked('Тип відділу', d.deptTypeName) +
-          (x ? '<div class="field"><span class="label">У формі аудиту</span>' + M.seg('active', [[true, 'Показується'], [false, 'Приховано']], st2.active) + '</div>' : '') +
+          (x ? '<div class="field"><span class="label">У формі аудиту' + M.hq('sr.mg.inForm') + '</span>' + M.seg('active', [[true, 'Показується'], [false, 'Приховано']], st2.active) + '</div>' : '') +
           '<p class="hint">Довідник виробів спільний для всіх цехів.</p></div>',
         foot: M.cancelBtn() + '<button class="btn btn--primary" type="button" data-act="mg-save">' + P.ic(x ? 'save' : 'add') + (x ? 'Зберегти' : 'Додати виріб') + '</button>',
         onMount: function (el) { M.enterSubmits(el, 'mg-save'); },
@@ -194,12 +194,12 @@
           var on = st.lvl === k[0], n = levelCount(k[0]);
           return '<button class="kpi mg-lvl' + (on ? ' mg-lvl--on' : '') + '" type="button" data-act="mg-lvl"' + da('v', k[0]) + ' aria-pressed="' + on + '">' +
             '<span class="mg-lvl__top"><span class="lvl lvl--' + k[0] + '" style="font-size:16px">' + esc(k[1]) + '</span>' + (on ? H.badge('обрано', 'brand') : '') + '</span>' +
-            '<span class="kpi__label">' + esc(k[2]) + '</span><span class="mg-lvl__n">' + H.num(n) + ' ' + P.plural(n, 'вид', 'види', 'видів') + '</span></button>'; }).join('') + '</div>' +
+            '<span class="kpi__label">' + esc(k[2]) + '</span><span class="mg-lvl__n">' + H.num(n) + ' ' + P.plural(n, 'вид', 'види', 'видів') + ' браку</span></button>'; }).join('') + '</div>' +
         '<section class="card"><div class="mg-tools"><div class="search" style="flex:1;min-width:240px">' + P.ic('search', 'icon') +
         '<input class="input" data-input="mg-q" value="' + esc(st.q) + '" placeholder="Пошук виду браку" aria-label="Пошук виду браку" style="padding-left:46px"></div>' +
         '<span class="pills mg-pills">' + [['', 'Усі відділи']].concat(data.deptTypes.map(function (t) { return [t.id, t.name]; })).map(function (o) {
           return '<button class="pill' + (st.type === o[0] ? ' pill--on' : '') + '" type="button" aria-pressed="' + (st.type === o[0]) + '" data-act="mg-type"' + da('id', o[0]) + '>' + esc(o[1]) + '</button>'; }).join('') + '</span></div>' +
-        '<div class="tbl-box"><table class="tbl"><thead><tr><th style="width:44px"><span class="mg-vh">Позначка</span></th><th>Вид браку</th><th>Відділ</th><th>Рівень</th><th class="n">В аудитах цеху</th><th><span class="mg-vh">Дії</span></th></tr></thead><tbody data-mg-body>' + tbody() + '</tbody></table></div>' +
+        '<div class="tbl-box"><table class="tbl"><thead><tr><th style="width:44px"><span class="mg-vh">Позначка</span></th><th>Вид браку</th><th>Відділ' + M.hq('sr.mg.defDept') + '</th><th>Рівень' + M.hq('term.levels') + '</th><th class="n">В аудитах цеху' + M.hq('sr.mg.inAudits') + '</th><th><span class="mg-vh">Дії</span></th></tr></thead><tbody data-mg-body>' + tbody() + '</tbody></table></div>' +
         '<div data-mg-bar>' + bar() + '</div></section>';
     }
     function redrawRows() { q(v.col, '[data-mg-body]').innerHTML = tbody(); q(v.col, '[data-mg-bar]').innerHTML = bar(); }
@@ -210,8 +210,8 @@
         body: '<div class="mg-form">' + M.field('name', 'Назва виду браку', M.input('name', x ? x.name : '', ' autocomplete="off" maxlength="80" placeholder="Розрив шва"')) +
           (x ? M.locked('Відділ', x.departments) : '<label class="field" data-f="deptTypeId"><span class="label">Відділ</span><select class="input" name="deptTypeId">' +
             types.map(function (t) { return '<option value="' + esc(t.id) + '"' + (t.id === defType ? ' selected' : '') + '>' + esc(t.name) + '</option>'; }).join('') + '</select></label>') +
-          '<div class="field"><span class="label">Рівень</span>' + M.seg('level', M.levelOpts(), st2.level) + '<span class="hint">Неправильно зроблене — переробити одразу · пошкоджене — у ремонт · зламане — втрачено.</span></div>' +
-          (x ? '<div class="field"><span class="label">У формі аудиту</span>' + M.seg('active', [[true, 'Показується'], [false, 'Приховано']], st2.active) + '</div>' : '') +
+          '<div class="field"><span class="label">Рівень' + M.hq('term.levels') + '</span>' + M.seg('level', M.levelOpts(), st2.level) + '<span class="hint">Неправильно зроблене — переробити одразу · пошкоджене — у ремонт · зламане — втрачено.</span></div>' +
+          (x ? '<div class="field"><span class="label">У формі аудиту' + M.hq('sr.mg.inForm') + '</span>' + M.seg('active', [[true, 'Показується'], [false, 'Приховано']], st2.active) + '</div>' : '') +
           '<p class="hint">Довідник видів браку спільний для всіх цехів.</p></div>',
         foot: M.cancelBtn() + '<button class="btn btn--primary" type="button" data-act="mg-save">' + P.ic(x ? 'save' : 'add') + (x ? 'Зберегти' : 'Додати вид браку') + '</button>',
         onMount: function (el) { M.enterSubmits(el, 'mg-save'); },

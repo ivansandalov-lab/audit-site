@@ -10,9 +10,9 @@
 .mgr-busy { opacity: .5; pointer-events: none; }
 .mgr-over { color: var(--danger); font-weight: 700; }
 .mgr-over-note { display: block; margin-top: 2px; font-size: 12px; font-weight: 600; color: var(--danger); }
-.mgr-help { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; margin-left: 4px; border-radius: 50%;
-  border: 1px solid var(--line-mid); color: var(--text-2); font-size: 12px; font-weight: 700; line-height: 1; cursor: help; vertical-align: 1px; }
-.mgr-help:focus-visible { outline: 3px solid var(--brand-line); outline-offset: 2px; }
+
+.mgr-kd { display: inline-flex; flex-wrap: wrap; gap: 4px 12px; }
+.mgr-kdline { display: block; width: 100%; }
 
 
 .mgr-bar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }

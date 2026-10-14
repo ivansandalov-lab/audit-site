@@ -31,7 +31,7 @@
   P.cab.screen('/mailing', { tab: 'mailing', title: 'Розсилки', render: function (ctx) {
     var data = null, open = !(P.mailProbe && P.mailProbe.has());
     ctx.el.innerHTML = '<div class="rz"><div class="rz" data-rz-list>' + H.loading() + '</div>' +
-      '<details class="rz-probe"' + (open ? ' open' : '') + '><summary class="rz-probe__sum">' + P.ic('settings', 'ui-icon--sm') + 'Тестовий канал і стан проби</summary>' +
+      '<details class="rz-probe"' + (open ? ' open' : '') + '><summary class="rz-probe__sum">' + P.ic('settings', 'ui-icon--sm') + 'Тестовий канал і стан проби' + P.help.btn('admin.ml.probe') + '</summary>' +
       '<section id="cab-mail" aria-label="Розсилка в Slack"></section></details></div>';
     var list = ctx.el.querySelector('[data-rz-list]');
     P.mailPanel.mount(ctx.el.querySelector('#cab-mail'));
@@ -52,11 +52,11 @@
         '<button class="btn btn--primary" type="button" data-act="rz-new">' + P.ic('add') + 'Нова розсилка</button>');
       else if (!shown.length) body = P.state.empty('filter', 'Для «' + loc.name + '» розсилок немає', 'Розсилки на «усі локації» показуються в кожній.');
       else body = '<div class="rz-list">' + shown.map(function (r) { return card(r, data.options.links); }).join('') + '</div>';
-      list.innerHTML = '<div class="rz-head"><div><h2 class="h2">Розсилки · ' + data.items.length + '</h2>' +
+      list.innerHTML = '<div class="rz-head"><div><h2 class="h2">Розсилки · ' + data.items.length + P.help.btn('admin.ml.what') + '</h2>' +
         '<p class="h2-sub">Повідомлення в Slack для будь-яких локацій · станом на ' + esc(P.fmt.time(data.now)) + '</p></div>' +
         '<button class="btn btn--primary" type="button" data-act="rz-new">' + P.ic('add') + 'Нова розсилка</button></div>' +
         '<p class="hint rz-note">' + P.ic('info', 'ui-icon--sm') + '<span>Тут налаштування на вигаданих даних. За цими правилами розсилки потім надсилатиме будильник Supabase; зараз у Slack іде лише «Надіслати пробне».</span></p>' +
-        '<label class="field rz-filter"><span class="label">Локація</span><select class="input rz-sel" data-change="rz-filter">' +
+        '<label class="field rz-filter"><span class="label">Локація' + P.help.btn('admin.ml.filter') + '</span><select class="input rz-sel" data-change="rz-filter">' +
           [['all', 'Усі локації · ' + data.items.length]].concat(data.locations.map(function (l) {
             return [l.id, l.name + ' · ' + data.items.filter(function (r) { return forLoc(r, l.id); }).length]; })).map(function (o) {
             return '<option value="' + esc(o[0]) + '"' + (o[0] === filter ? ' selected' : '') + '>' + esc(o[1]) + '</option>'; }).join('') + '</select></label>' + body;

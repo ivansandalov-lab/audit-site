@@ -100,7 +100,7 @@
     }
     function focusSearch(side) { var i = q(layer.el, '[data-mg-q="' + side + '"]'); if (i) i.focus({ preventScroll: true }); }
 
-    layer = M.modal({ title: isP ? 'Обʼєднати вироби' : 'Обʼєднати види браку', sub: o.scope ? esc(o.scope) : '',
+    layer = M.modal({ title: isP ? 'Обʼєднати вироби' : 'Обʼєднати види браку', sub: (o.scope ? esc(o.scope) : '') + M.hq('sr.mg.merge'),
       body: '<div class="mg-mrg__scope" data-mg-scope></div>' +
         '<div class="mg-mrg">' + col('src') +
         '<div class="mg-mrg__mid"><span class="mg-mrg__arrow" aria-hidden="true">' + P.ic('arrow-right') + '</span>' +

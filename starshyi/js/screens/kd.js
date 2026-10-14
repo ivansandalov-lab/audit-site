@@ -31,17 +31,13 @@
   };
   K.cap = function (html) { return '<p class="kd-cap">' + html + '</p>'; };
   K.stateBadge = function (a, today) {
-    if (a.status === 'none') return '<span class="kd-none">дій не було</span>';
-    if (a.status === 'new') return H.badge('нова', 'danger');
+    var st = P.sr.kdStateOf(a.status);
+    if (a.status === 'none') return H.kdState('ok', 'дій не було');
     if (a.status === 'started') {
-      if (a.overdue) return H.badge('термін минув, ' + H.dayShort(a.due), 'danger');
-      if (a.due && a.due <= K.addDays(today, 1)) return H.badge((a.due === today ? 'термін сьогодні, ' : 'термін завтра, ') + H.dayShort(a.due), 'warn');
-      return H.badge('в роботі');
+      if (a.overdue) return H.kdState(st, 'в роботі · термін минув ' + H.dayShort(a.due));
+      if (a.due && a.due <= K.addDays(today, 1)) return H.kdState(st, 'в роботі · термін ' + (a.due === today ? 'сьогодні' : 'завтра') + ', ' + H.dayShort(a.due));
     }
-    if (a.status === 'check') return H.badge('перевірка', 'info');
-    if (a.status === 'helped') return H.badge('допомогла', 'ok');
-    if (a.status === 'not_helped') return H.badge('не допомогла', 'warn');
-    return H.badge('не потрібно');
+    return H.kdState(st);
   };
   K.rates = function (a) {
     if (a.after != null) return K.pct(a.rate) + ' → ' + K.pct(a.after);
@@ -51,7 +47,8 @@
   K.result = function (a, T) { return K.rates(a) + (a.after != null ? ' · поріг ' + T + '%' : ''); };
   K.actMeta = function (a) {
     var per = 'розбір ' + K.rangeShort(a.periodStart, a.periodEnd);
-    if (a.status === 'new') return per + ' · ' + K.num(a.pieces) + ' шт з ' + K.num(a.checked) + ' · рішення немає';
+    if (a.status === 'new') return per + ' · ' + K.num(a.pieces) + ' шт з ' + K.num(a.checked) + ' · рішення немає' +
+      (a.overRun >= 2 ? ' · понад норму ' + K.plural(a.overRun, 'розбір', 'розбори', 'розборів') + ' поспіль, з ' + H.dayShort(a.overSince) : '');
     if (a.status === 'started') return per + ' · впровадити до ' + H.dayShort(a.due) + (a.whoName ? ' · ' + a.whoName : '');
     if (a.status === 'check') return per + ' · впроваджено ' + H.dayShort(a.implementedAt) + ' · перевірка — розбір ' + K.rangeShort(a.checkStart, a.checkEnd);
     if (a.status === 'not_needed') return per + ' · «' + a.notNeededReason + '»';
@@ -77,7 +74,7 @@
     return id ? { id: id } : { departmentId: t.getAttribute('data-dep'), defectTypeId: t.getAttribute('data-type'), period: +t.getAttribute('data-period') };
   };
   K.formula = function (x, T) {
-    return '<p class="kd-formula"><b' + (x.over ? ' class="kd-hot"' : '') + '>' + K.pct(x.rate) + '</b><span>= ' + K.num(x.pieces) + ' шт цього виду ÷ ' +
+    return '<p class="kd-formula"><b' + (x.over ? ' class="kd-hot"' : '') + '>' + K.pct(x.rate) + '</b><span>= ' + K.num(x.pieces) + ' шт цього виду браку ÷ ' +
       K.num(x.checked) + ' перевірених у відділі за ' + K.rangeShort(x.start, x.end) + '</span>' + H.badge('поріг ' + T + '%') + '</p>';
   };
   K.tile = function (val, label, hot) {
@@ -131,7 +128,7 @@
     var sub = x.current ? 'розбір триває · день ' + x.daysDone + ' з ' + x.days : x.low ? 'перевірено менше ' + x.minSample + ' шт' : '';
     return P.srChart.tipDay({ title: 'Розбір ' + K.range(x.start, x.end), sub: sub, none: !x.checked && !x.rejected ? 'Аудитів у відділі не було' : '',
       audits: x.audits, checked: x.checked, rejected: x.rejected, pct: x.rate, levels: x.levels,
-      rows: [['Видів понад ' + T + '%', x.low ? 'не рахується' : String(x.over), x.over ? 'danger' : '']] });
+      rows: [['Видів браку понад ' + T + '%', x.low ? 'не рахується' : String(x.over), x.over ? 'danger' : '']] });
   };
   K.deptChart = function (el, series, o) {
     return P.srChart.mount(el, { items: K.deptItems(series, o.unit || 'pct', o.sel), height: o.height || (o.mini ? 48 : 280), mini: !!o.mini, max: o.max,

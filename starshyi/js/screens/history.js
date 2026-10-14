@@ -10,7 +10,7 @@
   function blank() { return { deps: [], product: '', defect: '', worker: '', auditor: '', q: '', mode: '', order: '', d1: '', d2: '', limit: STEP }; }
 
   function fromQuery(q) {
-    if (!q.day && !Object.keys(KEYS).some(function (k) { return q[k]; })) return;
+    if (!q.day && !q.from && !q.to && !Object.keys(KEYS).some(function (k) { return q[k]; })) return;
     hf = blank(); pin = null;
     Object.keys(KEYS).forEach(function (k) { if (q[k]) hf[KEYS[k]] = k === 'dep' ? q[k].split(',') : q[k]; });
     if (q.day && !hf.d1 && !hf.d2) hf.d1 = hf.d2 = q.day;
@@ -84,12 +84,12 @@
           (on ? h.ic('check', 'ui-icon--sm') : '') + esc(d.name) + '<small>' + d.count + '</small></button>'; }).join('') + '</div></div>' +
       '<div class="hs-frow">' +
       select('product', 'Виріб', 'Усі вироби', o.products.map(function (x) { return [x, x]; })) +
-      select('defect', 'Вид браку', 'Усі види', o.defects.map(function (x) { return [x, x]; })) +
+      select('defect', 'Вид браку', 'Усі види браку', o.defects.map(function (x) { return [x, x]; })) +
       select('worker', 'Працівник', 'Усі працівники', o.workers.slice().sort(function (a, b) { return a.name.localeCompare(b.name, 'uk'); }).map(function (w) { return [w.code, w.name]; })) +
       select('auditor', 'Аудитор', 'Усі аудитори', o.auditors.map(function (u) { return [u.id, u.name]; })) +
       '<label class="field hs-f hs-f--q' + (hf.q ? ' hs-f--on' : '') + '"><span class="label">Пошук' + MARK + '</span><span class="search">' + h.ic('search', 'icon') +
       '<input class="input" data-input="hs-q" value="' + esc(hf.q) + '" placeholder="AUD-…, виріб, № замовлення, працівник"></span></label></div>' +
-      '<div class="hs-modes" role="group" aria-label="Лише аудити"><span class="label">Лише аудити:</span>' +
+      '<div class="hs-modes" role="group" aria-label="Лише аудити"><span class="label">Лише аудити:' + A.q('sr.hs.modes') + '</span>' +
       [['defects', 'з браком'], ['clean', 'без браку'], ['over', 'понад норму ' + r.criticalPct + '%']].map(function (m) {
         var on = hf.mode === m[0];
         return '<button class="chip-pick hs-chip' + (on ? ' chip-pick--on' : '') + '" type="button" data-act="hs-mode" data-v="' + m[0] + '" aria-pressed="' + on + '">' + (on ? h.ic('check', 'ui-icon--sm') : '') + m[1] + '</button>';
@@ -106,21 +106,21 @@
     var kpis = df
       ? '<div class="kpis hs-kpis hs-kpis--4">' +
         h.kpi(h.num(an.audits), P.plural(an.audits, 'аудит', 'аудити', 'аудитів') + ' з цим видом браку · з ' + h.num(an.selAudits) + ' у вибірці') +
-        h.kpi(h.num(an.checked), 'перевірено, шт · в усій вибірці (' + A.n(an.selAudits, 'аудит', 'аудити', 'аудитів') + ')') +
-        h.kpi(h.num(an.rejected), '«' + df.name + '», шт', an.rejected ? 'danger' : '') +
-        h.kpi(h.pct(an.pct), div) + '</div>'
+        A.kpi(h.num(an.checked), 'перевірено, шт · в усій вибірці (' + A.n(an.selAudits, 'аудит', 'аудити', 'аудитів') + ')', 'term.checked') +
+        A.kpi(h.num(an.rejected), '«' + df.name + '», шт', 'term.rejected', an.rejected ? 'danger' : '') +
+        A.kpi(h.pct(an.pct), 'брак, % = ' + div, 'term.rate') + '</div>'
       : '<div class="kpis hs-kpis">' +
-        h.kpi(h.num(an.audits), P.plural(an.audits, 'аудит', 'аудити', 'аудитів') + ' · у ' + an.daysWithAudits + ' ' + P.plural(an.daysWithAudits, 'дні', 'днях', 'днях') + ' з ' + an.workDays + ' робочих') +
-        h.kpi(h.num(an.checked), 'перевірено, шт') + h.kpi(h.num(an.rejected), 'брак, шт', an.rejected ? 'danger' : '') +
-        h.kpi(h.pct(an.pct), 'брак ÷ перевірено: ' + div) +
-        h.kpi(h.num(an.over), P.plural(an.over, 'аудит', 'аудити', 'аудитів') + ' понад норму ' + r.criticalPct + '% · ' + (an.audits ? Math.round(an.over / an.audits * 100) : 0) + '% аудитів вибірки', an.over ? 'danger' : '') + '</div>';
-    var chart = '<div class="col--wide hs-chartcol"><div><h3 class="card-title hs-h3">' + (df ? '«' + esc(df.name) + '»' : 'Брак у вибірці') + ' по днях, шт</h3>' +
+        A.kpi(h.num(an.audits), P.plural(an.audits, 'аудит', 'аудити', 'аудитів') + ' · у ' + an.daysWithAudits + ' ' + P.plural(an.daysWithAudits, 'дні', 'днях', 'днях') + ' з ' + an.workDays + ' робочих', 'sr.hs.audits') +
+        A.kpi(h.num(an.checked), 'перевірено, шт', 'term.checked') + A.kpi(h.num(an.rejected), 'брак, шт', 'term.rejected', an.rejected ? 'danger' : '') +
+        A.kpi(h.pct(an.pct), 'брак, % = ' + div, 'term.rate') +
+        A.kpi(h.num(an.over), P.plural(an.over, 'аудит', 'аудити', 'аудитів') + ' понад норму ' + r.criticalPct + '% · ' + (an.audits ? Math.round(an.over / an.audits * 100) : 0) + '% аудитів вибірки', 'sr.hs.over', an.over ? 'danger' : '') + '</div>';
+    var chart = '<div class="col--wide hs-chartcol"><div><h3 class="card-title hs-h3">' + (df ? '«' + esc(df.name) + '»' : 'Брак у вибірці') + ' по днях, шт' + A.q('sr.hs.chart') + '</h3>' +
       '<p class="hint">' + esc(A.span(r.from, r.to)) + ' · колір — рівень браку</p></div>' +
       '<div class="legend">' + LV.map(function (k) { return h.lvl(k); }).join('') + '<span class="hs-key-none">аудитів у вибірці не було</span></div>' +
       '<div data-chart="days"></div><div id="hs-sel" class="hs-sel"></div></div>';
     var tmax = an.types.length ? an.types[0].pieces : 1, pickedType = df && an.types.some(function (t) { return t.name === df.name; });
-    var types = '<div class="col hs-typescol"><div><h3 class="card-title hs-h3">Види браку у вибірці</h3>' +
-      '<p class="hint">' + h.num(an.allRejected) + ' шт · ' + A.n(an.types.length, 'вид', 'види', 'видів') + ' · клік по виду — числа й графік лише для нього, ще клік — зняти</p></div>' +
+    var types = '<div class="col hs-typescol"><div><h3 class="card-title hs-h3">Види браку у вибірці' + A.q('sr.hs.types') + '</h3>' +
+      '<p class="hint">' + h.num(an.allRejected) + ' шт · ' + A.n(an.types.length, 'вид', 'види', 'видів') + ' браку · клік по виду — числа й графік лише для нього, ще клік — зняти</p></div>' +
       (an.types.length ? A.levels(an.allLevels) + '<div class="hs-types' + (pickedType ? ' hs-types--picked' : '') + '"' + (an.types.length > TOP ? ' tabindex="0"' : '') + ' role="group" aria-label="Види браку у вибірці, від найчастішого">' +
         an.types.map(function (t, i) {
           var on = !!df && t.name === df.name;
@@ -153,15 +153,15 @@
     });
     var left = r.total - r.items.length;
     return '<section class="card" style="gap:16px"><div class="tbl-box"><table class="tbl"><thead><tr><th>Дата й час</th><th>Відділ</th><th>Виріб · замовлення</th>' +
-      '<th class="n">Перевірено, шт</th>' + (df ? '<th class="n">Цей вид, шт</th><th class="n">Увесь брак, шт</th>' : '<th class="n">Брак, шт</th>') +
-      '<th style="text-align:center">Фото, коментар</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
+      '<th class="n">Перевірено, шт</th>' + (df ? '<th class="n">Цей вид браку, шт</th><th class="n">Увесь брак, шт' + A.q('sr.hs.rowRejected') + '</th>' : '<th class="n">Брак, шт' + A.q('sr.hs.rowRejected') + '</th>') +
+      '<th style="text-align:center">Фото, коментар' + A.q('sr.hs.icons') + '</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
       '<div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">' + (left > 0 ? '<button class="btn btn--secondary" type="button" data-act="hs-more">' + h.ic('chevron-down') + 'Показати ще ' + Math.min(left, STEP) + '</button>' : '') +
       '<p class="hint">Клік по рядку — аудит збоку: перевірка, брак, фото, правка й видалення.</p></div></section>';
   }
   function results(r) {
     var counts = '<div class="hs-counts"><span><b style="font-variant-numeric:tabular-nums">' + h.num(r.total) + '</b> ' +
       P.plural(r.total, 'аудит знайдено', 'аудити знайдено', 'аудитів знайдено') + '</span>' +
-      h.badge('з ' + r.base + (hf.deps.length ? ' у вибраних відділах' : '') + ' за період') +
+      h.badge('з ' + r.base + (hf.deps.length ? ' у вибраних відділах' : '') + ' за період') + A.q('sr.hs.found') +
       (r.over ? '<span class="badge badge--danger">' + h.ic('warning', 'ui-icon--sm') + 'понад норму ' + r.criticalPct + '% — ' + r.over + '</span>' : '') +
       (r.total ? '<span class="hint" style="margin-left:auto">показано ' + r.items.length + ' · найновіші вгорі</span>' : '') + '</div>';
     if (!r.total) {

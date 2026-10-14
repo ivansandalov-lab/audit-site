@@ -42,7 +42,11 @@
     },
     levels: function (o, height) { return h.legend(o) + h.stack(o, height || 14); },
     total: function (o) { return (o.fix || 0) + (o.repair || 0) + (o.scrap || 0); },
-    share: function (o, k) { var t = A.total(o); return t ? Math.round(o[k] / t * 100) : 0; }
+    share: function (o, k) { var t = A.total(o); return t ? Math.round(o[k] / t * 100) : 0; },
+    q: function (key) { return key && P.help ? P.help.btn(key) : ''; },
+    kpi: function (val, label, key, mod) {
+      return '<div class="kpi' + (mod ? ' kpi--' + mod : '') + '"><span class="kpi__val">' + esc(val) + '</span><span class="kpi__label">' + esc(label) + A.q(key) + '</span></div>';
+    }
   };
 
   var STATE_WORD = { none: 'аудитів не було', done: 'норму добрано', nonorm: 'норма не задана' };
@@ -53,6 +57,8 @@
     brak: function (rejected, pct) { return h.num(rejected) + ' шт · ' + h.pct(pct); },
     dn: function (n) { return n + ' дн.'; },
     hist: function (q) {
+      q = Object.assign({}, q);
+      if (q.d1 && q.d2 && q.d1 !== q.d2) { q.from = q.d1; q.to = q.d2; delete q.d1; delete q.d2; }
       var p = Object.keys(q).filter(function (k) { return q[k]; }).map(function (k) { return k + '=' + encodeURIComponent(q[k]); });
       return '#/history' + (p.length ? '?' + p.join('&') : '');
     },

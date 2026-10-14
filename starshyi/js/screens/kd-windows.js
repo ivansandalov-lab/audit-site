@@ -6,8 +6,8 @@
   function chartBlock(it, r, selText) {
     var T = r.threshold, last = it.series.filter(function (x) { return x.n === r.review.n; })[0], cur = it.series[it.series.length - 1];
     var line = function (label, x) { return '<p class="hint">' + label + ' (' + esc(K.rangeShort(x.start, x.end)) + '): <b>' + K.pct(x.rate) + '</b> · ' + K.num(x.pieces) + ' шт з ' + K.num(x.checked) + ' перевірених</p>'; };
-    return '<div class="facts"><p class="group-label" style="padding:0">Частка виду по розборах, %</p>' +
-      K.cap('«' + esc(it.name) + '» у відділі «' + esc(it.departmentName) + '», розбори ' + esc(K.spanOf(it.series)) + '. Стовпчик — один 4-денний розбір; висота — шт цього виду ÷ перевірено у відділі. Риска — поріг ' + T + '%.') +
+    return '<div class="facts"><p class="group-label" style="padding:0">Частка виду браку по розборах, %</p>' +
+      K.cap('«' + esc(it.name) + '» у відділі «' + esc(it.departmentName) + '», розбори ' + esc(K.spanOf(it.series)) + '. Стовпчик — один 4-денний розбір; висота — шт цього виду браку ÷ перевірено у відділі. Риска — поріг ' + T + '%.') +
       '<div data-chart="kd-item"></div>' + K.chartKeys('type', T, r.minSample, selText) +
       (last ? line('Останній повний розбір', last) : '') + (cur && cur.current && cur.checked ? line('Розбір, що триває · день ' + cur.daysDone + ' з ' + cur.days, cur) : '') + '</div>';
   }
@@ -18,7 +18,7 @@
       '<p class="group-label" style="padding:6px 0 0">На яких виробах</p>' + K.who(it.products, { all: 'Показати всі', empty: 'Записів немає' }) + '</div>';
   }
   function mountChart(el, it, r, marks) {
-    K.typeChart(el.querySelector('[data-chart="kd-item"]'), it.series, { name: it.name, T: r.threshold, sel: marks, height: 140, label: 'Частка виду «' + it.name + '» по розборах, %' });
+    K.typeChart(el.querySelector('[data-chart="kd-item"]'), it.series, { name: it.name, T: r.threshold, sel: marks, height: 140, label: 'Частка виду браку «' + it.name + '» по розборах, %' });
   }
 
   K.openStart = function (ctx, r0, opts) {
@@ -46,7 +46,7 @@
         '</select>' + K.errSlot('who') + '</label>' +
         '<label class="field"><span class="label">Зробити до</span><input class="input" type="date" data-f="due" min="' + r.today + '" value="' + esc(edit && it.due ? it.due : K.addDays(r.today, 2)) + '">' + K.errSlot('due') + '</label></div>' +
         '<div class="banner" style="align-items:center">' + P.ic('info') + '<div class="banner__body"><p class="banner__title"><span class="num-badge" style="width:24px;height:24px;margin-right:6px">3</span>Перевірка — перший повний розбір після впровадження</p>' +
-        '<p class="banner__text">Стан дії визначає частка цього виду в тому розборі (якщо у відділі перевірено від ' + r.minSample + ' шт): до ' + T + '% включно — «допомогла», понад ' + T + '% — «не допомогла».</p></div></div></div>';
+        '<p class="banner__text">Стан дії визначає частка цього виду браку в тому розборі (якщо у відділі перевірено від ' + r.minSample + ' шт): до ' + T + '% включно — «допомогла», понад ' + T + '% — «не допомогла».</p></div></div></div>';
       var m = P.sr.modal({
         title: (edit ? 'Змінити план · ' : 'Коригуюча дія · ') + it.name,
         sub: esc(it.departmentName) + ' · розбір ' + esc(K.range(it.periodStart, it.periodEnd)) + ' · ' + K.pct(it.rate) + ' (' + K.num(it.pieces) + ' шт з ' + K.num(it.checked) + ') · ' + H.lvl(it.level),
@@ -138,7 +138,7 @@
       if (a.resultPeriod != null) marks[a.resultPeriod] = 'перевірка дії — перший повний розбір після впровадження';
       if (a.after != null) {
         var ok = a.status === 'helped';
-        body += '<div class="kd-res kd-res--' + (ok ? 'ok' : 'warn') + '"><span class="kd-res__state">' + (ok ? 'Допомогла' : 'Не допомогла') + '</span>' +
+        body += '<div class="kd-res kd-res--' + (ok ? 'ok' : 'relapse') + '"><span class="kd-res__state">' + H.kdState(ok ? 'done' : 'relapse') + '</span>' +
           '<b class="kd-res__nums">' + K.pct(a.rate) + ' → ' + K.pct(a.after) + '</b>' +
           '<span class="kd-res__thr">після: ' + K.pct(a.after) + (ok ? ' ≤ ' : ' > ') + T + '% (поріг)</span>' +
           '<dl class="kd-dl"><dt>До</dt><dd>розбір ' + esc(K.range(a.periodStart, a.periodEnd)) + ' — ' + K.num(a.pieces) + ' шт з ' + K.num(a.checked) + ' перевірених</dd>' +
@@ -168,7 +168,7 @@
       }
       body += whoBlock(a);
       var foot = '<div class="kd-btns kd-btns--foot">' + (r.canWrite ? K.decisionBtns(a) : '') +
-        '<a class="btn btn--quiet btn--sm" href="#/kd/dept/' + encodeURIComponent(a.departmentId) + '?p=' + a.period + '&t=' + encodeURIComponent(a.defectTypeId) + '" data-ov-close>' + P.ic('department', 'ui-icon--sm') + 'Цей вид у відділі</a></div>';
+        '<a class="btn btn--quiet btn--sm" href="#/kd/dept/' + encodeURIComponent(a.departmentId) + '?p=' + a.period + '&t=' + encodeURIComponent(a.defectTypeId) + '" data-ov-close>' + P.ic('department', 'ui-icon--sm') + 'Цей вид браку у відділі</a></div>';
       var d = P.sr.drawer({ title: a.name + ' · ' + a.departmentName,
         sub: 'Розбір ' + esc(K.range(a.periodStart, a.periodEnd)) + (a.startedAt && a.status !== 'new' ? ' · почато ' + H.dayShort(a.startedAt) : '') + (a.whoName && a.status !== 'not_needed' ? ' · ' + esc(a.whoName) : '') + ' · ' + H.lvl(a.level),
         head: K.stateBadge(a, r.today), body: body, foot: foot,

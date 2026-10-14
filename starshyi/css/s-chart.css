@@ -10,7 +10,7 @@
 .cbar { position: relative; flex: 1; min-width: 2px; display: flex; flex-direction: column; justify-content: flex-end; border-radius: 4px 4px 0 0;
   transition: opacity .08s linear; }
 .cbar > i { display: block; }
-.cbar > i:first-child { border-radius: 4px 4px 0 0; }
+.cbar > i:first-of-type { border-radius: 4px 4px 0 0; }
 .cbar > .c-one { background: #6F829B; }
 .cbar > .c-hot { background: var(--danger-fill); }
 .cbar > .c-none { height: 3px; background: var(--line-mid); border-radius: 2px; }
@@ -49,3 +49,18 @@
 .ctip__lv { padding-top: 8px; border-top: 1px solid var(--line); }
 .ctip__lv .lvl { font-size: 13px; }
 .ctip__pin { margin-top: 8px; font-size: 12px; font-weight: 700; color: var(--brand-ink); }
+
+
+.cbar__mark { display: block; margin-bottom: 2px; font-size: 12px; font-weight: 800; line-height: 16px; text-align: center; white-space: nowrap; color: var(--text); }
+.cchart--mid .cbar__mark, .cchart--dense .cbar__mark { font-size: 10px; letter-spacing: -.02em; }
+
+
+.chart-x--all { justify-content: flex-start; gap: 6px; align-items: flex-start; }
+.chart-x--all.chart-x--mid { gap: 3px; }
+.chart-x--all.chart-x--dense { gap: 1px; }
+.chart-x--all > span { flex: 1 1 0; min-width: 0; text-align: center; font-size: 11px; line-height: 1.2; overflow-wrap: anywhere; }
+.chart-x--many > span { font-size: 10px; letter-spacing: -.02em; }
+@media (max-width: 720px) {
+  
+  .chart-x--many > span { writing-mode: vertical-rl; transform: rotate(180deg); text-align: left; overflow-wrap: normal; white-space: nowrap; line-height: 1; min-height: 52px; }
+}

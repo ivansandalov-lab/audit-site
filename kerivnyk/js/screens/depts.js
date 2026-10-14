@@ -14,9 +14,11 @@
   function name(d) {
     return '<b>' + esc(d.name) + '</b>' + (d.active ? '' : ' ' + H.badge('вимкнено')) + '<span class="mgr-dim mgr-block">' + esc(d.locationName) + '</span>';
   }
+  function th(label, key, n) { return '<th' + (n ? ' class="n"' : '') + '>' + esc(label) + K.help(key) + '</th>'; }
   function table(list, crit) {
-    return '<div class="tbl-box mgr-desk"><table class="tbl mgr-tbl"><thead><tr><th class="n">№</th><th>Відділ</th><th class="n">Аудитів</th>' +
-      '<th class="n">Перевірено, шт</th><th class="n">Брак, шт</th><th class="n">Брак, %</th><th>Рівні браку</th><th>Найчастіші види браку</th></tr></thead><tbody>' +
+    return '<div class="tbl-box mgr-desk"><table class="tbl mgr-tbl"><thead><tr><th class="n">№</th><th>Відділ</th>' + th('Аудитів', 'term.audit', 1) +
+      th('Перевірено, шт', 'term.checked', 1) + th('Брак, шт', 'mgr.deptBrak', 1) + th('Брак, %', 'term.rate', 1) + th('Рівні браку', 'term.levels') +
+      th('Найчастіші види браку', 'mgr.top') + '</tr></thead><tbody>' +
       list.map(function (d, i) {
         return '<tr><td class="n mgr-dim">' + (i + 1) + '</td><td>' + name(d) + '</td><td class="n">' + H.num(d.audits) + '</td><td class="n">' + H.num(d.checked) + '</td>' +
           '<td class="n">' + H.num(d.rejected) + '</td><td class="n">' + K.rate(d.pct, crit) + '</td><td class="mgr-tbl__lv">' + H.stack(d.levels, 10) + '</td>' +
@@ -27,7 +29,7 @@
     return '<div class="mgr-cards mgr-phone">' + list.map(function (d, i) {
       return '<article class="mgr-card"><div class="mgr-card__head"><span class="rank">' + (i + 1) + '</span><span>' + name(d) + '</span></div>' +
         '<dl class="mgr-card__kv"><dt>Аудитів</dt><dd>' + H.num(d.audits) + '</dd><dt>Перевірено</dt><dd>' + H.num(d.checked) + ' шт</dd>' +
-        '<dt>Брак</dt><dd>' + H.num(d.rejected) + ' шт · ' + K.rate(d.pct, crit) + '</dd></dl>' + H.stack(d.levels, 8) +
+        '<dt>Брак, шт · брак, %' + K.help('term.rate') + '</dt><dd>' + H.num(d.rejected) + ' шт · ' + K.rate(d.pct, crit) + '</dd></dl>' + H.stack(d.levels, 8) +
         '<div class="mgr-top">' + K.topLine(d.top) + '</div></article>';
     }).join('') + '</div>';
   }
@@ -50,8 +52,7 @@
       var locs = [['', 'Усі локації']].concat(r.locations.map(function (l) { return [l.id, l.name]; }));
       var scope = (r.location ? r.location.name : 'Усі локації') + (st.type ? ' · ' + types.filter(function (t) { return t[0] === st.type; })[0][1] : '');
       ctx.el.innerHTML = '<section class="mgr-page"><div><h2 class="h2">Рейтинг відділів · ' + list.length + '</h2><p class="h2-sub">' + esc(scope) + ' · ' +
-        esc(K.span(r.from, r.to)) + ' · ' + esc(K.asOf(r.asOf)) + ' · брак рахується відділу, який його зробив ' +
-        K.help('Брак відділу — штуки, де винний цей відділ (хоч би де їх знайшли). Перевірено — штуки, перевірені в аудитах цього відділу.') + '</p></div>' +
+        esc(K.span(r.from, r.to)) + ' · ' + esc(K.asOf(r.asOf)) + ' · брак рахується відділу, який його зробив' + K.help('mgr.deptBrak') + '</p></div>' +
         '<div class="mgr-bar">' + K.select('mgr-d-loc', locs, st.loc, 'Локація') + K.select('mgr-d-type', types, st.type, 'Тип відділу') +
         K.pills('mgr-d-sort', SORTS, st.sort, 'Сортування') + '</div>' +
         '<div id="mgr-dl" class="card">' + (list.length ? table(list, r.criticalPct) + cards(list, r.criticalPct)

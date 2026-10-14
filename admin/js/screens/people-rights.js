@@ -23,9 +23,9 @@
     }
     function draw() {
       ctx.el.innerHTML = '<section class="adm-col">' +
-        A.head('Люди й доступи', 'Що може кожна роль · ' + A.asOf(), data.changed ? '<button class="btn btn--secondary" type="button" data-act="rt-reset">' + P.ic('refresh') + 'Повернути як було</button>' : '') +
+        A.head('Люди й доступи', 'Що може кожна роль · ' + A.asOf(), data.changed ? '<button class="btn btn--secondary" type="button" data-act="rt-reset">' + P.ic('refresh') + 'Повернути як було</button>' : '', 'admin.rights.what') +
         P.admPeople.subnav('rights') +
-        (data.changed ? '<div class="banner banner--warn">' + P.ic('info', 'icon') + '<div class="banner__body"><p class="banner__title">Права змінено</p>' +
+        (data.changed ? '<div class="banner banner--warn">' + P.ic('info', 'icon') + '<div class="banner__body"><p class="banner__title">Права змінено' + A.help('admin.rights.changed') + '</p>' +
           '<p class="banner__text">' + esc((data.changedBy || '—') + (data.changedAt ? ' · ' + P.fmt.dateTime(data.changedAt) : '')) + '. Позначка «змінено» — біля кожного зміненого права.</p></div></div>' : '') +
         '<div class="adm-roles">' + data.roles.map(roleCard).join('') + '</div>' +
         '<p class="hint">Зміна діє одразу: наступна дія людини перевіряється вже за новими правами.</p></section>';

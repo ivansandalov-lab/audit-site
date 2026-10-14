@@ -28,8 +28,9 @@
     });
     var shown = list.slice(0, pf.shown), left = list.length - shown.length, days = A.diff(r.from, r.to) + 1;
     var dep = r.departments.filter(function (d) { return d.id === pf.dep; })[0];
-    var body = list.length ? '<div class="tbl-box"><table class="tbl"><thead><tr><th>Працівник</th><th>Відділ</th><th class="n">Аудитів</th><th class="n">З браком</th>' +
-      '<th class="n">Перевірено, шт</th><th class="n">Брак, шт</th><th style="width:180px">Рівні браку</th><th class="n">Брак, %</th></tr></thead><tbody>' +
+    var body = list.length ? '<div class="tbl-box"><table class="tbl"><thead><tr><th>Працівник</th><th>Відділ</th><th class="n">Аудитів' + A.q('sr.pp.audits') + '</th>' +
+      '<th class="n">З браком' + A.q('sr.pp.withDefects') + '</th><th class="n">Перевірено, шт' + A.q('sr.pp.checked') + '</th><th class="n">Брак, шт' + A.q('sr.pp.pieces') + '</th>' +
+      '<th style="width:180px">Рівні браку' + A.q('term.levels') + '</th><th class="n">Брак, %' + A.q('sr.pp.rate') + '</th></tr></thead><tbody>' +
       shown.map(function (w) {
         return '<tr data-act="pp-worker" data-code="' + esc(w.code) + '"' + (w.active ? '' : ' style="color:var(--text-3)"') + '>' +
           '<td><b>' + esc(w.name) + '</b>' + (w.active ? '' : '<span class="sub">вимкнено в довіднику</span>') + '</td><td>' + esc(w.departmentName) + '</td>' +
@@ -80,7 +81,7 @@
     load();
   }
   function kdHead(depName, r) {
-    return '<div><p class="pp-h">Коригуючі дії</p><p class="hint">Дії відділу' + (depName ? ' ' + esc(depName) : '') + ' по видах браку, у яких працівник винний' +
+    return '<div><p class="pp-h">Коригуючі дії' + A.q('kd.action') + '</p><p class="hint">Дії відділу' + (depName ? ' ' + esc(depName) : '') + ' по видах браку, у яких працівник винний' +
       (r && r.from ? ' · ' + esc(A.span(r.from, r.to)) : '') + '</p></div>';
   }
   function kdBody(r) {
@@ -90,10 +91,10 @@
     if (!r.items.length) return '<p style="margin:0"><b>Коригуючих дій у цьому періоді немає.</b></p>' + types;
     return '<div class="pp-kd-list">' + r.items.map(function (a) {
       return '<a class="pp-kd-item" data-ov-close href="#/kd/dept/' + encodeURIComponent(a.departmentId) + '?p=' + a.period + '&t=' + encodeURIComponent(a.defectTypeId) + '">' +
-        '<span class="pp-kd-item__head"><b>' + esc(a.name) + '</b>' + K.stateBadge(a, r.today) + '</span>' +
+        '<span class="pp-kd-item__head"><b>' + esc(a.name) + '</b>' + h.kdState(P.sr.kdStateOf(a.status)) + '</span>' +
         '<span class="hint">' + esc(K.actMeta(a)) + '</span>' +
         (a.after != null ? '<span class="hint">Результат: ' + esc(K.result(a, r.threshold)) + '</span>'
-          : '<span class="hint">Частка виду у відділі за розбір: ' + esc(K.rates(a)) + '</span>') +
+          : '<span class="hint">Частка виду браку у відділі за розбір: ' + esc(K.rates(a)) + '</span>') +
         (a.plan ? '<span class="hint">Що робимо: ' + esc(a.plan) + '</span>' : '') + '</a>';
     }).join('') + '</div>' + types;
   }
@@ -113,17 +114,17 @@
     if (!r.audits) return P.state.empty('info', 'Аудитів з виробами працівника немає', 'Період: ' + A.span(r.from, r.to));
     var crit = r.criticalPct, over = r.rate != null && r.rate > crit;
     var kpis = '<div class="kpis pp-kpis">' +
-      h.kpi(h.num(r.audits), 'аудитів з виробами працівника · з браком ' + r.withDefects + (r.helperAudits ? ' · допомога іншому відділу: ' + r.helperAudits : '')) +
-      h.kpi(h.num(r.checked), 'перевірено, шт · частка від вибірки цих аудитів') +
-      h.kpi(h.num(r.pieces), 'брак, шт', r.pieces ? 'danger' : '') +
-      h.kpi(h.pct(r.rate), r.rate == null ? 'брак ÷ перевірено' : 'браку · ' + h.num(r.pieces) + ' шт з ' + h.num(r.checked) + ' перевірених' + (over ? ' · понад ' + crit + '%' : ''), over ? 'danger' : '') + '</div>';
+      A.kpi(h.num(r.audits), 'аудитів з виробами працівника · з браком ' + r.withDefects + (r.helperAudits ? ' · допомога іншому відділу: ' + r.helperAudits : ''), 'sr.pp.audits') +
+      A.kpi(h.num(r.checked), 'перевірено, шт · частка від вибірки цих аудитів', 'sr.pp.checked') +
+      A.kpi(h.num(r.pieces), 'брак, шт', 'sr.pp.pieces', r.pieces ? 'danger' : '') +
+      A.kpi(h.pct(r.rate), r.rate == null ? 'брак, % = брак, шт ÷ перевірено, шт' : 'брак, % · ' + h.num(r.pieces) + ' шт з ' + h.num(r.checked) + ' перевірених' + (over ? ' · понад ' + crit + '%' : ''), 'sr.pp.rate', over ? 'danger' : '') + '</div>';
     var wk = r.weeks, few = wk.length <= 8;
-    var weeks = '<div class="pp-block"><div><p class="pp-h">Брак по тижнях, %</p>' +
+    var weeks = '<div class="pp-block"><div><p class="pp-h">Брак по тижнях, %' + A.q('sr.pp.weeks') + '</p>' +
       '<p class="hint">брак, шт ÷ перевірено, шт за тиждень · риска — ' + crit + '% · червоний стовпчик — понад ' + crit + '%</p></div><div data-chart="pp-weeks"></div>' +
       (few ? '<div class="pp-wx pp-wx--val">' + wk.map(function (x) { return '<span' + (x.rate > crit ? ' class="pp-over"' : '') + '>' + (x.audits ? h.pct(x.rate) : '—') + '</span>'; }).join('') + '</div>' +
         '<div class="pp-wx">' + wk.map(function (x) { return '<span>' + (x.from === x.to ? h.dayShort(x.from) : A.diff(x.from, x.to) < 6 ? h.dayShort(x.from) + '–' + h.dayShort(x.to) : 'з ' + h.dayShort(x.from)) + '</span>'; }).join('') + '</div>' : '') + '</div>';
     var max = r.types.length ? r.types[0].pieces : 1;
-    var types = '<div class="pp-block"><p class="pp-h">Види браку працівника · ' + h.num(r.pieces) + ' шт</p>' +
+    var types = '<div class="pp-block"><p class="pp-h">Види браку працівника · ' + h.num(r.pieces) + ' шт' + A.q('term.levels') + '</p>' +
       (r.types.length ? A.levels(r.levels) + '<div>' + r.types.slice(0, TYPES).map(function (t) {
         return A.hbar({ name: t.name, sub: h.lvl(t.level), share: t.pieces / max, n: t.pieces, cols: 'minmax(0, 1fr) 110px 40px', href: '#/analytics/defect/' + encodeURIComponent(t.id) });
       }).join('') + '</div>' + (r.types.length > TYPES ? '<p class="hint">Показано ' + TYPES + ' найчастіших з ' + r.types.length + '.</p>' : '') : '<p class="hint">Браку немає</p>') + '</div>';
@@ -134,7 +135,7 @@
         '<div class="pp-cmp__bar"><i' + (hot ? ' class="pp-hot"' : '') + ' style="width:' + ((rate || 0) / scale * 100).toFixed(1) + '%"></i><b style="left:' + (crit / scale * 100).toFixed(1) + '%"></b></div>' +
         '<span class="pp-cmp__v' + (hot ? ' pp-over' : '') + '">' + h.pct(rate) + (hot ? '<small>понад ' + crit + '%</small>' : '') + '</span>';
     }
-    var compare = '<div class="pp-block"><div><p class="pp-h">Брак, %: працівник, відділ, цех</p><p class="hint">' + esc(A.span(r.from, r.to)) + ' · риска — ' + crit + '%</p></div>' +
+    var compare = '<div class="pp-block"><div><p class="pp-h">Брак, %: працівник, відділ, цех' + A.q('sr.pp.compare') + '</p><p class="hint">' + esc(A.span(r.from, r.to)) + ' · риска — ' + crit + '%</p></div>' +
       '<div class="pp-cmp">' + line('<b>' + esc(r.worker.name) + '</b>', 'працівник · ' + h.num(r.pieces) + ' шт з ' + h.num(r.checked), r.rate) +
       line(esc(r.worker.departmentName), 'відділ', r.deptRate) + line(esc(locName || 'Цех'), 'цех, усі відділи', r.shopRate) + '</div></div>';
     return kpis + weeks + types + compare;
@@ -178,8 +179,8 @@
     var head = '<div class="card-head"><div style="flex:1"><h2 class="card-title">Аудитори · ' + list.length + '</h2><p class="hint">' + (A.diff(r.from, r.to) + 1) + ' дн. · ' +
       A.n(r.totalAudits, 'аудит', 'аудити', 'аудитів') + ' · спершу ті, в кого найбільше аудитів · клік по рядку — розгорнути</p></div></div>';
     if (!list.length) return '<section class="card">' + head + P.state.empty('search', 'Нікого не знайдено', 'Пошук «' + pf.aq.trim() + '»') + '</section>';
-    return '<section class="card">' + head + '<div class="tbl-box"><table class="tbl"><thead><tr><th>Аудитор</th><th class="n">Аудитів</th><th class="n">На робочий день</th>' +
-      '<th class="n">За аудит, шт</th><th class="n">Брак, %</th><th class="n">Аудити без браку</th><th>Останній аудит</th></tr></thead><tbody>' +
+    return '<section class="card">' + head + '<div class="tbl-box"><table class="tbl"><thead><tr><th>Аудитор</th><th class="n">Аудитів</th><th class="n">На робочий день' + A.q('sr.pp.perDay') + '</th>' +
+      '<th class="n">За аудит, шт' + A.q('sr.pp.perAudit') + '</th><th class="n">Брак, %' + A.q('sr.pp.audRate') + '</th><th class="n">Аудити без браку' + A.q('sr.pp.clean') + '</th><th>Останній аудит</th></tr></thead><tbody>' +
       list.map(function (a) {
         var open = pf.open === a.id, mute = a.active ? '' : ' style="color:var(--text-3)"';
         var tr = '<tr data-act="pp-aud" data-id="' + esc(a.id) + '"' + (open ? ' class="sel"' : '') + ' aria-expanded="' + open + '"><td' + mute + '><span style="display:inline-flex;align-items:center;gap:6px">' +
@@ -194,7 +195,7 @@
           '<div class="kpis pp-kpis4">' +
           h.kpi(h.num(a.audits), 'аудитів · ' + dec(a.perDay) + ' на робочий день') +
           h.kpi(h.num(a.checked), 'перевірено, шт · за аудит ' + (a.perAudit == null ? '—' : h.num(a.perAudit)) + ' шт' + (a.normPerAudit != null ? ' · норма на аудит ' + h.num(a.normPerAudit) + ' шт' : '')) +
-          h.kpi(h.pct(a.pct), 'браку · ' + h.num(a.pieces) + ' шт з ' + h.num(a.checked) + ' перевірених' + (a.peersPct != null ? ' · інші аудитори в тих самих відділах ' + h.pct(a.peersPct) : '')) +
+          h.kpi(h.pct(a.pct), 'брак, % · ' + h.num(a.pieces) + ' шт з ' + h.num(a.checked) + ' перевірених' + (a.peersPct != null ? ' · інші аудитори в тих самих відділах ' + h.pct(a.peersPct) : '')) +
           h.kpi(a.cleanShare == null ? '—' : a.cleanShare + '%', 'аудитів без браку' + (a.cleanShare == null ? '' : ' · ' + a.clean + ' з ' + a.audits) + (a.peersCleanShare != null ? ' · в інших аудиторів ' + a.peersCleanShare + '%' : '')) + '</div>' +
           '<a class="btn btn--secondary btn--sm" style="align-self:flex-start" href="#/history?auditor=' + encodeURIComponent(a.id) + '">' + h.ic('audit', 'ui-icon--sm') + 'Аудити: ' + esc(a.name) + '</a>' +
           '</div></td></tr>';

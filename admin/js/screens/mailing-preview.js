@@ -12,7 +12,7 @@
   function mount(el, data) {
     var cur = data.locations[0].id, draft = null, timer = null, seq = 0, last = null;
 
-    el.innerHTML = '<div class="rz-prev__head"><span class="label">Як виглядатиме в Slack</span><select class="input rz-sel" data-rz-ploc aria-label="Цифри якої локації показати"></select></div>' +
+    el.innerHTML = '<div class="rz-prev__head"><span class="label">Як виглядатиме в Slack' + P.help.btn('admin.ml.preview') + '</span><select class="input rz-sel" data-rz-ploc aria-label="Цифри якої локації показати"></select></div>' +
       '<div data-rz-pv>' + P.state.loading('Рахую цифри…') + '</div><p class="hint" data-rz-pvnote></p>' +
       '<div class="rz-prev__send"><button class="btn btn--secondary" type="button" data-act="rz-test">' + P.ic('slack', 'ui-icon--sm') + 'Надіслати пробне в тестовий Slack</button>' +
       '<p class="hint" data-rz-sendnote></p></div>';

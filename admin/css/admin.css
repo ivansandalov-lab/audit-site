@@ -29,6 +29,8 @@
 .adm-loc--off { background: var(--surface-2); border-style: dashed; box-shadow: none; }
 .adm-loc--off .dtile__name, .adm-loc--off .dtile__nums b { color: var(--text-2); }
 .adm-badge-off { align-self: flex-start; display: inline-flex; align-items: center; gap: 4px; }
+.adm-loc__off { align-self: flex-start; display: inline-flex; align-items: center; }
+.cab-loc__btns .hq { align-self: center; }
 .adm-rem { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
 .adm-rem[hidden] { display: none; }
 

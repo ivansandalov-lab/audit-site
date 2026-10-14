@@ -18,10 +18,11 @@
       '<span class="mgr-dim mgr-block">' + esc(a.roleLabel) + ' · ' + esc(a.locations.join(', ')) + '</span>';
   }
   function last(a) { return a.lastAt ? P.fmt.dateTime(a.lastAt) : '—'; }
+  function th(label, key) { return '<th class="n">' + esc(label) + (key ? K.help(key) : '') + '</th>'; }
   function table(list) {
-    return '<div class="tbl-box mgr-desk"><table class="tbl mgr-tbl"><thead><tr><th>Аудитор</th><th class="n">Аудитів</th><th class="n">Перевірено, шт</th>' +
-      '<th class="n">Знайдено браку, шт</th><th class="n">Брак, % від перевіреного</th><th class="n">Частка від усього браку</th><th class="n">Днів з аудитами</th>' +
-      '<th class="n">Останній аудит</th></tr></thead><tbody>' + list.map(function (a) {
+    return '<div class="tbl-box mgr-desk"><table class="tbl mgr-tbl"><thead><tr><th>Аудитор' + K.help('term.auditor') + '</th>' + th('Аудитів', 'term.audit') +
+      th('Перевірено, шт', 'term.checked') + th('Знайдено браку, шт', 'mgr.found') + th('Брак, % від перевіреного', 'mgr.auditorPct') +
+      th('Частка від усього браку', 'mgr.share') + th('Днів з аудитами', 'mgr.daysWithAudits') + th('Останній аудит') + '</tr></thead><tbody>' + list.map(function (a) {
         return '<tr><td>' + who(a) + '</td><td class="n">' + H.num(a.audits) + '</td><td class="n">' + H.num(a.checked) + '</td><td class="n">' + H.num(a.pieces) + '</td>' +
           '<td class="n">' + H.pct(a.pct) + '</td><td class="n">' + H.pct(a.share) + '</td><td class="n">' + H.num(a.days) + '</td><td class="n mgr-dim">' + esc(last(a)) + '</td></tr>';
       }).join('') + '</tbody></table></div>';
@@ -30,7 +31,7 @@
     return '<div class="mgr-cards mgr-phone">' + list.map(function (a) {
       return '<article class="mgr-card"><div class="mgr-card__head"><span>' + who(a) + '</span></div><dl class="mgr-card__kv">' +
         '<dt>Аудитів</dt><dd>' + H.num(a.audits) + ' · днів ' + H.num(a.days) + '</dd><dt>Перевірено</dt><dd>' + H.num(a.checked) + ' шт</dd>' +
-        '<dt>Знайдено браку</dt><dd>' + H.num(a.pieces) + ' шт · ' + H.pct(a.pct) + '</dd><dt>Частка від усього браку</dt><dd>' + H.pct(a.share) + '</dd>' +
+        '<dt>Знайдено браку, шт · брак, %' + K.help('mgr.auditorPct') + '</dt><dd>' + H.num(a.pieces) + ' шт · ' + H.pct(a.pct) + '</dd><dt>Частка від усього браку' + K.help('mgr.share') + '</dt><dd>' + H.pct(a.share) + '</dd>' +
         '<dt>Останній аудит</dt><dd>' + esc(last(a)) + '</dd></dl></article>';
     }).join('') + '</div>';
   }
@@ -52,8 +53,7 @@
       var r = data, locs = [['', 'Усі локації']].concat(r.locations.map(function (l) { return [l.id, l.name]; }));
       ctx.el.innerHTML = '<section class="mgr-page"><div><h2 class="h2">Аудитори · ' + r.auditors.length + '</h2><p class="h2-sub">' +
         esc(r.location ? r.location.name : 'Усі локації') + ' · ' + esc(K.span(r.from, r.to)) + ' · ' + esc(K.asOf(r.asOf)) + ' · ' +
-        K.n(r.totalAudits, 'аудит', 'аудити', 'аудитів') + ' · знайдено ' + H.num(r.totalPieces) + ' шт браку ' +
-        K.help('Частка від усього браку = штуки браку в аудитах людини ÷ усі знайдені штуки браку за період. Брак, % = її штуки браку ÷ перевірені нею штуки.') + '</p></div>' +
+        K.n(r.totalAudits, 'аудит', 'аудити', 'аудитів') + ' · знайдено ' + H.num(r.totalPieces) + ' шт браку' + K.help('mgr.found') + '</p></div>' +
         '<div class="mgr-bar">' + K.search('mgr-a-q', st.q, 'Пошук за іменем') + K.select('mgr-a-loc', locs, st.loc, 'Локація') +
         K.select('mgr-a-sort', SORTS, st.sort, 'Сортування') + '</div><div id="mgr-al" class="card"></div></section>';
     }

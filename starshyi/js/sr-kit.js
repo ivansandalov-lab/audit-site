@@ -3,6 +3,17 @@
   var P = root.P, doc = root.document, esc = P.esc;
   var S = P.sr = P.sr || {};
 
+  S.KD_STATES = {
+    ok: { label: 'у нормі', help: 'kd.state.ok' }, over: { label: 'понад норму, не почато', help: 'kd.state.over' },
+    work: { label: 'в роботі', help: 'kd.state.work' }, watch: { label: 'на спостереженні', help: 'kd.state.watch' },
+    done: { label: 'спостереження вдале', help: 'kd.state.done' }, relapse: { label: 'рецидив', help: 'kd.state.relapse' },
+    skip: { label: 'дія не потрібна', help: 'kd.state.skip' }
+  };
+  S.kdStateOf = function (status) {
+    return { 'new': 'over', started: 'work', check: 'watch', helped: 'done', not_helped: 'relapse', not_needed: 'skip', none: 'ok' }[status] || 'ok';
+  };
+
+
   var LV = { fix: 'неправильно зроблене', repair: 'пошкоджене', scrap: 'зламане' };
   function num(n) { return n == null ? '—' : P.fmt && P.fmt.num ? P.fmt.num(n) : String(n); }
   function pct(v) { return v == null ? '—' : String(Math.round(v * 10) / 10).replace('.', ',') + '%'; }
@@ -34,7 +45,15 @@
       var d = new Date(Date.parse(day + 'T12:00:00Z'));
       return d.toLocaleDateString('uk-UA', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' });
     },
-    dayShort: function (day) { var p = String(day).split('-'); return +p[2] + '.' + p[1]; }
+    dayShort: function (day) { var p = String(day).split('-'); return +p[2] + '.' + p[1]; },
+    kdState: function (state, text) {
+      var k = S.KD_STATES[state] ? state : 'ok';
+      return '<span class="kds kds--' + k + '">' + esc(text || S.KD_STATES[k].label) + '</span>';
+    },
+    kdMark: function (state, title) {
+      var k = S.KD_STATES[state] ? state : 'ok';
+      return '<i class="kdm kdm--' + k + '" title="' + esc(title || S.KD_STATES[k].label) + '" aria-label="' + esc(title || S.KD_STATES[k].label) + '"></i>';
+    }
   };
 
   var stack = [];
@@ -69,7 +88,8 @@
     });
     stack.push(layer);
     if (o.onMount) o.onMount(wrap, layer);
-    var f = wrap.querySelector('input, select, textarea, button:not([data-ov-close])'); if (f && kind !== 'menu') try { f.focus({ preventScroll: true }); } catch (e) { /* */ }
+    var f = wrap.querySelector('input, select, textarea, button:not([data-ov-close]):not([data-help])');
+    if (f && kind !== 'menu') try { f.focus({ preventScroll: true }); } catch (e) { /* */ }
     return layer;
   }
   S.modal = function (o) { return makeLayer('modal', o); };

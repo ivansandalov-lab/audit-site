@@ -29,9 +29,11 @@
         '<span><span class="menu__t">' + esc(i.title) + '</span>' + (i.sub ? '<span class="menu__s">' + esc(i.sub) + '</span>' : '') + '</span></button>';
     }).join('') });
   }
-  function head(title, sub, btn) { return '<div class="adm-head"><div><h2 class="h2">' + esc(title) + '</h2>' + (sub ? '<p class="h2-sub">' + esc(sub) + '</p>' : '') + '</div>' + (btn || '') + '</div>'; }
+  function help(key) { return key && P.help ? P.help.btn(key) : ''; }
+  function head(title, sub, btn, key) { return '<div class="adm-head"><div><h2 class="h2">' + esc(title) + help(key) + '</h2>' + (sub ? '<p class="h2-sub">' + esc(sub) + '</p>' : '') + '</div>' + (btn || '') + '</div>'; }
+  function kpi(val, label, key) { return '<div class="kpi"><span class="kpi__val">' + esc(val) + '</span><span class="kpi__label">' + esc(label) + help(key) + '</span></div>'; }
   function btnNew(act, label) { return '<button class="btn btn--primary" type="button" data-act="' + act + '">' + P.ic('add') + esc(label) + '</button>'; }
-  function field(name, label, inner, hint) { return '<label class="field" data-f="' + name + '"><span class="label">' + esc(label) + '</span>' + inner + (hint ? '<span class="hint">' + esc(hint) + '</span>' : '') + '</label>'; }
+  function field(name, label, inner, hint, key) { return '<label class="field" data-f="' + name + '"><span class="label">' + esc(label) + help(key) + '</span>' + inner + (hint ? '<span class="hint">' + esc(hint) + '</span>' : '') + '</label>'; }
   function input(name, value, attrs) { return '<input class="input" name="' + name + '" value="' + esc(value == null ? '' : value) + '"' + (attrs || '') + '>'; }
   function seg(name, opts, cur) {
     return '<div class="seg" role="radiogroup" data-f="' + name + '">' + opts.map(function (o) {
@@ -72,7 +74,7 @@
     });
   }
   function asOf() { return 'станом на ' + P.fmt.time(new Date().toISOString()); }
-  P.adm = { plural: plural, da: da, q: q, qa: qa, ago: ago, sw: sw, pen: pen, more: more, rowMenu: rowMenu, head: head, btnNew: btnNew,
+  P.adm = { plural: plural, da: da, q: q, qa: qa, ago: ago, sw: sw, pen: pen, more: more, rowMenu: rowMenu, head: head, btnNew: btnNew, help: help, kpi: kpi,
     field: field, input: input, seg: seg, segPick: segPick, val: val, modal: modal, cancelBtn: cancelBtn, saveBtn: saveBtn,
     failToast: failToast, showErrors: showErrors, enterSubmits: enterSubmits, asOf: asOf };
 
@@ -88,16 +90,16 @@
     return '<article class="dtile cab-loc adm-loc' + (off ? ' adm-loc--off' : '') + '">' +
       '<div class="adm-loc__top"><span class="dtile__name">' + P.ic('location', 'ui-icon--sm') + esc(l.name) + '</span>' +
         '<span class="adm-loc__acts">' + pen('loc-edit', da('id', l.id), 'Редагувати · ' + l.name) + more('loc-more', da('id', l.id), 'Дії · ' + l.name) + '</span></div>' +
-      (off ? '<span class="badge adm-badge-off">' + P.ic('power', 'ui-icon--sm') + 'вимкнена</span>' : '') +
+      (off ? '<span class="adm-loc__off"><span class="badge adm-badge-off">' + P.ic('power', 'ui-icon--sm') + 'вимкнена</span>' + help('admin.loc.off') + '</span>' : '') +
       '<span class="dtile__meta">' + H.num(l.departments) + ' ' + plural(l.departments, ['відділ', 'відділи', 'відділів']) + ' · ' +
         H.num(l.workers) + ' ' + plural(l.workers, ['працівник', 'працівники', 'працівників']) + '</span>' +
-      '<div class="adm-loc__set"><p>' + P.ic('slack', 'ui-icon--sm') + '<span><span class="adm-dim">Slack-канал:</span> ' + (l.slackChannel ? esc(l.slackChannel) : 'не задано') + '</span></p>' +
-        '<p>' + P.ic('clock', 'ui-icon--sm') + '<span><span class="adm-dim">Нагадування:</span> ' + esc(remText(l.reminders)) + '</span></p></div>' +
+      '<div class="adm-loc__set"><p>' + P.ic('slack', 'ui-icon--sm') + '<span><span class="adm-dim">Slack-канал:</span> ' + (l.slackChannel ? esc(l.slackChannel) : 'не задано') + help('admin.loc.slack') + '</span></p>' +
+        '<p>' + P.ic('clock', 'ui-icon--sm') + '<span><span class="adm-dim">Нагадування:</span> ' + esc(remText(l.reminders)) + help('admin.loc.remind') + '</span></p></div>' +
       '<div class="dtile__nums"><div><b>' + H.num(t.audits) + '</b><span>' + plural(t.audits, ['аудит', 'аудити', 'аудитів']) + ' сьогодні</span></div>' +
-        '<div>' + (t.audits ? '<b>' + H.num(t.rejected) + ' шт</b> · ' + H.pct(t.pct) : '<b>—</b>') + '<span>брак</span></div></div>' +
+        '<div>' + (t.audits ? '<b>' + H.num(t.rejected) + ' шт</b> · ' + H.pct(t.pct) : '<b>—</b>') + '<span>брак, шт · брак, %' + help('admin.loc.today') + '</span></div></div>' +
       '<div class="cab-loc__btns">' +
         '<button class="btn btn--secondary btn--sm" type="button" data-act="open-as" data-role="senior_auditor"' + da('loc', l.id) + '>' + P.ic('chart', 'ui-icon--sm') + 'Як старший</button>' +
-        '<button class="btn btn--secondary btn--sm" type="button" data-act="open-as" data-role="auditor"' + da('loc', l.id) + '>' + P.ic('audit', 'ui-icon--sm') + 'Як працівник</button></div>' +
+        '<button class="btn btn--secondary btn--sm" type="button" data-act="open-as" data-role="auditor"' + da('loc', l.id) + '>' + P.ic('audit', 'ui-icon--sm') + 'Як працівник</button>' + help('admin.loc.openAs') + '</div>' +
       '</article>';
   }
 
@@ -122,8 +124,8 @@
       var body = '<div class="adm-form">' +
         (all || part === 'name' ? field('name', 'Назва', input('name', l ? l.name : '', ' autocomplete="off" maxlength="40" placeholder="Цех Г"')) : '') +
         (all || part === 'channel' ? field('slackChannel', 'Slack-канал', input('slackChannel', l ? l.slackChannel : '', ' autocomplete="off" maxlength="80" placeholder="#якість-цех-г"'),
-          'Назва каналу, як її видно в Slack. Порожнє поле — без каналу.') : '') +
-        (all || part === 'remind' ? '<div class="field" data-f="remOn"><span class="label">' + (all ? 'Нагадування «запишіть аудит»' : 'Нагадування') + '</span>' + seg('remOn', [['true', 'Увімкнено'], ['false', 'Вимкнено']], String(st.on)) + '</div>' +
+          'Назва каналу, як її видно в Slack. Порожнє поле — без каналу.', 'admin.loc.slack') : '') +
+        (all || part === 'remind' ? '<div class="field" data-f="remOn"><span class="label">' + (all ? 'Нагадування «запишіть аудит»' : 'Нагадування') + help('admin.loc.remind') + '</span>' + seg('remOn', [['true', 'Увімкнено'], ['false', 'Вимкнено']], String(st.on)) + '</div>' +
           '<div class="adm-rem" data-rem' + (st.on ? '' : ' hidden') + '>' + field('remFrom', 'З', hours('remFrom', 0, 23, rem.from)) + field('remTo', 'До', hours('remTo', 1, 24, rem.to)) +
             field('remEvery', 'Кожні', '<select class="input" name="remEvery">' + [1, 2, 3, 4, 6, 8, 12].map(function (n) { return '<option value="' + n + '"' + (n === rem.every ? ' selected' : '') + '>' + n + ' год</option>'; }).join('') + '</select>') + '</div>' : '') +
         '</div>';

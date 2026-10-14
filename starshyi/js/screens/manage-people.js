@@ -17,7 +17,7 @@
     }
     function draw() {
       v.col.innerHTML = M.head('Працівники', 'Аудитори · ' + data.location.name + ' · вхід через Google робочою поштою', M.btnNew('Новий працівник')) +
-        '<section class="card">' + (data.items.length ? '<div class="tbl-box"><table class="tbl"><thead><tr><th>Працівник</th><th>Робоча пошта</th><th>Останній аудит</th><th>Вхід діє</th><th>Доступ</th><th><span class="mg-vh">Дії</span></th></tr></thead><tbody>' +
+        '<section class="card">' + (data.items.length ? '<div class="tbl-box"><table class="tbl"><thead><tr><th>Працівник</th><th>Робоча пошта</th><th>Останній аудит</th><th>Вхід діє' + M.hq('sr.mg.login') + '</th><th>Доступ' + M.hq('sr.mg.access') + '</th><th><span class="mg-vh">Дії</span></th></tr></thead><tbody>' +
           data.items.map(row).join('') + '</tbody></table></div>'
           : H.empty('Аудиторів ще немає', '')) +
         '<p class="hint">Вимкнений доступ: вхід закрито, аудити людини лишаються в історії.</p></section>';
@@ -30,7 +30,7 @@
           M.field('email', 'Робоча Google-пошта', M.input('email', '', ' type="email" autocomplete="off" maxlength="120" placeholder="' + (u ? esc(u.email) : 'petro.l@example.com') + '"'),
             u ? 'Зараз: ' + u.email + '. Порожнє поле — пошта без змін.' : '') +
           '<div class="pair">' + M.locked('Роль', 'Працівник (аудитор)') + M.locked('Локація', v.ctx.loc.name) + '</div>' +
-          (u ? '<div class="field"><span class="label">Доступ</span>' + M.seg('active', [[true, 'Увімкнено'], [false, 'Вимкнено']], st.active) + '</div>' : '') +
+          (u ? '<div class="field"><span class="label">Доступ' + M.hq('sr.mg.access') + '</span>' + M.seg('active', [[true, 'Увімкнено'], [false, 'Вимкнено']], st.active) + '</div>' : '') +
           '<p class="hint">Вхід — через Google, раз на тиждень. Старших і керівників додає адмін.</p></div>',
         foot: M.cancelBtn() + '<button class="btn btn--primary" type="button" data-act="mg-save">' + P.ic(u ? 'save' : 'add') + (u ? 'Зберегти' : 'Додати працівника') + '</button>',
         onMount: function (el) { M.enterSubmits(el, 'mg-save'); },
@@ -107,12 +107,12 @@
     function draw() {
       var pills = [['', 'Усі']].concat(deps().map(function (d) { return [d.id, d.name]; }));
       if (data.pending) pills.push([NEW, 'Додані аудиторами · ' + data.pending]);
-      v.col.innerHTML = M.head('Виробничі працівники', 'Кого обирають в аудиті · ' + data.location.name + ' · ' + M.cnt(data.items.length, ['людина', 'людини', 'людей']), M.btnNew('Новий виробничий працівник')) +
+      v.col.innerHTML = M.head('Виробничі працівники', 'Кого обирають в аудиті · ' + data.location.name + ' · ' + M.cnt(data.items.length, ['людина', 'людини', 'людей']), M.btnNew('Новий виробничий працівник'), 'sr.mg.workers') +
         '<section class="card"><div class="mg-tools"><div class="search" style="flex:1;min-width:220px">' + P.ic('search', 'icon') +
         '<input class="input" data-input="mg-q" value="' + esc(st.q) + '" placeholder="Працівник, напр. q5" aria-label="Пошук працівника за назвою" style="padding-left:46px"></div>' +
         '<span class="pills mg-pills">' + pills.map(function (o) {
           return '<button class="pill' + (st.dep === o[0] ? ' pill--on' : '') + (o[0] === NEW ? ' mg-pill-new' : '') + '" type="button" aria-pressed="' + (st.dep === o[0]) + '" data-act="mg-dep"' + da('id', o[0]) + '>' + esc(o[1]) + '</button>'; }).join('') + '</span></div>' +
-        '<div class="tbl-box"><table class="tbl"><thead><tr><th>Працівник</th><th>Відділ</th><th class="n">Аудитів за 30 дн</th><th>У формі аудиту</th><th><span class="mg-vh">Дії</span></th></tr></thead><tbody data-mg-body>' + tbody() + '</tbody></table></div>' +
+        '<div class="tbl-box"><table class="tbl"><thead><tr><th>Працівник</th><th>Відділ</th><th class="n">Аудитів за 30 дн' + M.hq('sr.mg.audits30') + '</th><th>У формі аудиту' + M.hq('sr.mg.inForm') + '</th><th><span class="mg-vh">Дії</span></th></tr></thead><tbody data-mg-body>' + tbody() + '</tbody></table></div>' +
         '<p class="hint" data-mg-hint>' + countHint() + '</p></section>';
     }
     function redrawRows() { var b = q(v.col, '[data-mg-body]'); if (b) b.innerHTML = tbody(); var h = q(v.col, '[data-mg-hint]'); if (h) h.textContent = countHint(); }
@@ -122,7 +122,7 @@
     function openNew() {
       var first = deps().filter(function (d) { return d.active; })[0] || deps()[0];
       M.modal({ size: 'sm', title: 'Новий виробничий працівник', sub: esc(v.ctx.loc.name),
-        body: '<div class="mg-form">' + M.field('name', 'Працівник (як підписаний у цеху, напр. q5)', M.input('name', '', ' autocomplete="off" maxlength="40" placeholder="q5"')) +
+        body: '<div class="mg-form">' + M.field('name', 'Працівник (як підписаний у цеху, напр. q5)', M.input('name', '', ' autocomplete="off" maxlength="40" placeholder="q5"'), '', 'term.worker') +
           '<label class="field" data-f="departmentId"><span class="label">Відділ</span><select class="input" name="departmentId">' + depOptions(first && first.id) + '</select></label></div>',
         foot: M.cancelBtn() + '<button class="btn btn--primary" type="button" data-act="mg-save">' + P.ic('add') + 'Додати працівника</button>',
         onMount: function (el) { M.enterSubmits(el, 'mg-save'); },

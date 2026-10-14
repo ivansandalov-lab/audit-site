@@ -287,6 +287,7 @@
 
   var MAILS = [
     { id: 'audit_seniors', title: 'Старшим — про кожен аудит', when: 'одразу після запису аудиту', hasLevel: true, on: true, level: 'defects' },
+    { id: 'over_seniors', title: 'Старшим — брак за сьогодні понад критичний рівень', when: 'щойно брак, % локації за сьогодні перевищить критичний рівень (раз на день)', on: true },
     { id: 'audit_leads', title: 'Тімлідам відділів — їхні аудити', when: 'одразу після запису аудиту', hasLevel: true, on: true, level: 'defects' },
     { id: 'daily', title: 'Денний звіт цеху', on: true },
     { id: 'kd', title: 'Коригуючі дії', to: 'старшим цеху; керівникам — лише результат дії', when: 'розбір готовий (раз на 4 дні) · термін дії завтра · результат перевірки', on: true },
@@ -861,7 +862,7 @@
         items: MAILS.map(function (m) {
           var o = s.items[m.id] || {}, it = { id: m.id, title: m.title, on: o.on !== undefined ? o.on : m.on, hasLevel: !!m.hasLevel,
             level: m.hasLevel ? (o.level || m.level) : null, to: m.to || '', when: m.when || '' };
-          if (m.id === 'audit_seniors') it.to = (seniors.join(', ') || 'старші цеху') + ' — особисто';
+          if (m.id === 'audit_seniors' || m.id === 'over_seniors') it.to = (seniors.join(', ') || 'старші цеху') + ' — особисто';
           if (m.id === 'audit_leads') it.to = deps.length + ' ' + plural(deps.length, ['тімлід', 'тімліди', 'тімлідів']) + ' — кожен лише про свій відділ';
           if (m.id === 'daily') {
             var n = INCLUDE.filter(function (k) { return s.daily.include[k]; }).length;

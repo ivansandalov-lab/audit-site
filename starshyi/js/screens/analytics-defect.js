@@ -27,7 +27,7 @@
       var head = '<div class="card-head" style="flex-wrap:wrap"><a class="btn btn--secondary btn--sm" href="' + back + '">' + h.ic('arrow-left', 'ui-icon--sm') + 'До аналітики</a>' +
         '<div style="flex:1;min-width:240px"><p class="hint">Вид браку · ' + (r.rank ? r.rank + ' місце з ' + r.typesCount + ' за кількістю штук' : 'за період не знайдено') + ' · ' + esc(A.span(r.from, r.to)) + '</p>' +
         '<h2 class="card-title" style="font-size:24px">' + esc(t.name) + '</h2><span class="lvl lvl--' + esc(t.level) + ' an-lvlwrap">' + esc(P.sr.LEVELS[t.level]) + ' · ' + A.LV_NEXT[t.level] + '</span></div>' +
-        '<div class="an-dnum"><b>' + h.num(r.pieces) + ' шт</b><span class="sub">за ' + X.dn(N) + ' · ' + h.pct(r.share) + ' усього браку (' + h.num(r.pieces) + ' ÷ ' + h.num(r.allPieces) + ' шт)</span>' +
+        '<div class="an-dnum"><b>' + h.num(r.pieces) + ' шт</b><span class="sub">за ' + X.dn(N) + ' · ' + h.pct(r.share) + ' усього браку (' + h.num(r.pieces) + ' ÷ ' + h.num(r.allPieces) + ' шт)' + A.q('sr.an.defShare') + '</span>' +
         '<span class="sub">попередні ' + X.dn(N) + ' — ' + h.num(r.prev.pieces) + ' шт</span></div></div>';
       if (!r.pieces) {
         ctx.el.innerHTML = '<section class="card">' + head + h.empty('За період цього браку не знайдено', A.span(r.from, r.to) + ' · за попередні ' + X.dn(N) + ' — ' + h.num(r.prev.pieces) + ' шт') + '</section>';
@@ -35,18 +35,18 @@
       }
       var audited = days.filter(function (d) { return d.audited; }).length, withIt = days.filter(function (d) { return d.pieces; });
       var top = withIt.slice().sort(function (a, b) { return b.pieces - a.pieces; })[0];
-      var facts = '<div class="an-sum an-sum--3"><div class="an-sum__i"><span class="an-sum__l">Днів із цим браком</span><b class="an-sum__v">' + withIt.length + ' з ' + audited + '</b><span class="an-sum__p">днів з аудитами в локації</span></div>' +
+      var facts = '<div class="an-sum an-sum--3"><div class="an-sum__i"><span class="an-sum__l">Днів із цим браком' + A.q('sr.an.daysWithDefect') + '</span><b class="an-sum__v">' + withIt.length + ' з ' + audited + '</b><span class="an-sum__p">днів з аудитами в локації</span></div>' +
         '<div class="an-sum__i"><span class="an-sum__l">Найбільше за день</span><b class="an-sum__v">' + h.num(top.pieces) + ' шт</b><span class="an-sum__p">' + esc(A.dshort(top.day)) + '</span></div>' +
         '<div class="an-sum__i"><span class="an-sum__l">За період і попередній</span><b class="an-sum__v">' + h.num(r.pieces) + ' шт</b><span class="an-sum__p">попередні ' + X.dn(N) + ' (' + esc(A.span(r.prev.from, r.prev.to)) + ') — <b>' + h.num(r.prev.pieces) + ' шт</b></span></div></div>';
       var dmax = r.depts.length ? r.depts[0].pieces : 1, wmax = r.workers.length ? r.workers[0].pieces : 1, wTop = r.workers.slice(0, 8), rest = r.workers.slice(8);
       var cols = 'minmax(0, 1fr) minmax(0, 0.7fr) 44px';
       var side = '<div class="col" style="display:flex;flex-direction:column;gap:12px">' +
-        '<div class="facts"><p class="group-label" style="padding:0">Рівень</p><div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">' +
+        '<div class="facts"><p class="group-label" style="padding:0">Рівень браку' + A.q('term.levels') + '</p><div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">' +
         '<span class="lvl lvl--' + esc(t.level) + '" style="font-size:16px">' + esc(P.sr.LEVELS[t.level]) + '</span><span class="hint">' + LEVEL_MEANS[t.level] + '</span></div></div>' +
         '<div class="facts"><p class="group-label" style="padding:0">У яких відділах, шт</p>' + r.depts.map(function (d) {
           return '<div class="lvl-row an-lvl" style="grid-template-columns:110px minmax(0,1fr) 64px"><span>' + esc(d.name) + '</span><div class="hbar__track"><i style="width:' + Math.round(d.pieces / dmax * 100) + '%"></i></div><span class="lvl-row__n"><b style="color:var(--text)">' + h.num(d.pieces) + ' шт</b></span></div>';
         }).join('') + '</div>' +
-        '<div class="facts"><p class="group-label" style="padding:0">У кого цей брак, шт · клік — картка працівника</p><div>' + wTop.map(function (w) {
+        '<div class="facts"><p class="group-label" style="padding:0">У кого цей брак, шт · клік — картка працівника' + A.q('sr.an.defWorkers') + '</p><div>' + wTop.map(function (w) {
           var sub = w.helperPieces ? '<span class="badge an-help">допомога</span> ' + (w.helperPieces === w.pieces ? 'усі штуки' : h.num(w.helperPieces) + ' шт із ' + h.num(w.pieces)) + ' — в іншому відділі' : '';
           return A.hbar({ name: w.name, sub: sub, share: w.pieces / wmax, n: w.pieces, cols: cols, act: w.code ? 'an-worker' : '', attrs: ' data-code="' + esc(w.code) + '"' });
         }).join('') + '</div>' + (rest.length ? '<p class="hint">Ще ' + A.n(rest.length, 'людина', 'людини', 'людей') + ' — ' + h.num(rest.reduce(function (s, w) { return s + w.pieces; }, 0)) + ' шт.</p>' : '') + '</div></div>';
