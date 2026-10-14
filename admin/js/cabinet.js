@@ -41,8 +41,11 @@
       main.innerHTML = '<section style="display:flex;flex-direction:column;gap:12px"><div><h2 class="h2">Локації · ' + r.locations.length + '</h2>' +
         '<p class="h2-sub">' + (me.admin ? 'Відкрийте будь-яку так, як її бачить старший аудитор або працівник.' : 'Що перевірено сьогодні на кожній локації.') + '</p></div>' +
         '<div class="cab-locs">' + r.locations.map(tile).join('') + '</div></section>' +
+        (ROLE === 'admin' && P.mailPanel ? '<section id="cab-mail" aria-label="Розсилка в Slack"></section>' : '') +
         '<section class="card">' + P.state.empty('info', 'Решта кабінету — ще в роботі', TXT.soon +
           (me.admin ? ' Перемикач профілів — кружечок з ініціалами справа вгорі.' : '')) + '</section>';
+      var mail = main.querySelector('#cab-mail');
+      if (mail) P.mailPanel.mount(mail);
     });
   }
 

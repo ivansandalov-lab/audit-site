@@ -2,3 +2,32 @@
 .cab-locs { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
 .cab-loc__btns { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
 .cab-loc__btns .btn { flex: 1 1 auto; justify-content: center; white-space: nowrap; }
+
+
+#cab-mail { display: flex; flex-direction: column; gap: 12px; }
+.cab-mail { display: flex; flex-direction: column; gap: 12px; }
+.cab-mail__row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.cab-mail__row .input { flex: 1 1 220px; max-width: 360px; height: 44px; }
+.cab-mail__kv { align-items: center; }
+.cab-mail__kv dd { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; min-width: 0; }
+.cab-mail__col { display: flex; flex-direction: column; align-items: stretch; gap: 6px; width: 100%; }
+.cab-mail__chan { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.cab-mail__inl { display: inline; }
+.cab-mail__btns { display: flex; gap: 8px; flex-wrap: wrap; }
+.cab-mail .btn[disabled] { opacity: .5; cursor: not-allowed; }
+.cab-mail__tpl { white-space: pre-wrap; overflow-wrap: anywhere; }
+.cab-mail__form { gap: 14px; }
+.cab-mail__grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
+.cab-mail__grid[hidden] { display: none; }
+.cab-mail__ta { color: var(--text); min-height: 110px; resize: vertical; }
+.cab-mail__log { display: flex; flex-direction: column; }
+.cab-mail__item { display: flex; flex-direction: column; gap: 4px; padding: 10px 0; border-top: 1px solid var(--line); }
+.cab-mail__item:first-child { border-top: 0; padding-top: 0; }
+.cab-mail__top { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: var(--fs-sm); }
+.cab-mail__src { color: var(--text-2); }
+.cab-mail__prev { margin: 0; color: var(--text-2); font-size: var(--fs-sm); overflow-wrap: anywhere; }
+@media (max-width: 560px) {
+  .cab-mail__kv { grid-template-columns: 1fr; gap: 4px 0; }
+  .cab-mail__kv dt { margin-top: 8px; }
+  .cab-mail__row .input { max-width: none; }
+}

@@ -26,8 +26,19 @@
           '<span class="hint">Востаннє — ' + esc(M.ago(data.lastSent)) + '</span></div>' : '') + '</div>';
     }
     function draw() {
-      v.col.innerHTML = M.head('Розсилки', 'Повідомлення в Slack · ' + data.location.name + ' · у тестовій версії нікуди не надсилаються') +
+      v.col.innerHTML = M.head('Розсилки', 'Повідомлення в Slack · ' + data.location.name + ' · ' + (real()
+        ? 'денний звіт («Надіслати зараз», «Надіслати пробне») справді йде в тестовий канал Slack'
+        : 'у тестовій версії нікуди не надсилаються (у Slack — після коду розсилки в кабінеті адміна)')) +
         '<section class="card">' + data.items.map(entry).join('') + '</section>';
+    }
+    function real() { return !!(P.mailProbe && P.mailProbe.has()); }
+    function sendReal(d, test) {
+      return P.mailProbe.call('sendDaily', { test: !!test, report: { location: data.location.name, day: data.preview.day, include: d.include, preview: data.preview, to: d.to } });
+    }
+    function realToast(r, what) {
+      if (r.ok && r.sent) P.toast('ok', what + ' — у Slack' + (r.channelName ? ' · #' + r.channelName : ''), 'Тестовий канал. У справжній роботі — ' + data.daily.to.join(', ') + '.');
+      else if (r.ok) P.toast('warn', what + ' — у черзі', (r.warning ? r.warning + ' ' : '') + 'Надішлеться автоматично — натискати ще раз не треба.');
+      else P.toast('danger', what + ' не надіслано', r.error);
     }
     function previewHtml(d) {
       var p = data.preview, inc = d.include, lines = [];
@@ -93,6 +104,7 @@
           'mg-d-inc': function (t) { var k = t.getAttribute('data-k'); d.include[k] = !d.include[k]; redraw(); },
           'mg-d-test': function (t) {
             t.disabled = true;
+            if (real()) { sendReal(d, true).then(function (r) { t.disabled = false; realToast(r, 'Пробний звіт'); }); return; }
             v.call('srMgMailingSend', { id: 'daily', test: true }).then(function (r) {
               t.disabled = false;
               if (!r.ok) { M.failToast(r); return; }
@@ -132,6 +144,14 @@
     });
     v.ctx.on('mg-mail-send', function (t) {
       t.disabled = true;
+      if (real()) {
+        sendReal(data.daily, false).then(function (r) {
+          if (!v.ctx.alive()) return;
+          t.disabled = false; realToast(r, 'Денний звіт');
+          if (r.ok) v.call('srMgMailingSend', { id: 'daily' }).then(function () { if (v.ctx.alive()) load(); });
+        });
+        return;
+      }
       v.call('srMgMailingSend', { id: 'daily' }).then(function (r) {
         if (!v.ctx.alive()) return;
         t.disabled = false;
