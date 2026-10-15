@@ -414,14 +414,6 @@
     el.addEventListener('input', onInput);
     el.addEventListener('change', onPhotoFile);
     locHead();
-    if (F.pendingDraft) {
-      var form = F, d = F.pendingDraft;
-      P.confirm({ title: 'Є чернетка аудиту', text: d.summary + ' · збережено о ' + P.fmt.time(new Date(d.savedAt)) + '. Продовжити його чи почати новий?',
-        okLabel: 'Продовжити', cancelLabel: 'Почати новий' }).then(function (ok) {
-        if (!active(form) || ok === null) return;          // закрили без вибору — лишається банер у формі
-        (ok ? ACT['draft-continue'] : ACT['draft-new'])();
-      });
-    }
   }
 
   P.screen('/audit/new', {
