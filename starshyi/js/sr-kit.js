@@ -50,6 +50,17 @@
       var k = S.KD_STATES[state] ? state : 'ok';
       return '<span class="kds kds--' + k + '">' + esc(text || S.KD_STATES[k].label) + '</span>';
     },
+    blurBar: function (b, limit, small) {
+      var max = Math.max(10, Math.ceil((b.hi + 1) / 5) * 5), x = function (v) { return Math.max(0, Math.min(100, v / max * 100)).toFixed(2) + '%'; };
+      return '<div class="blr blr--' + esc(b.verdict) + (small ? ' blr--sm' : '') + '" role="img" aria-label="Виміряно ' + esc(pct(b.rate)) + '; справжній брак найімовірніше від ' +
+        esc(pct(b.lo)) + ' до ' + esc(pct(b.hi)) + '; межа ' + esc(pct(limit)) + '">' +
+        '<div class="blr__track"><i class="blr__ok" style="width:' + x(limit) + '"></i>' +
+        '<span class="blr__zone" style="left:0;width:' + x(limit) + '">у нормі</span><span class="blr__zone blr__zone--bad" style="left:' + x(limit) + ';right:0">понад норму</span>' +
+        '<i class="blr__band" style="left:' + x(b.lo) + ';width:calc(' + x(b.hi) + ' - ' + x(b.lo) + ')"></i>' +
+        '<i class="blr__lim" style="left:' + x(limit) + '"><b>межа ' + esc(pct(limit)) + '</b></i>' +
+        '<i class="blr__dot" style="left:' + x(b.rate) + '"></i></div>' +
+        '<div class="blr__scale"><span>0%</span><span>' + max + '%</span></div></div>';
+    },
     kdMark: function (state, title) {
       var k = S.KD_STATES[state] ? state : 'ok';
       return '<i class="kdm kdm--' + k + '" title="' + esc(title || S.KD_STATES[k].label) + '" aria-label="' + esc(title || S.KD_STATES[k].label) + '"></i>';

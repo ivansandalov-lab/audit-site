@@ -23,6 +23,7 @@
     ctx.on('kd-period', function (t) { setPeriod(+t.value); });
     ctx.on('kd-show', function (t) { setPeriod(+t.getAttribute('data-n')); });
     ctx.on('kd-last', function () { setPeriod(null); });
+    ctx.on('kd-blur-how', function () { blurHow(data ? data.threshold : 5); });
     ctx.on('kd-unit', function (t) { st.unit = t.getAttribute('data-v') === 'pcs' ? 'pcs' : 'pct'; drawChart(); });
     ctx.on('kd-sort', function (t) { var v = t.getAttribute('data-v'); if (SORT_FN.hasOwnProperty(v)) { st.s = v; sync(); drawRows(); } });
     ctx.on('kd-find', function (t) { st.find = t.value; drawRows(); });
@@ -83,8 +84,36 @@
         K.big(K.num(p.rejected) + ' шт', 'брак, шт · з ' + K.num(p.checked) + ' перевірених', 'term.rejected') +
         K.big(K.pct(p.rate), 'брак, % · ' + per, 'term.rate') +
         K.big(p.low ? '—' : String(p.over), p.low ? 'видів браку понад норму — не рахується: перевірено менше ' + r.minSample + ' шт' : 'видів браку понад норму ' + T + '% · з ' + r.types.length, 'kd.threshold') + '</div>' +
+        blurHtml(r) +
         '<div class="kd-facts__row"><div class="kd-facts__col"><p class="kd-sec">Рівні браку відділу · ' + K.num(p.rejected) + ' шт' + help('term.levels') + '</p>' + levels + '</div>' +
         '<div class="kd-facts__col"><p class="kd-sec">Дії відділу за етапами · стан на сьогодні' + help('kd.stages') + '</p>' + K.stageTiles(r.stages, { note: { relapse: 'за весь час', closed: 'за весь час' } }) + '</div></div></section>';
+    }
+    function blurHtml(r) {
+      var b = r.blur, T = r.threshold;
+      if (!b || r.period.low) return '';
+      var V = { over: ['Точно понад норму', 'навіть з урахуванням випадковості брак, % вище ' + T + '%.'],
+        near: ['Близько до межі', 'справжній брак, % може бути і трохи нижче, і трохи вище ' + T + '% — дивимось наступний розбір.'],
+        ok: ['Точно в нормі', 'навіть з урахуванням випадковості брак, % нижче ' + T + '%.'] }[b.verdict];
+      return '<div class="kd-blur"><div class="kd-blur__head"><p class="kd-sec">Наскільки точне число' + help('kd.blur') + '</p>' +
+        '<button class="btn btn--quiet btn--sm" type="button" data-act="kd-blur-how">' + P.ic('info', 'ui-icon--sm') + 'Як це читати</button></div>' +
+        '<p class="kd-blur__verdict kd-blur__verdict--' + b.verdict + '"><b>' + V[0] + '</b> — ' + V[1] + '</p>' + H.blurBar(b, T) +
+        '<p class="hint">Перевірено ' + K.num(b.n) + ' шт → число може «гуляти» на ±' + K.pct(b.margin).replace('%', '') + ' в. п.: справжній брак найімовірніше від ' +
+        K.pct(b.lo) + ' до ' + K.pct(b.hi) + ' (сіра смуга). Щоб смуга була ±1 в. п., перевірте ≈ ' + K.num(b.need1) + ' шт за розбір.</p></div>';
+    }
+    function blurHow(T) {
+      var ex = function (rate, m, v, title, text) {
+        return '<div class="kd-blur__ex"><p class="kd-blur__verdict kd-blur__verdict--' + v + '"><b>' + title + '</b></p>' +
+          H.blurBar({ rate: rate, lo: Math.max(0, rate - m), hi: rate + m, verdict: v }, T, true) + '<p class="hint">' + text + '</p></div>';
+      };
+      P.sr.modal({ title: 'Наскільки точне число браку', size: 'sm', body:
+        '<p><b>Ми перевіряємо не всі вироби, а частину.</b> Як із супом: щоб дізнатися, чи пересолений казан, куштують ложку. ' +
+        'Ложка буває трохи солоніша чи прісніша за весь суп — так і брак, % у перевірених штуках трохи «гуляє» навколо справжнього.</p>' +
+        '<p><b>Сіра смуга</b> — де справжній брак усього, що зробив відділ, найімовірніше (9 разів з 10). <b>Крапка</b> — те, що намірили. ' +
+        '<b>Пунктир</b> — межа ' + T + '%. Що більше штук перевірили, то вужча смуга — як більше ложок.</p>' +
+        ex(8, 1.5, 'over', 'Точно понад норму', 'Уся смуга праворуч від межі — навіть «найкращий» варіант гірший за норму. Тут точно є що робити.') +
+        ex(5.4, 1.6, 'near', 'Близько до межі', 'Смуга перетинає межу — справжній брак може бути і 4%, і 7%. Один розбір не вирішує: дивимось наступний.') +
+        ex(2.5, 1.2, 'ok', 'Точно в нормі', 'Уся смуга ліворуч від межі — навіть «найгірший» варіант у нормі.'),
+        foot: '<span style="flex:1"></span><button class="btn btn--primary" type="button" data-ov-close>Зрозуміло</button>' });
     }
     function chartHtml(r) {
       return '<section class="card col--wide"><div class="card-head kd-chart-head"><h3 class="card-title">Брак відділу по розборах' + help('kd.dept.chart') + '</h3>' +

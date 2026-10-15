@@ -289,3 +289,19 @@ mark.hl { padding: 0; border-radius: 2px; background: var(--brand-soft); color: 
 .kdm--done { background: var(--kd-done); } .kdm--skip { background: none; border: 2px dashed var(--kd-skip); }
 .kdm--relapse { background: none; position: relative; }
 .kdm--relapse::before { content: '✕'; position: absolute; inset: 0; display: grid; place-items: center; color: var(--kd-relapse); font: 800 13px/1 var(--font, system-ui); }
+
+
+.blr { display: flex; flex-direction: column; gap: 4px; padding-top: 22px; }
+.blr__track { position: relative; height: 22px; border-radius: 11px; background: color-mix(in srgb, var(--danger) 18%, var(--surface)); }
+.blr__zone { position: absolute; top: 0; bottom: 0; display: flex; align-items: center; justify-content: center; font: 600 11px/1 var(--font); color: var(--ok); pointer-events: none; overflow: hidden; white-space: nowrap; }
+.blr__zone--bad { color: var(--danger); }
+.blr--sm .blr__zone { display: none; }
+.blr__ok { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 11px 0 0 11px; background: color-mix(in srgb, var(--ok) 20%, var(--surface)); }
+.blr__band { position: absolute; top: -5px; bottom: -5px; z-index: 1; border-radius: 9px; background: color-mix(in srgb, var(--text-2) 30%, transparent); border: 2px solid var(--text-2); }
+.blr__lim { position: absolute; z-index: 1; top: -8px; bottom: -8px; width: 0; border-left: 2px dashed var(--text); }
+.blr__lim b { position: absolute; bottom: 100%; left: 0; transform: translateX(-50%); margin-bottom: 2px; font: 600 var(--fs-xs)/1.2 var(--font); color: var(--text-2); white-space: nowrap; }
+.blr__dot { position: absolute; z-index: 2; top: 50%; width: 14px; height: 14px; margin: -7px 0 0 -7px; border-radius: 50%; background: var(--text); border: 2px solid var(--surface); box-shadow: 0 0 0 1px var(--text); }
+.blr--over .blr__dot { background: var(--danger); box-shadow: 0 0 0 1px var(--danger); }
+.blr--ok .blr__dot { background: var(--ok); box-shadow: 0 0 0 1px var(--ok); }
+.blr__scale { display: flex; justify-content: space-between; font-size: var(--fs-xs); color: var(--text-3); }
+.blr--sm { padding-top: 18px; } .blr--sm .blr__track { height: 12px; }

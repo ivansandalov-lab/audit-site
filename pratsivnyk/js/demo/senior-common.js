@@ -19,6 +19,16 @@
     periodStart: function (n) { return addDays(S.KD.EPOCH, n * S.KD.PERIOD_DAYS); },
     periodEnd: function (n) { return addDays(S.KD.EPOCH, n * S.KD.PERIOD_DAYS + S.KD.PERIOD_DAYS - 1); },
     lastFullPeriod: function (today) { return S.periodOf(today) - 1; },
+    blur: function (rate, usual, n, made, limit) {
+      if (!(n > 0) || rate == null) return null;
+      var p = Math.min(Math.max((usual != null ? usual : rate) / 100, 0.005), 0.5), z = 1.645;
+      var fpc = made > n ? Math.sqrt((made - n) / (made - 1)) : made > 0 ? 0 : 1;
+      var m = z * Math.sqrt(p * (1 - p) / n) * fpc * 100;
+      var lo = Math.max(0, rate - m), hi = rate + m;
+      var n0 = z * z * p * (1 - p) / 0.0001, need1 = Math.ceil(made > 0 ? n0 / (1 + (n0 - 1) / made) : n0);
+      var r1 = function (x) { return Math.round(x * 10) / 10; };
+      return { margin: r1(m), lo: r1(lo), hi: r1(hi), rate: rate, verdict: lo > limit ? 'over' : hi <= limit ? 'ok' : 'near', need1: need1, n: n, made: made || null };
+    },
     pieces: function (d) { return d.guilty.reduce(function (s, g) { return s + (g.qty || 0); }, 0); },
     sourceDept: function (a, d) { return d.departmentId || a.departmentId; },
     audits: function (env, locId, from, to) {

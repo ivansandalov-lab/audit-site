@@ -322,3 +322,10 @@
   .kd-tape__i { grid-template-columns: 92px minmax(0, 1fr) auto; }
   .kd-tape__p { grid-column: 1 / -1; }
 }
+
+
+.kd-blur { display: flex; flex-direction: column; gap: 8px; padding: 14px; border: 1px solid var(--line); border-radius: var(--r-md); background: var(--surface-2); }
+.kd-blur__head { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.kd-blur__verdict { margin: 0; font-size: var(--fs-sm); line-height: 1.4; }
+.kd-blur__verdict--over b { color: var(--danger); } .kd-blur__verdict--ok b { color: var(--ok); } .kd-blur__verdict--near b { color: var(--warn); }
+.kd-blur__ex { display: flex; flex-direction: column; gap: 6px; padding: 10px 0; border-top: 1px solid var(--line); }

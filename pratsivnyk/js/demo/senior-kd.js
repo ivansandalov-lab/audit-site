@@ -621,8 +621,11 @@
       var periods = [];
       for (var k = cx.L + 1; k > cx.L + 1 - PERIOD_LIST && k >= 0; k--) periods.push(cx.dates(k));
       if (n < periods[periods.length - 1].n) periods.push(cx.dates(n));
+      var uc = 0, ur = 0;
+      for (var q = Math.max(0, n - 7); q <= n; q++) { var su = cx.stats(dep.id, q); uc += su.checked; ur += su.rejected; }
+      var blur = S.blur(per.rate, C.pct(ur, uc), per.checked, null, KD.THRESHOLD);
       return { ok: true, review: reviewOf(cx), dept: { id: dep.id, name: dep.name }, threshold: KD.THRESHOLD, minSample: KD.MIN_SAMPLE,
-        canWrite: S.canManage(me), today: cx.today, period: per, decide: n >= cx.L, minPeriod: Math.max(0, cx.L - MAX_BACK), maxPeriod: cx.L + 1,
+        canWrite: S.canManage(me), today: cx.today, period: per, blur: blur, decide: n >= cx.L, minPeriod: Math.max(0, cx.L - MAX_BACK), maxPeriod: cx.L + 1,
         periods: periods, series: series(cx, dep.id, null, win.from, win.to), types: types, actions: actions, counts: counts, stages: stages };
     },
 
