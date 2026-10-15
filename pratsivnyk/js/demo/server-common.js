@@ -72,6 +72,10 @@
     hasLoc: function (me, locationId) {
       return me.locations.some(function (l) { return l.id === locationId; });
     },
+    canRecordAt: function (me, locationId, ix) {
+      return !!(me.can && me.can.recordAudit) && !!ix && Object.prototype.hasOwnProperty.call(ix.loc, locationId) &&
+        (ix.loc[locationId].active !== false || C.hasLoc(me, locationId));
+    },
 
     periodFrom: function (day, period) {
       var n = { today: 1, '7d': 7, '30d': 30, '90d': 90 }[period] || 7;

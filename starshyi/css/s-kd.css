@@ -215,7 +215,8 @@
 .kd-key--mk > b { margin-right: 6px; color: var(--kd-over); }
 .kd-key--in::before { background: var(--kd-watch); }
 .cbar__mark.kd-relmark { color: var(--kd-relapse); }
-.kd-keyw { display: inline-flex; align-items: center; white-space: nowrap; }
+
+.kd-keyw { display: inline-flex; align-items: center; max-width: 100%; white-space: normal; }
 .kd-keyw .hq { margin-left: 4px; }
 .kd-key--rel::before { display: none; }
 .kd-key--rel > b { margin-right: 6px; color: var(--kd-relapse); font-weight: 800; }

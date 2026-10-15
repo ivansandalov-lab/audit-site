@@ -14,12 +14,13 @@
     if (d) P.store.del(key(uid, loc));
     return null;
   }
+  function productsText(n) { return n + ' ' + P.plural(n, 'виріб', 'вироби', 'виробів'); }
   function write(form) {
     if (!form || form.done || form.lockDraft || form.editId) return;
     var d = AF.dept(form, form.departmentId);
-    P.store.set(key(form.uid, form.loc), {
-      savedAt: Date.now(), summary: (d ? d.name : 'Відділ не обрано') + ' · ' + form.items.filter(function (i) { return i.productId; }).length + ' вир.',
-      state: { clientId: form.clientId, departmentId: form.departmentId, orders: form.orders, items: form.items,
+    P.store.set(key(form.uid, form.home), {
+      savedAt: Date.now(), summary: (form.loc !== form.home ? form.ctx.location.name + ' · ' : '') + (d ? d.name : 'Відділ не обрано') + ' · ' + productsText(form.items.filter(function (i) { return i.productId; }).length),
+      state: { loc: form.loc, clientId: form.clientId, departmentId: form.departmentId, orders: form.orders, items: form.items,
         workers: form.workers, helpers: form.helpers, comment: form.comment, mode: form.mode,
         defects: form.defects.map(function (x) { return { key: x.key, itemKey: x.itemKey, defectTypeId: x.defectTypeId, other: x.other, departmentId: x.departmentId, guilty: x.guilty, photos: x.photos || [] }; }) }
     });
@@ -30,6 +31,7 @@
 
   AF.draft = {
     key: key, fresh: fresh, flush: flush,
+    locOf: function (d, home) { var l = d && d.state && d.state.loc; return typeof l === 'string' && l ? l : home; },
     save: function (form) { clearTimeout(timer); pending = function () { write(form); }; timer = setTimeout(flush, 300); },
     del: function (uid, loc) { P.store.del(key(uid, loc)); }
   };
@@ -50,7 +52,12 @@
       var other = x.other === true, dep = other && AF.dept(F, str(x.departmentId)) ? x.departmentId : null;
       return { key: x.key, itemKey: str(x.itemKey) || null, defectTypeId: str(x.defectTypeId) || null, other: other, departmentId: dep,
         photos: (Array.isArray(x.photos) ? x.photos : []).filter(AF.isPhoto).slice(0, AF.PHOTO_MAX),
-        guilty: x.guilty.slice(0, L.maxGuiltyPerDefect).map(function (g) { return { workerCode: g && g.workerCode == null ? null : str(g && g.workerCode), qty: num(g && g.qty) }; }) };
+        guilty: x.guilty.slice(0, L.maxGuiltyPerDefect).map(function (g) { return { workerCode: g && g.workerCode == null ? null : str(g && g.workerCode), qty: num(g && g.qty) }; })
+          .filter(function (g, j, all) {
+            if (other) return true;
+            return g.workerCode !== null && (g.workerCode === '' || F.workers.indexOf(g.workerCode) >= 0) &&
+              all.findIndex(function (x) { return x && x.workerCode === g.workerCode; }) === j;
+          }) };
     });
     if (!F.items.length) F.items = [newItem()];
   };

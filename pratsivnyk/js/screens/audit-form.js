@@ -5,7 +5,7 @@
   var MSG_QTY = 'Кількість — ціле число від 1 до 100 000.';
   var NONE = '__none';   // пункт «Невідомий працівник» у списках (у даних — порожній код '')
   var UNKNOWN_OPT = { value: NONE, title: 'Невідомий працівник', meta: 'коли не знаєте, хто саме' };
-  var WORKER_PH = 'Працівник, напр. q5';   // підказка пошуку: у цеху людей знають за підписом, не за службовим кодом
+  var WORKER_PH = 'Працівник, наприклад q5';   // підказка пошуку: у цеху людей знають за підписом, не за службовим кодом
 
   function itemByKey(k) { return F.items.filter(function (x) { return x.key === k; })[0]; }
   function defByKey(k) { return F.defects.filter(function (x) { return x.key === k; })[0]; }
@@ -13,17 +13,18 @@
   function newDefect() {
     var ready = F.items.filter(function (i) { return i.productId; });
     return { key: P.uid('df'), itemKey: ready.length === 1 ? ready[0].key : null, defectTypeId: null, other: false, departmentId: null,
-      guilty: [{ workerCode: F.workers.length === 1 ? F.workers[0] : null, qty: '' }], photos: [] };
+      guilty: ownGuilty(), photos: [] };
   }
+  function ownGuilty() { return F.workers.length === 1 ? [{ workerCode: F.workers[0], qty: '' }] : []; }
   function typeFor(d) { var dep = AF.dept(F, d && d.other ? d.departmentId : F.departmentId); return dep && dep.deptTypeId; }
   function active(form) { return F && F === form && F.alive && F.alive() && el && el.isConnected; }
-  function draw() { el.innerHTML = F.done ? AF.doneView(F, F.done) : AF.view(F); }
+  function draw() { el.innerHTML = F.done ? AF.doneView(F, F.done) : AF.view(F); locHead(); }
   function drawSummary() { var bar = el.querySelector('.action-bar'); if (bar) bar.outerHTML = AF.summaryHtml(F); }
   function changed(redraw) { F.errors = {}; if (redraw) draw(); else drawSummary(); AF.draft.save(F); }
 
   function clientCheck() {
     var e = {}, lim = F.ctx.limits;
-    if (!F.departmentId) e.departmentId = 'Оберіть локацію і відділ.';
+    if (!F.departmentId) e.departmentId = 'Оберіть відділ.';
     F.items.forEach(function (it, i) {
       if (!it.productId) e['items[' + i + '].productId'] = 'Оберіть виріб.';
       var q = Number(it.qty);
@@ -37,7 +38,8 @@
         var pre = 'defects[' + i + ']';
         if (!d.itemKey || !itemByKey(d.itemKey)) e[pre + '.productId'] = 'Оберіть виріб.';
         if (d.other && !d.departmentId) e[pre + '.departmentId'] = 'Оберіть відділ, звідки брак.';
-        if (!d.defectTypeId) e[pre + '.defectTypeId'] = 'Оберіть тип браку зі списку. Немає потрібного — попросіть старшого аудитора додати його на сайті.';
+        if (!d.defectTypeId) e[pre + '.defectTypeId'] = 'Оберіть вид браку зі списку. Немає потрібного — попросіть старшого аудитора додати його на сайті.';
+        if (!d.guilty.length) e[pre + '.guilty'] = 'Позначте, хто винний, або «Невідомий працівник».';
         d.guilty.forEach(function (g, j) {
           if (g.workerCode == null) e[pre + '.guilty[' + j + ']'] = 'Оберіть винного або «Невідомий працівник».';
           if (!/^\d+$/.test(String(g.qty)) || Number(g.qty) < 1) e[pre + '.guilty[' + j + '].qty'] = MSG_QTY;
@@ -76,7 +78,7 @@
     form.saving = false;
     if (!q.ok) {
       if (active(form)) drawSummary();
-      return P.toast('danger', 'Не вдалося зберегти на телефоні', 'Памʼять браузера заповнена. Чернетку збережено — запишіть аудит, коли зʼявиться звʼязок.');
+      return P.toast('danger', 'Не вдалося зберегти на телефоні', 'Памʼять телефона заповнена. Чернетку збережено — запишіть аудит, коли зʼявиться звʼязок.');
     }
     form.done = { queued: true, photosDropped: q.photosDropped };
     if (!form.lockDraft) P.store.del(key);
@@ -86,7 +88,7 @@
   function submit() {
     var e = clientCheck();
     if (Object.keys(e).length) return showErrors(e);
-    var form = F, key = AF.draft.key(F.uid, F.loc), editing = !!F.editId, off = !!(P.offline && P.offline.isOff());
+    var form = F, key = AF.draft.key(F.uid, F.home), editing = !!F.editId, off = !!(P.offline && P.offline.isOff());
     if (off && editing) return P.toast('warn', 'Немає звʼязку', 'Зміни ще не збережено. Натисніть «Зберегти зміни», щойно звʼязок повернеться.');
     F.saving = true; drawSummary();
     var sent = payload();
@@ -98,7 +100,7 @@
         form.done = r;   // відкладений запис чернетки цієї форми тепер нічого не запише
         if (!form.lockDraft && !editing) P.store.del(key);
         P.toast('ok', editing ? 'Аудит виправлено' : 'Аудит записано', r.auditId);
-        if (r.photosDropped) P.toast('warn', 'Фото не збережено', 'Памʼять браузера заповнена — аудит записано без фото.');
+        if (r.photosDropped) P.toast('warn', 'Фото не збережено', 'Памʼять телефона заповнена — аудит записано без фото.');
         if (P.embed && root.parent && root.parent !== root) {
           var chk = sent.items.reduce(function (s, i) { return s + (Number(i.qty) || 0); }, 0);
           var bad = sent.defects.reduce(function (s, d) { return s + d.guilty.reduce(function (a, g) { return a + (Number(g.qty) || 0); }, 0); }, 0);
@@ -141,7 +143,7 @@
   function setWorkers(v) {
     F.workers = v;
     F.helpers = F.helpers.filter(function (c) { return v.indexOf(c) >= 0; });
-    F.defects.forEach(function (d) { if (!d.other) d.guilty.forEach(function (g) { if (g.workerCode && v.indexOf(g.workerCode) < 0) g.workerCode = null; }); });
+    F.defects.forEach(function (d) { if (!d.other) d.guilty = d.guilty.filter(function (g) { return g.workerCode === '' || v.indexOf(g.workerCode) >= 0; }); });
   }
   function quickAdd(name, departmentId) {
     var form = F;
@@ -170,11 +172,56 @@
       emptyText: 'У локації немає інших відділів' }, add);
   }
 
+  function dirty() {
+    return !!(F.departmentId || F.orders.length || F.workers.length || F.defects.length || F.comment.trim() ||
+      F.items.some(function (i) { return i.productId || i.qty || i.rejected; }));
+  }
+  function locHead() {
+    var sub = root.document.getElementById('top-sub');
+    if (!sub || !F) return;
+    sub.hidden = false;
+    if (F.done) { sub.textContent = F.ctx.location.name; return; }   // аудит записано — локація вже лише підпис
+    sub.innerHTML = '<button type="button" class="top-loc" aria-haspopup="dialog" aria-label="Локація: ' + P.esc(F.ctx.location.name) + '. Змінити">' +
+      '<span class="top-loc__name">' + P.esc(F.ctx.location.name) + '</span>' + P.ic('chevron-down', 'ui-icon--sm') + '</button>' +
+      (F.editId ? '<span class="top-loc__id">' + P.esc(F.editId) + '</span>' : '');   // у «Виправити» — і номер аудиту, як було
+    sub.firstChild.onclick = function () { if (F && !F.done && !F.saving) pickLoc(); };
+  }
+  function pickLoc() {
+    var list = F.ctx.locations || [F.ctx.location];
+    pick({ title: 'Локація аудиту', value: F.loc, options: list.map(function (l) { return { value: l.id, title: l.name, meta: l.id === F.home ? 'ваша локація' : '' }; }) },
+      function (v) {
+        if (v === F.loc) return;
+        var name = (list.filter(function (l) { return l.id === v; })[0] || {}).name || '';
+        if (!dirty()) return switchLoc(v);
+        ask({ title: 'Змінити локацію на «' + name + '»?', danger: true, okLabel: 'Змінити й очистити',
+          text: 'Усе, що ви вже записали в цьому аудиті, зникне: відділ, замовлення, вироби, працівники, брак і коментар. У кожної локації свої відділи й люди.' },
+          function () { switchLoc(v); });
+      });
+  }
+  var locSeq = 0;   // номер останнього вибору локації: відповідь на старіший вибір не застосовуємо
+  function switchLoc(v) {
+    var old = F, my = ++locSeq;
+    if (old.editId && v === old.editLoc) return P.shell.rerender();
+    P.srv('auditFormContext', { locationId: v }).then(function (fc) {
+      if (my !== locSeq || !active(old)) return;
+      if (!fc.ok) { if (fc.code !== 'forbidden') P.toast('danger', 'Не вдалося відкрити локацію', fc.error || ''); return; }
+      var n = blank(old.shell, fc);
+      n.editId = old.editId; n.editLoc = old.editLoc; n.lockDraft = old.lockDraft; n.pendingDraft = old.pendingDraft;
+      if (old.editId) n.clientId = old.clientId;
+      n.items = [{ key: P.uid('it'), productId: null, orderNo: null, qty: '', rejected: '' }];
+      F = n;
+      if (!n.editId && !n.lockDraft) { AF.draft.flush(); AF.draft.del(n.uid, n.home); }   // спершу дописати відкладене, інакше воно поверне стару
+      F.errors = {}; draw();
+      root.scrollTo(0, 0);
+      P.toast('ok', 'Локація: ' + fc.location.name, old.editId ? 'Оберіть відділ — аудит переїде сюди, коли збережете зміни.' : 'Оберіть відділ.');
+    });
+  }
+
   var ACT = {
     dept: function (t) {
       var v = t.getAttribute('data-v');
       if (v === F.departmentId) return;
-      if (F.editId) return P.toast('warn', 'Відділ змінити не можна', 'Запишіть новий аудит в іншому відділі.');
+      if (F.editId && !AF.moved(F)) return P.toast('warn', 'Відділ змінити не можна', 'Запишіть новий аудит в іншому відділі.');
       var dirty = F.items.some(function (i) { return i.productId; }) || F.workers.length || F.defects.length;
       var go = function () { F.departmentId = v; F.items = [newItem()]; F.workers = []; F.helpers = []; F.defects = []; F.mode = null; changed(true); };
       if (!dirty || !F.departmentId) return go();
@@ -182,14 +229,9 @@
     },
     'order-add': function () {
       var used = F.orders, opts = [];
-      F.ctx.orderBlocks.forEach(function (b) { if (used.indexOf(b.name) < 0) opts.push({ value: b.name, title: b.name, meta: b.orders.join(', '), group: 'Блоки замовлень' }); });
-      F.ctx.orders.forEach(function (o) {
-        if (used.indexOf(o.no) >= 0) return;
-        var b = AF.blockOf(F, o.no);   // замовлення з блоку — підказуємо, що є цілий блок
-        opts.push({ value: o.no, title: o.no, group: 'Замовлення',
-          meta: [b ? 'входить у ' + b.name : '', o.customer, o.lastDay ? 'останнє ' + P.fmt.date(o.lastDay + 'T12:00:00Z') : ''].filter(Boolean).join(' · ') });
-      });
-      pick({ title: 'Замовлення', options: opts, placeholder: 'Номер замовлення, блоку чи замовник', emptyText: 'Замовлень поки немає' }, function (v) {
+      F.ctx.orderBlocks.forEach(function (b) { if (used.indexOf(b.name) < 0) opts.push({ value: b.name, title: b.name, list: b.orders, group: 'Блоки замовлень' }); });
+      F.ctx.orders.forEach(function (o) { if (used.indexOf(o.no) < 0) opts.push({ value: o.no, title: o.no, group: 'Замовлення' }); });
+      pick({ title: 'Замовлення', cols: 2, options: opts, placeholder: 'Номер замовлення або блоку', emptyText: 'Замовлень поки немає' }, function (v) {
         if (F.orders.length >= F.ctx.limits.maxOrders || F.orders.indexOf(v) >= 0) return;
         F.orders.push(v);
         if (F.orders.length === 1) F.items.forEach(function (i) { if (!i.orderNo) i.orderNo = v; });
@@ -217,7 +259,7 @@
     },
     'worker-add': function () {
       var dn = depName(F.departmentId);
-      pick({ title: 'Перевірені працівники', multi: true, search: true, values: F.workers.map(function (c) { return c === '' ? NONE : c; }), placeholder: WORKER_PH,
+      pick({ title: 'Перевірені працівники', multi: true, search: true, cols: 2, values: F.workers.map(function (c) { return c === '' ? NONE : c; }), placeholder: WORKER_PH,
         emptyText: 'У відділі ще немає працівників', hint: F.ctx.canAddWorker ? 'Немає в списку — впишіть у пошук і додайте.' : '',
         create: !F.ctx.canAddWorker ? null : [{ id: 'own', label: function (q) { return 'Додати «' + q + '» у відділ «' + dn + '»'; } },
           { id: 'help', label: function (q) { return 'Додати «' + q + '» — допомога з іншого відділу'; } }],
@@ -239,7 +281,7 @@
       var c = t.getAttribute('data-v');
       F.workers = F.workers.filter(function (x) { return x !== c; });
       F.helpers = F.helpers.filter(function (x) { return x !== c; });
-      F.defects.forEach(function (d) { if (!d.other) d.guilty.forEach(function (g) { if (c && g.workerCode === c) g.workerCode = null; }); });
+      F.defects.forEach(function (d) { if (!d.other && c) d.guilty = d.guilty.filter(function (g) { return g.workerCode !== c; }); });
       changed(true);
     },
     mode: function (t) {
@@ -253,7 +295,7 @@
       var d = defByKey(t.getAttribute('data-k')), other = t.getAttribute('data-v') === 'other';
       if (!d || d.other === other) return;
       d.other = other; d.departmentId = null; d.defectTypeId = null;
-      d.guilty = [{ workerCode: other ? '' : (F.workers.length === 1 ? F.workers[0] : null), qty: d.guilty[0] ? d.guilty[0].qty : '' }];
+      d.guilty = other ? [{ workerCode: '', qty: d.guilty[0] ? d.guilty[0].qty : '' }] : ownGuilty();
       changed(true);
       if (other) ACT['def-dept'](t);
     },
@@ -283,38 +325,48 @@
       var dt = typeFor(d);
       pick({ title: 'Вид браку', value: d.defectTypeId, placeholder: 'Пошук виду браку',
         emptyText: 'Немає видів браку для цього відділу. Попросіть старшого аудитора додати.',
-        options: F.ctx.defectTypes.filter(function (x) { return x.deptTypeId === dt; }).map(function (x) { return { value: x.id, title: x.name, meta: AF.lvlLabel(x.level) }; }) },
+        options: F.ctx.defectTypes.filter(function (x) { return x.deptTypeId === dt; }).map(function (x) { return { value: x.id, title: x.name, meta: AF.lvlLabel(x.level), tone: x.level || 'fix' }; }) },
         function (v) { d.defectTypeId = v; changed(true); });
     },
     'def-worker': function (t) {
       var d = defByKey(t.getAttribute('data-k')), g = d && d.guilty[Number(t.getAttribute('data-j'))];
-      if (!g) return;
-      if (d.other) {
-        if (!d.departmentId) return P.toast('warn', 'Спершу оберіть, звідки брак');
-        var src = d.departmentId, sn = depName(src);
-        return pick({ title: 'Винний', search: true, value: g.workerCode || NONE, placeholder: WORKER_PH, hint: F.ctx.canAddWorker ? 'Немає в списку — впишіть у пошук і додайте.' : '',
-          create: !F.ctx.canAddWorker ? null : [{ id: 'own', label: function (q) { return 'Додати «' + q + '» у відділ «' + sn + '»'; } }],
-          options: [UNKNOWN_OPT].concat(F.ctx.workers.filter(function (w) { return w.departmentId === src; })
-            .map(function (w) { return { value: w.code, title: w.name }; })) },
-          function (v) {
-            if (v && v.create) return quickAdd(v.q, src).then(function (w) {
-              if (!w) return;
-              if (w.departmentId !== src) return P.toast('warn', 'Працівник «' + w.name + '» — з відділу «' + depName(w.departmentId) + '»', 'Брак записано на відділ «' + sn + '».');
-              g.workerCode = w.code; changed(true);
-            });
-            g.workerCode = v === NONE ? '' : v; changed(true);
+      if (!g || !d.other) return;
+      if (!d.departmentId) return P.toast('warn', 'Спершу оберіть, звідки брак');
+      var src = d.departmentId, sn = depName(src);
+      pick({ title: 'Винний', search: true, cols: 2, value: g.workerCode || NONE, placeholder: WORKER_PH, hint: F.ctx.canAddWorker ? 'Немає в списку — впишіть у пошук і додайте.' : '',
+        create: !F.ctx.canAddWorker ? null : [{ id: 'own', label: function (q) { return 'Додати «' + q + '» у відділ «' + sn + '»'; } }],
+        options: [UNKNOWN_OPT].concat(F.ctx.workers.filter(function (w) { return w.departmentId === src; })
+          .map(function (w) { return { value: w.code, title: w.name }; })) },
+        function (v) {
+          if (v && v.create) return quickAdd(v.q, src).then(function (w) {
+            if (!w) return;
+            if (w.departmentId !== src) return P.toast('warn', 'Працівник «' + w.name + '» — з відділу «' + depName(w.departmentId) + '»', 'Брак записано на відділ «' + sn + '».');
+            g.workerCode = w.code; changed(true);
           });
-      }
-      var known = F.workers.filter(function (c) { return c; });
-      pick({ title: 'Винний', search: true, value: g.workerCode === '' ? NONE : g.workerCode, placeholder: WORKER_PH,
-        hint: 'Тут лише перевірені працівники з кроку 4.',
-        options: [UNKNOWN_OPT].concat(known.map(function (c) { return { value: c, title: AF.workerName(F, c), meta: AF.isHelper(F, c) ? 'допомога' : '' }; })) },
-        function (v) { g.workerCode = v === NONE ? '' : v; changed(true); });
+          g.workerCode = v === NONE ? '' : v; changed(true);
+        });
     },
-    'g-add': function (t) { var d = defByKey(t.getAttribute('data-k')); if (d) { d.guilty.push({ workerCode: d.other ? '' : null, qty: '' }); changed(true); } },
+    'g-pick': function (t) {
+      var d = defByKey(t.getAttribute('data-k')), c = t.getAttribute('data-v');
+      if (!d || d.other) return;
+      if (c === NONE) c = '';
+      var at = -1;
+      d.guilty.forEach(function (g, j) { if (g.workerCode === c) at = j; });
+      if (at >= 0) { d.guilty.splice(at, 1); return changed(true); }
+      if (d.guilty.length >= F.ctx.limits.maxGuiltyPerDefect) return P.toast('warn', 'Не більше ' + F.ctx.limits.maxGuiltyPerDefect + ' винних на один вид браку');
+      d.guilty.push({ workerCode: c, qty: '' });
+      changed(true);
+      var inp = el.querySelector('[data-in="gqty"][data-k="' + d.key + '"][data-j="' + (d.guilty.length - 1) + '"]');
+      if (inp) inp.focus();
+    },
+    brief: function () { if (F.departmentId) AF.openBrief(F); },
+    'g-add': function (t) { var d = defByKey(t.getAttribute('data-k')); if (d && d.other) { d.guilty.push({ workerCode: '', qty: '' }); changed(true); } },
     'g-del': function (t) { var d = defByKey(t.getAttribute('data-k')); if (d && d.guilty.length > 1) { d.guilty.splice(Number(t.getAttribute('data-j')), 1); changed(true); } },
-    'draft-continue': function () { AF.restore(F, F.pendingDraft, newItem); F.pendingDraft = null; F.lockDraft = false; draw(); },
-    'draft-new': function () { AF.draft.del(F.uid, F.loc); F.pendingDraft = null; F.lockDraft = false; draw(); },
+    'draft-continue': function () {
+      if (AF.draft.locOf(F.pendingDraft, F.home) !== F.loc) return P.router.go('/audit/new', { draft: '1', n: Date.now() });
+      AF.restore(F, F.pendingDraft, newItem); F.pendingDraft = null; F.lockDraft = false; draw();
+    },
+    'draft-new': function () { AF.draft.del(F.uid, F.home); F.pendingDraft = null; F.lockDraft = false; draw(); },
     save: function () { submit(); },
     again: function () { P.router.go('/audit/new', { loc: F.loc, dep: F.departmentId, n: Date.now() }); },
     view: function () { P.router.go('/audit/' + F.done.auditId); },
@@ -347,7 +399,7 @@
     });
   }
   function blank(ctx, fc) {
-    return { clientId: P.uid('aud'), uid: ctx.me.id, loc: fc.location ? fc.location.id : ctx.loc, ctx: fc, alive: ctx.alive, departmentId: null,
+    return { clientId: P.uid('aud'), uid: ctx.me.id, home: ctx.loc, shell: ctx, loc: fc.location ? fc.location.id : ctx.loc, ctx: fc, alive: ctx.alive, departmentId: null,
       orders: [], items: [], workers: [], helpers: [], comment: '', mode: null, defects: [], errors: {}, saving: false, done: null,
       pendingDraft: null, lockDraft: false, editId: null };
   }
@@ -361,9 +413,10 @@
     });
     el.addEventListener('input', onInput);
     el.addEventListener('change', onPhotoFile);
+    locHead();
     if (F.pendingDraft) {
       var form = F, d = F.pendingDraft;
-      P.confirm({ title: 'Є незавершений аудит', text: d.summary + ' · збережено о ' + P.fmt.time(new Date(d.savedAt)) + '. Продовжити його чи почати новий?',
+      P.confirm({ title: 'Є чернетка аудиту', text: d.summary + ' · збережено о ' + P.fmt.time(new Date(d.savedAt)) + '. Продовжити його чи почати новий?',
         okLabel: 'Продовжити', cancelLabel: 'Почати новий' }).then(function (ok) {
         if (!active(form) || ok === null) return;          // закрили без вибору — лишається банер у формі
         (ok ? ACT['draft-continue'] : ACT['draft-new'])();
@@ -376,12 +429,13 @@
     title: function (ctx) { return { title: 'Новий аудит', sub: P.shell.locName(ctx.loc) }; },
     render: function (ctx) {
       AF.draft.flush();   // відкладена чернетка попередньої форми — записати до того, як читаємо памʼять
-      var q = ctx.query;
-      return P.srv('auditFormContext', { locationId: ctx.loc }).then(function (fc) {
+      var q = ctx.query, saved = AF.draft.fresh(ctx.me.id, ctx.loc);
+      var at = q.draft && saved ? AF.draft.locOf(saved, ctx.loc) : (q.loc || ctx.loc);
+      return P.srv('auditFormContext', { locationId: at }).then(function (fc) {
         if (!ctx.alive()) return '';   // поки чекали, людина пішла на інший екран — чужий стан не чіпаємо
         if (!fc.ok) { F = null; return P.state.error('Не вдалося відкрити форму', fc.error); }
         F = blank(ctx, fc);
-        var draft = AF.draft.fresh(F.uid, F.loc);
+        var draft = saved;
         if (draft && q.draft) { AF.restore(F, draft, newItem); return AF.view(F); }
         if (draft) { F.pendingDraft = draft; F.lockDraft = true; }
         if (q.dep && AF.dept(F, q.dep)) F.departmentId = q.dep;
@@ -408,6 +462,7 @@
           if (!fc.ok) { F = null; return P.state.error('Не вдалося відкрити форму', fc.error); }
           F = blank(ctx, fc);
           F.lockDraft = true;   // виправлення не пишемо в чернетку
+          F.editLoc = a.locationId;   // де аудит записано: інша локація = перенесення (тоді й відділ новий)
           AF.fromAudit(F, a);
           if (!F.items.length) F.items = [newItem()];
           return AF.view(F);

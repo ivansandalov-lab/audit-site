@@ -1,4 +1,5 @@
 
+   v1.4 — 15.10.2026: плашка — довге значення окремим рядком на всю ширину (.ctip__wl / .ctip__wv), колонка підписів ≥ 96 px.
 
 
 .cchart-wrap { min-width: 0; }
@@ -42,10 +43,14 @@
 .ctip--pin { border-color: var(--brand); }
 .ctip__title { font-weight: 700; font-size: 15px; }
 .ctip__sub { margin-top: 2px; font-size: 13px; color: var(--text-3); }
-.ctip__rows, .ctip__lv { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 16px; align-items: baseline; margin-top: 8px; }
+.ctip__rows, .ctip__lv { display: grid; grid-template-columns: minmax(96px, 1fr) auto; gap: 4px 16px; align-items: baseline; margin-top: 8px; }
 .ctip__rows > span { color: var(--text-2); }
 .ctip__rows > b, .ctip__lv > b { font-variant-numeric: tabular-nums; white-space: nowrap; text-align: right; }
 .ctip__danger { color: var(--danger); }
+
+.ctip__rows > .ctip__wl, .ctip__rows > .ctip__wv { grid-column: 1 / -1; }
+.ctip__rows > .ctip__wl { margin-top: 2px; }
+.ctip__rows > .ctip__wv { margin-top: -2px; white-space: normal; text-align: left; overflow-wrap: anywhere; }
 .ctip__lv { padding-top: 8px; border-top: 1px solid var(--line); }
 .ctip__lv .lvl { font-size: 13px; }
 .ctip__pin { margin-top: 8px; font-size: 12px; font-weight: 700; color: var(--brand-ink); }

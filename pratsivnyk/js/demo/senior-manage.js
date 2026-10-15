@@ -52,7 +52,7 @@
     return env.ix.dt[env.ix.dep[depId].deptTypeId].letter + '-' + pad3(n + 1);
   }
 
-  var J_SECTIONS = { team: 'Працівники', workers: 'Виробничі працівники', depts: 'Відділи', products: 'Вироби', defects: 'Види браку',
+  var J_SECTIONS = { team: 'Аудитори', workers: 'Виробничі працівники', depts: 'Відділи', products: 'Вироби', defects: 'Види браку',
     merge: 'Обʼєднання', blocks: 'Блоки замовлень', import: 'Виробництво', mailing: 'Розсилки' };
   var JOURNAL_DAYS = 30, JOURNAL_MAX = 1500, JOURNAL_SHOW = 300;
   var DAY_NAMES = ['нд', 'пн', 'вт', 'ср', 'чт', 'пт', 'сб'];
@@ -72,7 +72,7 @@
     env.storage.set(K.journal, list.slice(-JOURNAL_MAX));
   }
   function tableFacts(env, t) {
-    return { title: t.title, sheet: t.sheet, rows: 'шапка ' + t.headerRow + ', дані з ' + t.dataRow, cols: 'дата ' + t.dateCol + ' · замовлення ' + t.orderCol,
+    return { title: t.title, sheet: t.sheet, rows: 'заголовки в рядку ' + t.headerRow + ', дані з рядка ' + t.dataRow, cols: 'дата ' + t.dateCol + ' · замовлення ' + t.orderCol,
       depts: arr(t.depts).map(function (x) { return depName(env, x.departmentId) + ' ' + x.doneCol + (x.planCol ? '/' + x.planCol : ''); }).join(', ') };
   }
   function dailyFacts(d) {
@@ -218,7 +218,7 @@
     var out = [];
     locDeps(env, loc.id).forEach(function (d) {
       var labels = tables.filter(function (t) { return t.depts.some(function (x) { return x.departmentId === d.id && x.doneCol; }); }).map(function (t) { return MARKS[t.mark]; });
-      if (labels.length > 1) out.push({ departmentId: d.id, name: d.name, labels: labels, message: d.name + ' — у таблицях ' + labels.join(' і ') + ': кількості складаються.' });
+      if (labels.length > 1) out.push({ departmentId: d.id, name: d.name, labels: labels, message: d.name + ' — у таблицях ' + labels.join(' і ') + ': кількості з цих таблиць додаються.' });
     });
     return out;
   }
@@ -259,12 +259,12 @@
     if (!/^https:\/\/\S+$/.test(url) || url.length > 400) add('url', 'Посилання має починатися з https://');
     if (!sheet || sheet.length > 60) add('sheet', 'Впишіть назву аркуша.');
     var h = +c.headerRow, r = +c.dataRow;
-    if (!isInt(h, 1, 50)) add('headerRow', 'Рядок шапки — число від 1 до 50.');
-    else if (!(isInt(r, 1, 60) && r > h)) add('dataRow', 'Дані — нижче шапки: від рядка ' + (h + 1) + '.');
-    if (!has(cols, c.dateCol)) add('dateCol', 'Оберіть колонку дати.'); else used[c.dateCol] = 'датою';
+    if (!isInt(h, 1, 50)) add('headerRow', 'Рядок із заголовками колонок — число від 1 до 50.');
+    else if (!(isInt(r, 1, 60) && r > h)) add('dataRow', 'Дані — нижче рядка із заголовками: з рядка ' + (h + 1) + '.');
+    if (!has(cols, c.dateCol)) add('dateCol', 'Оберіть колонку дати.'); else used[c.dateCol] = 'дати';
     if (!has(cols, c.orderCol)) add('orderCol', 'Оберіть колонку замовлення.');
     else if (c.dateCol === c.orderCol) add('orderCol', 'Дата й замовлення — у різних колонках.');
-    else used[c.orderCol] = 'замовленням';
+    else used[c.orderCol] = 'замовлення';
     var deps = byId(locDeps(env, loc.id), 'id'), seen = {};
     if (!arr(c.depts).length) add('depts', 'Додайте хоча б один відділ.');
     arr(c.depts).forEach(function (x, k) {
@@ -272,13 +272,13 @@
       if (!d) { add(f + 'departmentId', 'Оберіть відділ у рядку ' + (k + 1) + '.'); return; }
       if (seen[d.id]) add(f + 'departmentId', 'Відділ «' + d.name + '» уже є в цій таблиці.');
       seen[d.id] = 1;
-      var who = 'відділом «' + d.name + '»';
+      var who = 'відділу «' + d.name + '»';
       if (!has(cols, x.doneCol)) add(f + 'doneCol', 'Оберіть колонку «зроблено» для відділу «' + d.name + '».');
-      else if (used[x.doneCol]) add(f + 'doneCol', 'Колонка ' + x.doneCol + ' уже зайнята ' + used[x.doneCol] + '.');
+      else if (used[x.doneCol]) add(f + 'doneCol', 'Колонку ' + x.doneCol + ' уже вибрано для ' + used[x.doneCol] + '.');
       else used[x.doneCol] = who;
       if (x.planCol) {
         if (!has(cols, x.planCol)) add(f + 'planCol', 'Колонки ' + x.planCol + ' немає в таблиці.');
-        else if (used[x.planCol]) add(f + 'planCol', 'Колонка ' + x.planCol + ' уже зайнята ' + used[x.planCol] + '.');
+        else if (used[x.planCol]) add(f + 'planCol', 'Колонку ' + x.planCol + ' уже вибрано для ' + used[x.planCol] + '.');
         else used[x.planCol] = who;
       }
     });
@@ -290,8 +290,8 @@
     { id: 'over_seniors', title: 'Старшим — брак за сьогодні понад критичний рівень', when: 'щойно брак, % локації за сьогодні перевищить критичний рівень (раз на день)', on: true },
     { id: 'audit_leads', title: 'Тімлідам відділів — їхні аудити', when: 'одразу після запису аудиту', hasLevel: true, on: true, level: 'defects' },
     { id: 'daily', title: 'Денний звіт цеху', on: true },
-    { id: 'kd', title: 'Коригуючі дії', to: 'старшим цеху; керівникам — лише результат дії', when: 'розбір готовий (раз на 4 дні) · термін дії завтра · результат перевірки', on: true },
-    { id: 'weekly', title: 'Тижневий звіт керівникам', to: 'канал #керівники', when: 'понеділок о 09:00', on: false }
+    { id: 'kd', title: 'Сигнал коригуючих дій', to: 'старшим цеху; керівникам — лише брак, % після дії', when: 'щойно готовий новий розбір коригуючих дій (раз на тиждень)', on: true },
+    { id: 'weekly', title: 'Тижневий підсумок керівникам', to: 'канал #керівники', when: 'понеділок о 09:00', on: false }
   ];
   function slug(s) { return String(s).toLowerCase().replace(/\s+/g, '-'); }
   function mailState(env, loc) {
@@ -340,10 +340,10 @@
     var ids = arr(p.ids).filter(function (id, i, a) { return a.indexOf(id) === i; });
     if (ids.indexOf(p.keepId) < 0) ids.unshift(p.keepId);
     var word = kind === 'products' ? 'вироби' : 'види браку';
-    if (ids.length < 2) return { err: verr([{ field: 'ids', message: 'Оберіть, що обʼєднати і в що.' }]) };
-    if (ids.length > 11) return { err: verr([{ field: 'ids', message: 'За раз — до 10 в один.' }]) };
+    if (ids.length < 2) return { err: verr([{ field: 'ids', message: 'Оберіть записи для обʼєднання — щонайменше два.' }]) };
+    if (ids.length > 11) return { err: verr([{ field: 'ids', message: 'За один раз можна обʼєднати до 10 записів в один.' }]) };
     var list = ids.map(function (id) { return pick(ix, id); });
-    if (list.some(function (x) { return !x; })) return { err: C.fail('not_found', 'Когось із обраних уже немає в довіднику — оновіть сторінку.') };
+    if (list.some(function (x) { return !x; })) return { err: C.fail('not_found', 'Когось із обраних уже немає в списку — оновіть сторінку.') };
     var types = locTypes(env, loc.id);
     if (list.some(function (x) { return x.deptTypeId !== list[0].deptTypeId; })) return { err: verr([{ field: 'ids', message: 'Обʼєднуються лише ' + word + ' одного типу відділу.' }]) };
     if (!types[list[0].deptTypeId]) return { err: C.forbidden() };
@@ -498,7 +498,8 @@
     },
 
     workerQuickAdd: function (p, me, env) {
-      var r = S.loc(p || {}, me, env); if (r.err) return r.err;
+      var lid = p && p.locationId, r = lid && C.canRecordAt(me, lid, env.ix) ? { loc: env.ix.loc[lid] } : S.loc(p || {}, me, env);
+      if (r.err) return r.err;
       if (!r.loc) return C.fail('not_found', 'Локацію не знайдено.');
       if (!me.can || !me.can.recordAudit) return C.forbidden();
       env.reload(); r = { loc: env.ix.loc[r.loc.id] };   // свіжий стан: працівника могли щойно додати в іншій вкладці
@@ -593,7 +594,7 @@
       var t = locTypes(env, r.loc.id);
       if (p.id) { x = pick(env.ix.prod, p.id); if (!x || !t[x.deptTypeId]) return C.fail('not_found', 'Такого виробу вже немає — оновіть сторінку.'); }
       var dt = x ? x.deptTypeId : p.deptTypeId;
-      if (!x && !pick(t, dt)) errs.push({ field: 'deptTypeId', message: 'Оберіть відділ.' });   // власним ключем: 'constructor' — не тип відділу
+      if (!x && !pick(t, dt)) errs.push({ field: 'deptTypeId', message: 'Оберіть тип відділу.' });   // власним ключем: 'constructor' — не тип відділу
       if (!x || p.name !== undefined) {
         var name = clean(p.name, 80);
         if (name.length < 2) errs.push({ field: 'name', message: 'Назва виробу — від 2 знаків.' });

@@ -34,10 +34,10 @@
     return list.slice(offset, offset + limit);
   }
 
-  function resolveLoc(p, me, env) {
-    var id = p.locationId || me.defaultLocationId, loc = env.ix.loc[id];
+  function resolveLoc(p, me, env, forRecord) {
+    var id = p.locationId || me.defaultLocationId, loc = Object.prototype.hasOwnProperty.call(env.ix.loc, id) ? env.ix.loc[id] : null;
     if (!loc) return { err: C.fail('not_found', 'Локацію не знайдено.') };
-    if (!C.hasLoc(me, id)) return { err: C.forbidden() };
+    if (!C.hasLoc(me, id) && !(forRecord && C.canRecordAt(me, id, env.ix))) return { err: C.forbidden() };
     return { loc: loc };
   }
 
@@ -76,10 +76,10 @@
             productName: w.productId ? env.ix.prod[w.productId].name : null, orderNo: w.orderNo || null,
             howTo: w.howTo, checklist: w.checklist.slice() };
         });
-      var myToday = today.filter(function (a) { return a.auditorId === me.id; }).sort(C.newestFirst).map(function (a) {
+      var myToday = env.audits().filter(function (a) { return a.auditorId === me.id && a.day === day; }).sort(C.newestFirst).map(function (a) {
         var s = summary(a, env);
-        return { id: s.id, createdAt: s.createdAt, departmentName: s.departmentName, checked: s.checked, rejected: s.rejected,
-          pct: s.pct, editableUntil: s.editableUntil };
+        return { id: s.id, createdAt: s.createdAt, locationId: s.locationId, locationName: s.locationName, departmentName: s.departmentName,
+          checked: s.checked, rejected: s.rejected, pct: s.pct, editableUntil: s.editableUntil };
       });
       var t = sumAudits(today);
       return { ok: true, location: { id: r.loc.id, name: r.loc.name }, day: day, criticalPct: critical,
@@ -88,7 +88,7 @@
     },
 
     auditFormContext: function (p, me, env) {
-      var r = resolveLoc(p, me, env); if (r.err) return r.err;
+      var r = resolveLoc(p, me, env, true); if (r.err) return r.err;
       var db = env.db, day = env.day();
       function on(x) { return x.active !== false; }
       var deps = db.departments.filter(function (d) { return d.locationId === r.loc.id && on(d); });
@@ -98,6 +98,7 @@
         .sort(function (a, b) { return a.lastDay < b.lastDay ? 1 : a.lastDay > b.lastDay ? -1 : a.no < b.no ? 1 : -1; }).slice(0, 50);
       var canAdd = !!me.can.recordAudit && (P.demoApis || []).some(function (a) { return Object.prototype.hasOwnProperty.call(a, 'workerQuickAdd'); });
       return { ok: true, location: { id: r.loc.id, name: r.loc.name }, limits: Object.assign({}, C.LIMITS), canAddWorker: canAdd,
+        locations: db.locations.filter(function (l) { return l.active !== false || l.id === r.loc.id; }).map(function (l) { return { id: l.id, name: l.name }; }),
         departments: deps.map(function (d) { return { id: d.id, name: d.name, deptTypeId: d.deptTypeId }; }),
         products: db.products.filter(function (x) { return types[x.deptTypeId] && on(x); })
           .map(function (x) { return { id: x.id, name: x.name, deptTypeId: x.deptTypeId }; }),
@@ -138,7 +139,7 @@
     auditGet: function (p, me, env) {
       var a = env.audits().filter(function (x) { return x.id === p.id; })[0];
       if (!a) return C.fail('not_found', 'Аудит не знайдено.');
-      if (!C.hasLoc(me, a.locationId)) return C.forbidden();
+      if (!C.hasLoc(me, a.locationId) && a.auditorId !== me.id) return C.forbidden();
       var audit = summary(a, env), ix = env.ix;
       audit.comment = a.comment || '';
       audit.noDefects = !!a.noDefects;

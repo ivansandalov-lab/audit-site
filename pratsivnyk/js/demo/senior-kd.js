@@ -16,7 +16,7 @@
   ];
   var CAUSE_IX = Object.create(null);
   CAUSES.forEach(function (c) { CAUSE_IX[c.id] = c; });
-  var STATUS_LABELS = { 'new': 'понад норму, не почато', check: 'впроваджено · тиждень результату', hold: 'під наглядом',
+  var STATUS_LABELS = { 'new': 'понад норму, не почато', check: 'впроваджено · йде тиждень після впровадження', hold: 'під наглядом',
     helped: 'закрито: тримається', not_helped: 'рецидив', not_needed: 'дія не потрібна', none: 'дій не було' };
   var STATE_OF = { 'new': 'over', check: 'watch', hold: 'hold', helped: 'done', not_helped: 'relapse', not_needed: 'skip' };
 
@@ -568,14 +568,14 @@
     if (!dep) return { err: C.fail('not_found', 'Відділ не знайдено. Оновіть сторінку.') };
     if (n == null) return { err: C.fail('not_found', 'Такого тижня немає. Оновіть сторінку.') };
     var kd = openAt(cx, dep.id, n);
-    if (!kd) return { err: C.fail('conflict', 'Для цього тижня відділу рішення вже є або КД немає. Оновіть сторінку — покажемо актуальний стан.') };
+    if (!kd) return { err: C.fail('conflict', 'Для цього тижня відділу коригуючої дії немає або рішення вже записано. Оновіть сторінку — побачите, як є зараз.') };
     return { kd: kd, dep: dep };
   }
   function planErrors(cx, me, p, kd, lockDay) {
     var errs = [], causes = Array.isArray(p.causes) ? p.causes : [];
     if (!causes.length) errs.push({ field: 'causes', message: 'Оберіть причину — хоча б одну.' });
     else if (causes.some(function (c) { return typeof c !== 'string' || !has(CAUSE_IX, c); }) || causes.length !== causes.filter(function (c, i) { return causes.indexOf(c) === i; }).length)
-      errs.push({ field: 'causes', message: 'Причини мають бути з довідника, кожна один раз.' });
+      errs.push({ field: 'causes', message: 'Оберіть причини зі списку, кожну один раз.' });
     if (causes.indexOf('other') >= 0 && String(p.causeNote || '').trim().length < 3) errs.push({ field: 'causeNote', message: 'Поясніть, що сталося, — ви обрали «Інше».' });
     else if (String(p.causeNote || '').trim().length > 300) errs.push({ field: 'causeNote', message: 'Коротше, будь ласка: до 300 знаків.' });
     var planText = String(p.plan || '').trim();
@@ -583,9 +583,9 @@
     else if (planText.length > 1000) errs.push({ field: 'plan', message: 'Коротше, будь ласка: до 1000 знаків.' });
     if (!people(cx, me).some(function (u) { return u.id === p.who; })) errs.push({ field: 'who', message: 'Оберіть, хто відповідає.' });
     var day = p.day;
-    if (lockDay) { if (day != null && day !== '' && day !== kd.implementedAt) errs.push({ field: 'day', message: 'Тиждень результату вже виміряно — дату впровадження не змінити.' }); }
+    if (lockDay) { if (day != null && day !== '' && day !== kd.implementedAt) errs.push({ field: 'day', message: 'Перший тиждень після впровадження вже минув — дату впровадження змінити не можна.' }); }
     else if (!DAY_RE.test(String(day || ''))) errs.push({ field: 'day', message: 'Оберіть дату впровадження.' });
-    else if (day < kd.openedAt || day > cx.today) errs.push({ field: 'day', message: 'Дата — від відкриття КД (' + kd.openedAt.split('-').reverse().join('.') + ') до сьогодні.' });
+    else if (day < kd.openedAt || day > cx.today) errs.push({ field: 'day', message: 'Дата — від дня, коли відкрили коригуючу дію (' + kd.openedAt.split('-').reverse().join('.') + '), до сьогодні.' });
     return errs;
   }
   function save(env, rec) {
@@ -628,7 +628,14 @@
   }
   P.demoKd = {
     remapDefect: remapDefect,
-    locSummary: function (env, locId, from, to) { return locSummary(env, locId, from, to); }
+    locSummary: function (env, locId, from, to) { return locSummary(env, locId, from, to); },
+    deptNow: function (env, locId, depId) {
+      if (!has(env.ix.loc, locId)) return null;
+      var cx = makeCx(env, env.ix.loc[locId]), now = coverAt(cx, depId, cx.L + 1);
+      if (!now || !(now.status === 'new' || now.status === 'check' || now.status === 'hold')) return null;
+      var v = view(cx, now); v.threshold = cx.T;
+      return v;
+    }
   };
 
   function canSummary(me, locId) {
@@ -717,7 +724,7 @@
     srKdItem: function (p, me, env) {
       var r = S.loc(p, me, env); if (r.err) return r.err;
       var cx = makeCx(env, r.loc), a;
-      if (p.id) { a = findAction(cx, p.id); if (!a) return C.fail('not_found', 'КД не знайдено. Оновіть сторінку.'); }
+      if (p.id) { a = findAction(cx, p.id); if (!a) return C.fail('not_found', 'Коригуючу дію не знайдено. Оновіть сторінку.'); }
       else { var o = openKd(cx, p); if (o.err) return o.err; a = o.kd; }
       var v = view(cx, a), d = details(cx, a.departmentId, null, a.weekStart, a.weekEnd);
       v.series = series(cx, a.departmentId, Math.min(cx.L - DEPT_BARS + 1, a.n - 2), cx.L + 1);
@@ -834,8 +841,8 @@
     srKdEditPlan: function (p, me, env) {
       var w = writable(p, me, env); if (w.err) return w.err;
       var cx = w.cx, a = findAction(cx, p.id);
-      if (!a) return C.fail('not_found', 'КД не знайдено. Оновіть сторінку.');
-      if (!a.implementedAt || a.status === 'not_needed') return C.fail('conflict', 'Плану в цієї КД немає — її позначено «не потрібно».');
+      if (!a) return C.fail('not_found', 'Коригуючу дію не знайдено. Оновіть сторінку.');
+      if (!a.implementedAt || a.status === 'not_needed') return C.fail('conflict', 'У цієї коригуючої дії немає плану: її позначено «дія не потрібна».');
       var lock = a.status !== 'check', errs = planErrors(cx, me, p, a, lock);
       if (errs.length) return C.fail('validation', 'Перевірте поля — дещо не заповнено.', errs);
       var rec = clone(a);
@@ -852,8 +859,8 @@
       if (reason.length > 300) return C.fail('validation', 'Причина задовга.', [{ field: 'reason', message: 'Коротше, будь ласка: до 300 знаків.' }]);
       if (p.id) {
         var a = findAction(cx, p.id);
-        if (!a) return C.fail('not_found', 'КД не знайдено. Оновіть сторінку.');
-        if (a.status !== 'not_needed') return C.fail('conflict', 'План уже впроваджено — результат покаже тиждень після впровадження.');
+        if (!a) return C.fail('not_found', 'Коригуючу дію не знайдено. Оновіть сторінку.');
+        if (a.status !== 'not_needed') return C.fail('conflict', 'Для цієї коригуючої дії вже записано впроваджений план, тому позначити «дія не потрібна» не можна.');
         rec = clone(a); rec.notNeeded = { reason: reason, at: a.notNeeded.at, by: me.id };
       } else {
         var o = openKd(cx, p); if (o.err) return o.err;

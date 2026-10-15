@@ -64,6 +64,8 @@
         '<div class="sheet__body">' + (o.body || '') + '</div>' +
         (o.foot ? '<footer class="sheet__foot">' + o.foot + '</footer>' : '') + '</section>';
       var prevFocus = doc.activeElement;
+      wrap.firstChild.setAttribute('tabindex', '-1');   // сама шторка приймає фокус (див. нижче, v1.3)
+      wrap.firstChild.style.outline = 'none';
       function close() {
         if (!wrap.parentNode) return;
         wrap.remove(); openSheet = null; doc.removeEventListener('keydown', onKey);
@@ -87,7 +89,8 @@
       host.appendChild(wrap);
       openSheet = { el: wrap, close: close };
       if (o.onMount) o.onMount(wrap);
-      var first = wrap.querySelector('input, button:not([data-sheet-close])');
+      var touch = !!(root.matchMedia && root.matchMedia('(pointer: coarse)').matches);
+      var first = touch ? wrap.firstChild : wrap.querySelector('input, button:not([data-sheet-close])');
       if (first) first.focus();
       return openSheet;
     },
@@ -100,6 +103,14 @@
     if (i < 0) return esc(s);
     return esc(s.slice(0, i)) + '<mark class="hl">' + esc(s.slice(i, i + q.length)) + '</mark>' + esc(s.slice(i + q.length));
   }
+  var LIST_MAX = 3;   // скільки рядків підсписку видно в пункті; решта — «ще N»
+  function subList(list, q) {
+    var hit = [], rest = [];
+    list.forEach(function (x) { (q && String(x).toLowerCase().indexOf(q) >= 0 ? hit : rest).push(x); });
+    var all = hit.concat(rest), shown = all.slice(0, LIST_MAX), more = all.length - shown.length;
+    return '<span class="opt__list">' + shown.map(function (x) { return '<span class="opt__li">' + hl(x, q) + '</span>'; }).join('') +
+      (more > 0 ? '<span class="opt__li opt__li--more">ще ' + more + '</span>' : '') + '</span>';
+  }
   P.picker = function (o) {
     return new Promise(function (resolve) {
       var picked = o.multi ? (o.values || []).slice() : null, done = false, q = '';
@@ -107,13 +118,13 @@
       function list() {
         var nq = q.trim().toLowerCase(), html = '', group = null, n = 0;
         o.options.forEach(function (op) {
-          var hay = (op.title + ' ' + (op.meta || '') + ' ' + op.value).toLowerCase();
+          var hay = (op.title + ' ' + (op.meta || '') + ' ' + op.value + ' ' + (op.list || []).join(' ')).toLowerCase();
           if (nq && hay.indexOf(nq) < 0) return;
           if (op.group && op.group !== group) { group = op.group; html += '<div class="opt-group">' + esc(group) + '</div>'; }
           var sel = o.multi ? picked.indexOf(op.value) >= 0 : op.value === o.value;
-          html += '<button type="button" class="opt" role="option" aria-selected="' + sel + '" data-val="' + esc(op.value) + '">' +
+          html += '<button type="button" class="opt' + (op.tone ? ' opt--' + esc(op.tone) : '') + '" role="option" aria-selected="' + sel + '" data-val="' + esc(op.value) + '">' +
             '<span class="opt__main"><span class="opt__title">' + hl(op.title, nq) + '</span>' +
-            (op.meta ? '<span class="opt__meta">' + hl(op.meta, nq) + '</span>' : '') + '</span>' +
+            (op.meta ? '<span class="opt__meta">' + hl(op.meta, nq) + '</span>' : '') + (op.list && op.list.length ? subList(op.list, nq) : '') + '</span>' +
             (sel ? '<span class="opt__check">' + P.ic('check') + '</span>' : '') + '</button>';
           n++;
         });
@@ -124,7 +135,7 @@
               '<span class="opt__main"><span class="opt__title">' + esc(c.label(typed)) + '</span></span></button>'; }).join('') + '</div>';
         }
         var tail = make + (o.hint && !make ? '<p class="opt-hint">' + esc(o.hint) + '</p>' : '');
-        return n ? '<div role="listbox"' + (o.multi ? ' aria-multiselectable="true"' : '') + '>' + html + '</div>' + tail :
+        return n ? '<div role="listbox"' + (o.cols === 2 ? ' class="opt-grid"' : '') + (o.multi ? ' aria-multiselectable="true"' : '') + '>' + html + '</div>' + tail :
           (make ? '<p class="opt-hint">Такого в списку немає.</p>' + make
             : P.state.empty('search', nq ? 'Нічого не знайдено' : (o.emptyText || 'Список порожній'), '') + tail);
       }

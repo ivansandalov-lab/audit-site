@@ -6,13 +6,13 @@
 
   var MSG_QTY = 'Кількість — ціле число від 1 до 100 000.';
   var MSG_REJ = 'Відбраковано — ціле число від 0.';
-  var MSG_DEF_TYPE = 'Оберіть тип браку зі списку. Немає потрібного — попросіть старшого аудитора додати його на сайті.';
+  var MSG_DEF_TYPE = 'Оберіть вид браку зі списку. Немає потрібного — попросіть старшого аудитора додати його на сайті.';
   var MSG_SRC_DEP = 'Оберіть відділ, звідки брак.';
   var MSG_NO_CHANGE = 'Відділ аудиту змінити не можна — запишіть новий аудит.';
   function msgUpdDenied() { var n = C.LIMITS.editWindowMin; return 'Виправити можна лише свій аудит протягом ' + n + ' ' + P.plural(n, 'хвилини', 'хвилин', 'хвилин') + '.'; }   // правило адміна
   var PHOTOS_MAX = 3, PHOTO_MAX_BYTES = 100 * 1024, PHOTOS_TOTAL = 1500 * 1024, PHOTO_RE = /^data:image\/jpeg;base64,[A-Za-z0-9+\/]+={0,2}$/;
   var MSG_PHOTOS_MAX = 'До ' + PHOTOS_MAX + ' фото на один брак.';
-  var MSG_PHOTO = 'Фото має бути знімком JPEG до 100 КБ. Додайте його ще раз.';
+  var MSG_PHOTO = 'Це фото не вдалося прийняти. Додайте його ще раз.';
 
   function toNum(v) {
     if (typeof v === 'number') return v;
@@ -110,12 +110,12 @@
     if (!p.noDefects) {
       defects.forEach(function (d, j) {
         var i = rowItem[j];
-        if (i >= 0 && rej[i] !== null && rejOk[i] && rowQty(d) > rej[i]) add('defects[' + j + ']', 'Цей вид на ' + rowQty(d) + ' виробах, а відбраковано всього ' + rej[i]);
+        if (i >= 0 && rej[i] !== null && rejOk[i] && rowQty(d) > rej[i]) add('defects[' + j + ']', 'Цей вид браку вписано на ' + rowQty(d) + ' виробах, а відбраковано всього ' + rej[i]);
       });
       items.forEach(function (it, i) {
         if (!qtyOk[i]) return;
         if (rej[i] !== null && rejOk[i] && perItem[i] < rej[i]) {
-          add('items[' + i + '].rejected', 'Відбраковано ' + rej[i] + ' шт, а видів браку вписано лише на ' + perItem[i] + '. Кожен поганий виріб має мати хоч один вид.');
+          add('items[' + i + '].rejected', 'Відбраковано ' + rej[i] + ' шт, а видів браку вписано лише на ' + perItem[i] + '. Кожен виріб з браком має мати хоч один вид браку.');
         } else if (rej[i] === null && perItem[i] > qty[i]) {
           add('items[' + i + ']', 'Браку (' + perItem[i] + ') більше, ніж перевірено (' + qty[i] + ') для цього виробу');
         }
@@ -195,7 +195,7 @@
   P.demoSubmitApi = {
     auditSubmit: function (p, me, env) {
       if (!me.can.recordAudit) return C.forbidden();
-      if (p.locationId && env.ix.loc[p.locationId] && !C.hasLoc(me, p.locationId)) return C.forbidden();
+      if (p.locationId && Object.prototype.hasOwnProperty.call(env.ix.loc, p.locationId) && !C.canRecordAt(me, p.locationId, env.ix)) return C.forbidden();
       var nowMs = env.now().getTime(), db = env.db;
       if (p.clientId) {
         var same = db.audits.filter(function (a) { return a.clientId === p.clientId && a.auditorId === me.id; })[0];
@@ -215,7 +215,7 @@
       var fresh = env.storage.get('demo:audits:new', []);
       fresh.push(rec);
       var dropped = persist(env, fresh, rec);
-      if (dropped === null) return C.fail('quota', 'Памʼять браузера заповнена — аудит не збережено.');
+      if (dropped === null) return C.fail('quota', 'Місце для тестових даних у браузері закінчилось — аудит не збережено.');
       var wish = p.wishId ? db.wishes.filter(function (w) { return w.id === p.wishId && w.locationId === p.locationId && w.status === 'open'; })[0] : null;
       if (wish) {
         wish.status = 'done'; wish.doneAuditId = rec.id;
@@ -234,15 +234,20 @@
       var rec = env.audits().filter(function (x) { return x.id === p.id; })[0];
       if (!rec) return C.fail('not_found', 'Аудит не знайдено.');
       var senior = me.can.editOthersAudits && C.hasLoc(me, rec.locationId);
-      if (!senior && (rec.auditorId !== me.id || !C.hasLoc(me, rec.locationId) || env.now().getTime() >= Date.parse(rec.createdAt) + C.LIMITS.editWindowMin * 60000)) {
+      if (!senior && (rec.auditorId !== me.id || !C.canRecordAt(me, rec.locationId, env.ix) || env.now().getTime() >= Date.parse(rec.createdAt) + C.LIMITS.editWindowMin * 60000)) {
         return C.fail('forbidden', msgUpdDenied());
       }
-      if (p.locationId !== rec.locationId || p.departmentId !== rec.departmentId) {
+      var moved = p.locationId !== rec.locationId;
+      if (moved && !(Object.prototype.hasOwnProperty.call(env.ix.loc, p.locationId) && C.canRecordAt(me, p.locationId, env.ix))) {
+        return C.fail('validation', 'Перевірте поля форми.', [{ field: 'departmentId', message: 'Оберіть локацію і відділ.' }]);
+      }
+      if (!moved && p.departmentId !== rec.departmentId) {
         return C.fail('validation', 'Перевірте поля форми.', [{ field: 'departmentId', message: MSG_NO_CHANGE }]);
       }
       var errors = P.demoValidateAudit(p, { db: db });
       if (errors.length) return C.fail('validation', 'Перевірте поля форми.', errors);
       var body = buildBody(p);
+      if (moved) { rec.locationId = p.locationId; rec.departmentId = p.departmentId; }
       rec.orders = body.orders; rec.items = body.items; rec.defects = body.defects;
       rec.checkedWorkers = arr(p.checkedWorkers).slice(); rec.helpers = helpersOf(p, db); rec.comment = p.comment || '';
       rec.noDefects = !!p.noDefects || body.defects.length === 0;

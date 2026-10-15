@@ -18,7 +18,7 @@
     if (wait.length) {
       html += '<div class="ui-banner ui-banner--info q-banner">' + P.ic('clock') + '<div class="ui-banner__body"><p class="ui-banner__title">' + audits(wait.length) + ' ' +
         P.plural(wait.length, 'чекає', 'чекають', 'чекають') + ' звʼязку' + P.help.btn('w.queue.wait') + '</p><p class="ui-banner__text">Збережено на телефоні · надішлеться саме, щойно зʼявиться звʼязок.' +
-        (P.offline.simulated() ? ' Увімкнено «Імітувати відсутність звʼязку» — у профілі.' : '') + '</p></div>' +
+        (P.offline.simulated() ? ' У профілі ввімкнено «Тест: ніби немає звʼязку».' : '') + '</p></div>' +
         '<div class="ui-banner__actions"><button class="ui-btn ui-btn--primary ui-btn--sm" type="button" data-act="q-send">' + P.ic('refresh') + 'Надіслати зараз</button></div></div>';
     }
     bad.forEach(function (x) {
@@ -47,8 +47,9 @@
       stat(f.num(rejected) + (checked ? ' · ' + f.pct(Math.round(rejected / checked * 1000) / 10) : ''), checked ? 'брак, шт · брак, %' : 'брак, шт', checked ? 'term.rate' : 'term.rejected') + '</div>';
     html += '<div class="mini-list">' + mine.map(function (a) {
       var left = minutesLeft(a.editableUntil);
-      return '<button class="mini-item" type="button" data-audit="' + esc(a.id) + '">' + P.ic('audit') +
-        '<span class="mini-item__main"><span class="mini-item__title">' + f.time(a.createdAt) + ' · ' + esc(a.departmentName) + '</span>' +
+      return '<button class="mini-item' + (left ? ' mini-item--edit' : '') + '" type="button" data-audit="' + esc(a.id) + '">' + P.ic('audit') +
+        '<span class="mini-item__main"><span class="mini-item__title">' + f.time(a.createdAt) + ' · ' + esc(a.departmentName) +
+          (a.locationId && a.locationId !== ctx.loc ? ' · ' + esc(a.locationName) : '') + '</span>' +   // аудит в іншій локації — з її назвою (v2.4)
         '<span class="mini-item__meta">перевірено ' + f.num(a.checked) + ' шт · брак ' + f.num(a.rejected) + ' шт (' + f.pct(a.pct) + ')</span></span>' +
         (left ? '<span class="ui-badge ui-badge--info">ще ' + left + ' хв, щоб виправити</span>' : P.ic('chevron-right')) + '</button>';
     }).join('') + '</div></section></div>';
@@ -70,7 +71,7 @@
         t.disabled = true;
         P.offline.flush(ctx.me.id).then(function (res) {
           P.offline.report(res);
-          if (res.offline) P.toast('warn', 'Звʼязок зник', 'Неодіслані аудити лишились на телефоні.');
+          if (res.offline) P.toast('warn', 'Звʼязок зник', 'Не надіслані аудити лишились на телефоні.');
           else if (!res.sent && !res.failed) P.toast('warn', 'Поки не вдалося надіслати', 'Аудити лишились на телефоні — спробуйте трохи згодом.');
           if (ctx.alive()) P.shell.rerender();
         });
@@ -83,7 +84,7 @@
       });
       P.delegate(el, 'click', '[data-act="q-drop"]', function (e, t) {
         var id = t.getAttribute('data-id');
-        P.confirm({ title: 'Видалити неприйнятий аудит?', text: 'Він зникне з телефона. Запишіть його знову, якщо потрібно.', okLabel: 'Видалити', danger: true }).then(function (ok) {
+        P.confirm({ title: 'Видалити аудит, який не прийнято?', text: 'Він зникне з телефона. Запишіть його знову, якщо потрібно.', okLabel: 'Видалити', danger: true }).then(function (ok) {
           if (!ok) return;
           P.offline.remove(ctx.me.id, id);
           P.toast('ok', 'Аудит видалено з телефона');
@@ -94,7 +95,7 @@
       P.delegate(el, 'click', '[data-audit]', function (e, t) { P.router.go('/audit/' + t.getAttribute('data-audit')); });
       P.delegate(el, 'click', '[data-act="draft-go"]', function () { P.router.go('/audit/new', { loc: ctx.loc, draft: '1' }); });
       P.delegate(el, 'click', '[data-act="draft-drop"]', function () {
-        P.confirm({ title: 'Видалити чернетку?', text: 'Незавершений аудит буде втрачено.', okLabel: 'Видалити', danger: true }).then(function (ok) {
+        P.confirm({ title: 'Видалити чернетку?', text: 'Усе, що ви вписали в цю чернетку, зникне.', okLabel: 'Видалити', danger: true }).then(function (ok) {
           if (ok && ctx.alive()) { P.store.del('draft:' + ctx.me.id + ':' + ctx.loc); P.shell.rerender(); }
         });
       });

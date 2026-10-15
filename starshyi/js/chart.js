@@ -36,11 +36,13 @@
   doc.addEventListener('scroll', function () { if (!owner || raf) return; raf = root.requestAnimationFrame(function () { raf = 0; if (owner) owner.anchor(); }); }, true);
   root.addEventListener('resize', function () { if (owner) owner.anchor(); });
 
+  var TIP_WIDE = 16;   // значення довше за стільки знаків — у плашці окремим рядком (v1.4)
   function tip(o) {
     var lv = o.levels, tot = lv ? (lv.fix || 0) + (lv.repair || 0) + (lv.scrap || 0) : 0;
     return '<div class="ctip__title">' + esc(o.title || '') + '</div>' + (o.sub ? '<div class="ctip__sub">' + esc(o.sub) + '</div>' : '') +
       (o.rows && o.rows.length ? '<div class="ctip__rows">' + o.rows.map(function (r) {
-        return '<span>' + esc(r[0]) + '</span><b' + (r[2] ? ' class="ctip__' + r[2] + '"' : '') + '>' + esc(String(r[1])) + '</b>'; }).join('') + '</div>' : '') +
+        var wide = String(r[1]).length > TIP_WIDE, cls = (r[2] ? 'ctip__' + r[2] : '') + (wide ? ' ctip__wv' : '');
+        return '<span' + (wide ? ' class="ctip__wl"' : '') + '>' + esc(r[0]) + '</span><b' + (cls ? ' class="' + cls.trim() + '"' : '') + '>' + esc(String(r[1])) + '</b>'; }).join('') + '</div>' : '') +
       (lv && tot ? '<div class="ctip__lv">' + LV.map(function (k) {
         return '<span class="lvl lvl--' + k + '">' + esc(P.sr.LEVELS[k]) + '</span><b>' + num(lv[k] || 0) + ' шт · ' + Math.round((lv[k] || 0) / tot * 100) + '%</b>'; }).join('') + '</div>' : '') +
       (o.foot ? '<div class="ctip__sub">' + esc(o.foot) + '</div>' : '');
