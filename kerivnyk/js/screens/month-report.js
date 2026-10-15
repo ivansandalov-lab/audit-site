@@ -37,6 +37,7 @@
     }).join(''), 2, true);
   }
   function head(no, title, sub) { return sub ? '<h3 class="mgr-rep__h3">' + no + '. ' + esc(title) + '</h3>' : '<h2 class="mgr-rep__h2">' + no + '. ' + esc(title) + '</h2>'; }
+  function lead(text) { return '<p class="mgr-rep__lead">' + esc(text) + '</p>'; }
 
   function header(r) {
     var M = K(), l = r.location, year = r.month.slice(0, 4);
@@ -50,8 +51,8 @@
   function totals(l, crit) {
     var lv = l.levels || {};
     return '<section class="mgr-rep__s">' + head(1, 'Підсумок локації') + kv([['Аудитів', num(l.audits)], ['Перевірено, шт', num(l.checked)],
-      ['Брак, шт', num(l.rejected)], ['Брак, %', rate(l.pct, crit)]].concat(LV.map(function (k) {
-      return [LV_WORD[k].charAt(0).toUpperCase() + LV_WORD[k].slice(1) + ', шт', num(lv[k])];
+      ['Брак, шт', num(l.rejected)], ['Брак, %', rate(l.pct, crit)], ['Брак за рівнями, шт']].concat(LV.map(function (k) {
+      return [LV_WORD[k], num(lv[k]), 1];
     }))) + '</section>';
   }
   function depts(r, crit) {
@@ -63,16 +64,17 @@
         td(kd ? num(kd.opened) : '—', 1) + td(kd ? num(kd.implemented) : '—', 1) + '</tr>';
     }
     var h = '<tr><th rowspan="2" class="n">№</th><th rowspan="2">Відділ</th><th rowspan="2" class="n">Аудитів</th><th rowspan="2" class="n">Перевірено, шт</th>' +
-      '<th rowspan="2" class="n">Брак, шт</th><th rowspan="2" class="n">Брак, %</th><th rowspan="2" class="n">Неправильно зроблене, шт</th>' +
-      '<th rowspan="2" class="n">Пошкоджене, шт</th><th rowspan="2" class="n">Зламане, шт</th><th colspan="2" class="mgr-rep__gh">Коригуючі дії</th></tr>' +
-      '<tr><th class="n">відкрито</th><th class="n">впроваджено</th></tr>';
+      '<th rowspan="2" class="n">Брак, шт</th><th rowspan="2" class="n">Брак, %</th><th colspan="3" class="mgr-rep__gh">Брак за рівнями, шт</th>' +
+      '<th colspan="2" class="mgr-rep__gh">Коригуючі дії за місяць</th></tr>' +
+      '<tr><th class="n">неправильно зроблене</th><th class="n">пошкоджене</th><th class="n">зламане</th><th class="n">відкрито</th><th class="n">впроваджено</th></tr>';
     var rows = list.length ? list.map(function (d, i) { return row(i + 1, d.name + (d.active ? '' : ' (вимкнено)'), d, d.kd); }).join('') +
       row('', 'Усього по локації', l, kdAll, 'mgr-rep__total') : '';
-    return '<section class="mgr-rep__s">' + head(2, 'Якість відділів') + table(h, rows, 11) + '</section>';
+    return '<section class="mgr-rep__s">' + head(2, 'Якість відділів') + lead('Брак рахується відділу, який його зробив, — навіть якщо його знайшли в іншому відділі.') +
+      table(h, rows, 11) + '</section>';
   }
   function tops(l) {
     var list = l.depts || [];
-    var h = '<tr>' + th('№', 1) + th('Вид браку') + th('Рівень') + th('Брак, шт', 1) + th('Частка браку відділу, %', 1) + '</tr>';
+    var h = '<tr>' + th('№', 1) + th('Вид браку') + th('Рівень браку') + th('Брак, шт', 1) + th('Частка від усього браку відділу, %', 1) + '</tr>';
     return '<section class="mgr-rep__s">' + head(3, 'Найчастіші види браку кожного відділу (до 10)') +
       (!list.length ? '<p class="mgr-rep__empty">' + EMPTY + '</p>' : list.map(function (d, i) {
         var rows = (d.top || []).map(function (t, j) {
@@ -87,20 +89,25 @@
     var p = kd && kd.period;
     if (!p) return head('4.1', 'Підсумок за місяць', true) + '<p class="mgr-rep__empty">' + EMPTY + '</p>';
     var r = p.results || {}, hd = p.held || {};
-    return '<div class="mgr-rep__keep">' + head('4.1', 'Підсумок за місяць', true) + kv([['Відкрито', num(p.opened)], ['з них раннім тумблером', num(p.earlyOpened), 1],
-      ['Впроваджено', num(p.implemented)], ['Днів від відкриття до впровадженого плану, у середньому', p.implementedDaysAvg == null ? '—' : d1(p.implementedDaysAvg)],
-      ['Без впровадженого плану', num(p.notImplemented)],
-      ['Через тиждень після впровадження'], ['брак, % не вище норми', num(r.belowAfter1), 1], ['брак, % понад норму', num(r.notBelowAfter1), 1], ['тиждень ще йде', num(r.pending), 1],
-      ['Через 2 тижні після впровадження'], ['тримається', num(hd.done), 1], ['рецидив', num(hd.relapse), 1], ['ще йде', num(hd.pending), 1]]) + '</div>';
+    return '<div class="mgr-rep__keep">' + head('4.1', 'Підсумок за місяць', true) +
+      lead('Усі числа — кількість коригуючих дій. Перший і другий тиждень після впровадження — для дій, впроваджених у цьому місяці; самі ці тижні можуть припасти на наступний місяць.') +
+      kv([['Відкрито коригуючих дій', num(p.opened)], ['з них достроково, посеред тижня', num(p.earlyOpened), 1],
+      ['Впроваджено коригуючих дій', num(p.implemented)], ['Днів від відкриття до впровадження, у середньому', p.implementedDaysAvg == null ? '—' : d1(p.implementedDaysAvg)],
+      ['Ще не впроваджено', num(p.notImplemented)],
+      ['Перший тиждень після впровадження: брак, % відділу'], ['не вище норми', num(r.belowAfter1), 1], ['понад норму (рецидив)', num(r.notBelowAfter1), 1], ['тиждень ще йде', num(r.pending), 1],
+      ['Другий тиждень після впровадження: брак, % відділу'], ['знову не вище норми — закрито: тримається', num(hd.done), 1], ['понад норму (рецидив)', num(hd.relapse), 1],
+      ['тиждень ще йде (під наглядом)', num(hd.pending), 1]]) + '</div>';
   }
   function kdWeeks(kd) {
-    var t = kd && kd.threshold;
-    var h = '<tr>' + th('Тиждень') + th('Перевірено, шт', 1) + th('Брак, %', 1) + th('Відкрито', 1) + th('Впроваджено', 1) + th('Через тиждень не вище норми', 1) + th('Рецидивів', 1) + '</tr>';
+    var t = kd && kd.threshold, wd = kd && kd.cycle && kd.cycle.reviewWeekdayName;
+    var h = '<tr>' + th('Тиждень') + th('Перевірено, шт', 1) + th('Брак, % локації', 1) + th('Відкрито дій', 1) + th('Впроваджено дій', 1) +
+      th('Перший тиждень після впровадження не вище норми, дій', 1) + th('Рецидивів', 1) + '</tr>';
     var rows = ((kd && kd.weeks) || []).map(function (w) {
       return '<tr>' + td(K().span(w.start, w.end) + ' ' + w.start.slice(0, 4) + (w.current ? ' (ще триває)' : '')) + td(num(w.checked), 1) + td(rate(w.rate, t), 1, true) +
         td(num(w.opened), 1) + td(num(w.implemented), 1) + td(num(w.belowAfter), 1) + td(num(w.relapse), 1) + '</tr>';
     }).join('');
-    return head('4.2', 'Тижні розбору місяця', true) + table(h, rows, 7);
+    return head('4.2', 'Тижні місяця: брак, % локації і коригуючі дії', true) +
+      lead('Тиждень — 7 днів, які додаток підсумовує в день розбору' + (wd ? ' (' + wd + ')' : '') + '. Колонки дій — скільки коригуючих дій того тижня.') + table(h, rows, 7);
   }
   function kdEffect(kd, from, to) {
     var list = [];
@@ -111,27 +118,34 @@
     });
     list.sort(function (a, b) { return (a.after - a.before) - (b.after - b.before); });
     var h = '<tr>' + th('Відділ') + th('Вид браку') + th('До, %', 1) + th('Після, %', 1) + th('Різниця, відсоткових пунктів', 1) + '</tr>';
-    return head('4.3', 'Що сталося з браком після дій', true) + table(h, list.map(function (x) {
+    return head('4.3', 'Що сталося з браком після коригуючих дій', true) +
+      lead('Рядок — вид браку, з яким працювала коригуюча дія: частка цього браку від перевірених у відділі штук до дії і в перший повний тиждень після впровадження.') +
+      table(h, list.map(function (x) {
       return '<tr>' + td(x.dept) + td(x.name) + td(d1(x.before), 1) + td(d1(x.after), 1) + td(diff(x.before, x.after), 1) + '</tr>';
     }).join(''), 5);
   }
   function kdCauses(kd) {
     var list = ((kd && kd.causes) || []).filter(function (c) { return c.n; }).sort(function (a, b) { return b.n - a.n; });
     var sum = list.reduce(function (s, c) { return s + c.n; }, 0);
-    var h = '<tr>' + th('Причина') + th('Записано разів', 1) + th('Частка від усіх причин, %', 1) + '</tr>';
-    return '<div class="mgr-rep__keep">' + head('4.4', 'Причини у впроваджених планах', true) + table(h, list.map(function (c) {
-      return '<tr>' + td(c.label) + td(num(c.n), 1) + td(d1(c.n / sum * 100), 1) + '</tr>';
+    var h = '<tr>' + th('Причина браку') + th('Записано разів', 1) + th('Частка від усіх записаних причин, %', 1) + '</tr>';
+    return '<div class="mgr-rep__keep">' + head('4.4', 'Причини браку (з планів коригуючих дій)', true) +
+      lead('Причину браку записує старший аудитор, коли впроваджує коригуючу дію; в одній дії їх може бути кілька.') + table(h, list.map(function (c) {
+      return '<tr>' + td(K().causeName(c.id, c.label)) + td(num(c.n), 1) + td(d1(c.n / sum * 100), 1) + '</tr>';
     }).join(''), 3, true) + '</div>';
   }
-  function causeName(kd, c) { var x = (kd.causes || []).filter(function (o) { return o.id === c; })[0]; return x ? x.label : c; }
+  function causeName(kd, c) { var x = (kd.causes || []).filter(function (o) { return o.id === c; })[0]; return x ? K().causeName(x.id, x.label) : K().causeName(c, c); }
   function skipped(a) { return a.state === 'skip' || a.state === 'not_needed'; }
   function kdActions(kd) {
     var list = ((kd && kd.actions) || []).slice().sort(function (a, b) { return String(a.openedAt) < String(b.openedAt) ? -1 : String(a.openedAt) > String(b.openedAt) ? 1 : 0; });
-    var h = '<tr>' + th('№', 1) + th('Відділ') + th('Відкрито') + th('Як відкрито') + th('Впроваджено') + th('Днів до плану', 1) + th('Причина') + th('До, %', 1) + th('Після, %', 1) + '</tr>';
-    return head('4.5', 'Перелік дій', true) + table(h, list.map(function (a, i) {
+    var h = '<tr>' + th('№', 1) + th('Відділ') + th('Відкрито') + th('Як відкрито') + th('Впроваджено') + th('Днів від відкриття до впровадження', 1) + th('Причина браку') +
+      th('Брак до, %', 1) + th('Брак після, %', 1) + '</tr>';
+    var early = kd && kd.early ? 'перевірено щонайменше ' + num(kd.early) + ' шт' : 'перевірено вже багато штук';
+    return head('4.5', 'Перелік коригуючих дій', true) +
+      lead('Зазвичай дію відкривають за підсумком тижня, у день розбору. «Достроково, посеред тижня» — у тижні вже ' + early + ', і брак, % відділу вищий за норму, тож дію відкрили, не чекаючи кінця тижня.') +
+      table(h, list.map(function (a, i) {
       var d = a.daysToImplement != null ? a.daysToImplement : between(a.openedAt, a.implementedAt);
-      return '<tr>' + td(i + 1, 1) + td(a.departmentName) + td(date(a.openedAt)) + td(a.early ? 'раннім тумблером' : 'за тиждень') + td(a.implementedAt ? date(a.implementedAt) : skipped(a) ? 'дія не потрібна' : 'плану ще немає') +
-        td(d == null ? '—' : num(d), 1) + td(a.cause ? causeName(kd, a.cause) : '—') + td(a.before == null ? '—' : d1(a.before), 1) + td(a.after == null ? '—' : d1(a.after), 1) + '</tr>';
+      return '<tr>' + td(i + 1, 1) + td(a.departmentName) + td(date(a.openedAt)) + td(a.early ? 'достроково, посеред тижня' : 'за підсумком тижня') + td(a.implementedAt ? date(a.implementedAt) : skipped(a) ? 'дія не потрібна' : 'ще не впроваджено') +
+        td(d == null ? '—' : num(d), 1) + td(a.cause ? causeName(kd, a.cause) : 'не записано') + td(a.before == null ? '—' : d1(a.before), 1) + td(a.after == null ? '—' : d1(a.after), 1) + '</tr>';
     }).join(''), 9);
   }
   function kdSection(r) {
@@ -141,10 +155,15 @@
   function notes(r) {
     var t = r.kd && r.kd.threshold != null ? r.kd.threshold : r.criticalPct;
     return '<footer class="mgr-rep__notes"><p>Примітки</p><ol>' +
-      '<li>Брак рахується відділу, який його зробив.</li>' +
-      '<li>Норма — брак, % відділу за тиждень не вище ' + esc(t == null ? '—' : lim(t)) + '.</li>' +
+      '<li>Аудит — одна перевірка готових виробів у відділі: скільки штук перевірили і скільки з них мали брак.</li>' +
+      '<li>Брак, % — яка частка перевірених штук мала брак. Брак рахується відділу, який його зробив, навіть якщо його знайшли в іншому відділі.</li>' +
+      '<li>Рівні браку: неправильно зроблене — можна виправити одразу; пошкоджене — іде в ремонт; зламане — не ремонтується, виріб втрачено.</li>' +
+      '<li>Норма — брак, % відділу за тиждень не вище ' + esc(t == null ? '—' : lim(t)) + '. Якщо брак, % відділу за тиждень вищий, для відділу відкривається коригуюча дія.</li>' +
+      '<li>Впроваджено — старший аудитор записав причину браку, що зроблено, хто відповідає, і дату. Від цієї дати рахуються тижні після впровадження.</li>' +
       '<li>«До» — брак, % відділу за тиждень, через який відкрили дію. «Після» — брак, % відділу за перший повний тиждень після впровадження.</li>' +
-      '<li>Різниця — «після» мінус «до»: −2,0 означає, що з кожних 100 перевірених штук браку стало менше на 2.</li>' +
+      '<li>Різниця — «після» мінус «до», у відсоткових пунктах: −2,0 означає, що з кожних 100 перевірених штук браку стало менше на 2.</li>' +
+      '<li>Рецидив — після впровадження брак, % відділу знову понад норму, у першому або другому тижні. Закрито: тримається — обидва ці тижні брак, % не вище норми.</li>' +
+      '<li>Прочерк (—) — числа немає: не було перевірок, дію ще не впроваджено, дія не потрібна або тиждень ще не закінчився.</li>' +
       '<li>Документ містить лише числа; висновки робить керівник.</li></ol></footer>';
   }
 

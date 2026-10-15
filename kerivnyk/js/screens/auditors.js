@@ -26,7 +26,7 @@
     if (!a.senior) return '<span class="mgr-dim">—</span>';
     if (!a.kd) return '<span class="mgr-dim">немає даних</span>';
     return '<span class="mgr-kdnums"><span>відкрито <b>' + H.num(a.kd.opened) + '</b></span><span>впроваджено <b>' + H.num(a.kd.implemented) + '</b></span>' +
-      '<span>до впровадження ≈ <b>' + (a.kd.daysAvg == null ? '—' : daysWord(a.kd.daysAvg)) + '</b></span></span>';
+      '<span>від відкриття до впровадження, у середньому <b>' + (a.kd.daysAvg == null ? '—' : daysWord(a.kd.daysAvg)) + '</b></span></span>';
   }
   function th(label, key, cls) { return '<th class="' + (cls || 'n') + '">' + esc(label) + (key ? K.help(key) : '') + '</th>'; }
   function table(list) {
@@ -56,9 +56,9 @@
       row('Днів з аудитами', 'mgr.daysWithAudits', function (g) { return g.daysWithAudits + ' з ' + g.days; }) +
       row('Перевірено, шт', 'term.checked', function (g) { return H.num(g.checked); }) +
       row('Норма вибірки виконана', 'mgr.locNorm', function (g) { return norm(g.norm); }) +
-      row('Коригуючі дії: відкрито', 'kd.action', function (g) { return kdv(g, function (k) { return H.num(k.opened); }); }) +
+      row('Коригуючі дії: відкрито', 'mgr.kd.action', function (g) { return kdv(g, function (k) { return H.num(k.opened); }); }) +
       row('Коригуючі дії: впроваджено', '', function (g) { return kdv(g, function (k) { return H.num(k.implemented); }); }) +
-      row('Днів до впровадження, у середньому', 'mgr.kd.days', function (g) { return kdv(g, function (k) { return k.daysAvg == null ? '—' : one(k.daysAvg); }); }) +
+      row('Днів від відкриття до впровадження, у середньому', 'mgr.kd.days', function (g) { return kdv(g, function (k) { return k.daysAvg == null ? '—' : one(k.daysAvg); }); }) +
       '</tbody></table></div></section>';
   }
 

@@ -6,16 +6,16 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light dark">
   <title>Аудит якості — старший аудитор (тест)</title>
-  <link rel="stylesheet" href="../pratsivnyk/css/ds.css?v=20261015192141">
-  <link rel="stylesheet" href="css/app.css?v=20261015192141">
-  <link rel="stylesheet" href="css/desk.css?v=20261015192141">
-  <link rel="stylesheet" href="css/senior.css?v=20261015192141">
-  <link rel="stylesheet" href="css/s-chart.css?v=20261015192141">
-  <link rel="stylesheet" href="css/s-analytics.css?v=20261015192141">
-  <link rel="stylesheet" href="css/s-history.css?v=20261015192141">
-  <link rel="stylesheet" href="css/s-kd.css?v=20261015192141">
-  <link rel="stylesheet" href="css/s-manage.css?v=20261015192141">
-  <link rel="stylesheet" href="../pratsivnyk/css/profile-switch.css?v=20261015192141">
+  <link rel="stylesheet" href="../pratsivnyk/css/ds.css?v=20261015202244">
+  <link rel="stylesheet" href="css/app.css?v=20261015202244">
+  <link rel="stylesheet" href="css/desk.css?v=20261015202244">
+  <link rel="stylesheet" href="css/senior.css?v=20261015202244">
+  <link rel="stylesheet" href="css/s-chart.css?v=20261015202244">
+  <link rel="stylesheet" href="css/s-analytics.css?v=20261015202244">
+  <link rel="stylesheet" href="css/s-history.css?v=20261015202244">
+  <link rel="stylesheet" href="css/s-kd.css?v=20261015202244">
+  <link rel="stylesheet" href="css/s-manage.css?v=20261015202244">
+  <link rel="stylesheet" href="../pratsivnyk/css/profile-switch.css?v=20261015202244">
   <script>
     /* Окрема демо-сесія старшого (вхід працівника не плутається з входом старшого) і тема до малювання. v1.0 */
     window.P = { demoSessionKey: 'demo:me:sr', demoViewRole: 'senior_auditor' };   // demoViewRole — адміністратор бачить цей додаток як старший (v1.1)
@@ -25,7 +25,7 @@
       document.documentElement.setAttribute('data-theme', t === 'dark' ? 'dark' : 'light');
     })();
   </script>
-<meta name="app-build" content="20261015192141"></head>
+<meta name="app-build" content="20261015202244"></head>
 <body>
   <div class="page" id="app" data-theme-root>
     <div class="ui-state" role="status" style="padding-top: 120px"><span class="ui-spinner" aria-hidden="true"></span><p class="ui-state__text">Завантаження…</p></div>
@@ -34,57 +34,57 @@
   <div id="overlay"></div>
   <noscript>Для роботи кабінету потрібен JavaScript.</noscript>
 
-  <script src="../pratsivnyk/js/core.js?v=20261015192141"></script>
-  <script src="../pratsivnyk/js/icons.js?v=20261015192141"></script>
-  <script src="../pratsivnyk/js/demo/dictionary.js?v=20261015192141"></script>
-  <script src="../pratsivnyk/js/demo/generate-audits.js?v=20261015192141"></script>
-  <script src="../pratsivnyk/js/demo/generate.js?v=20261015192141"></script>
-  <script src="../pratsivnyk/js/demo/server-common.js?v=20261015192141"></script>
-  <script src="../pratsivnyk/js/demo/server-read.js?v=20261015192141"></script>
-  <script src="../pratsivnyk/js/demo/server-submit.js?v=20261015192141"></script>
-  <script src="../pratsivnyk/js/demo/senior-common.js?v=20261015192141"></script>
-  <script src="../pratsivnyk/js/demo/senior-manage.js?v=20261015192141"></script>
-  <script src="../pratsivnyk/js/demo/senior-kd.js?v=20261015192141"></script>
-  <script src="../pratsivnyk/js/demo/senior-analytics.js?v=20261015192141"></script>
-  <script src="../pratsivnyk/js/demo/senior-history.js?v=20261015192141"></script>
-  <script src="../pratsivnyk/js/demo/admin-manage.js?v=20261015192141"></script>
-  <script src="../pratsivnyk/js/demo/server.js?v=20261015192141"></script>
-  <script src="../pratsivnyk/js/ui.js?v=20261015192141"></script>
-  <script src="../pratsivnyk/js/help.js?v=20261015192141"></script>
-  <script src="../pratsivnyk/js/help-common.js?v=20261015192141"></script>
-  <script src="js/help-senior.js?v=20261015192141"></script>
-  <script src="js/help-kd.js?v=20261015192141"></script>
-  <script src="../pratsivnyk/js/profile-switch.js?v=20261015192141"></script>
-  <script src="../pratsivnyk/js/update-check.js?v=20261015192141"></script>
-  <script src="../pratsivnyk/js/mail-probe.js?v=20261015192141"></script>
-  <script src="js/sr-kit.js?v=20261015192141"></script>
-  <script src="js/shell.js?v=20261015192141"></script>
-  <script src="js/chart.js?v=20261015192141"></script>
-  <script src="js/screens/analytics.js?v=20261015192141"></script>
-  <script src="js/screens/analytics-today.js?v=20261015192141"></script>
-  <script src="js/screens/analytics-period.js?v=20261015192141"></script>
-  <script src="js/screens/analytics-orders.js?v=20261015192141"></script>
-  <script src="js/screens/analytics-defect.js?v=20261015192141"></script>
-  <script src="js/screens/people.js?v=20261015192141"></script>
-  <script src="js/screens/kd.js?v=20261015192141"></script>
-  <script src="js/screens/kd-windows.js?v=20261015192141"></script>
-  <script src="js/screens/kd-route.js?v=20261015192141"></script>
-  <script src="js/screens/kd-overview.js?v=20261015192141"></script>
-  <script src="js/screens/kd-type.js?v=20261015192141"></script>
-  <script src="js/screens/kd-dept.js?v=20261015192141"></script>
-  <script src="js/screens/kd-lists.js?v=20261015192141"></script>
-  <script src="js/screens/kd-stats-dept.js?v=20261015192141"></script>
-  <script src="js/screens/kd-stats.js?v=20261015192141"></script>
-  <script src="js/screens/history.js?v=20261015192141"></script>
-  <script src="js/screens/history-audit.js?v=20261015192141"></script>
-  <script src="js/screens/manage.js?v=20261015192141"></script>
-  <script src="js/screens/manage-people.js?v=20261015192141"></script>
-  <script src="js/screens/manage-merge.js?v=20261015192141"></script>
-  <script src="js/screens/manage-catalog.js?v=20261015192141"></script>
-  <script src="js/screens/manage-blocks.js?v=20261015192141"></script>
-  <script src="js/screens/manage-import.js?v=20261015192141"></script>
-  <script src="js/screens/manage-mailing.js?v=20261015192141"></script>
-  <script src="js/screens/manage-journal.js?v=20261015192141"></script>
-  <script src="js/main.js?v=20261015192141"></script>
+  <script src="../pratsivnyk/js/core.js?v=20261015202244"></script>
+  <script src="../pratsivnyk/js/icons.js?v=20261015202244"></script>
+  <script src="../pratsivnyk/js/demo/dictionary.js?v=20261015202244"></script>
+  <script src="../pratsivnyk/js/demo/generate-audits.js?v=20261015202244"></script>
+  <script src="../pratsivnyk/js/demo/generate.js?v=20261015202244"></script>
+  <script src="../pratsivnyk/js/demo/server-common.js?v=20261015202244"></script>
+  <script src="../pratsivnyk/js/demo/server-read.js?v=20261015202244"></script>
+  <script src="../pratsivnyk/js/demo/server-submit.js?v=20261015202244"></script>
+  <script src="../pratsivnyk/js/demo/senior-common.js?v=20261015202244"></script>
+  <script src="../pratsivnyk/js/demo/senior-manage.js?v=20261015202244"></script>
+  <script src="../pratsivnyk/js/demo/senior-kd.js?v=20261015202244"></script>
+  <script src="../pratsivnyk/js/demo/senior-analytics.js?v=20261015202244"></script>
+  <script src="../pratsivnyk/js/demo/senior-history.js?v=20261015202244"></script>
+  <script src="../pratsivnyk/js/demo/admin-manage.js?v=20261015202244"></script>
+  <script src="../pratsivnyk/js/demo/server.js?v=20261015202244"></script>
+  <script src="../pratsivnyk/js/ui.js?v=20261015202244"></script>
+  <script src="../pratsivnyk/js/help.js?v=20261015202244"></script>
+  <script src="../pratsivnyk/js/help-common.js?v=20261015202244"></script>
+  <script src="js/help-senior.js?v=20261015202244"></script>
+  <script src="js/help-kd.js?v=20261015202244"></script>
+  <script src="../pratsivnyk/js/profile-switch.js?v=20261015202244"></script>
+  <script src="../pratsivnyk/js/update-check.js?v=20261015202244"></script>
+  <script src="../pratsivnyk/js/mail-probe.js?v=20261015202244"></script>
+  <script src="js/sr-kit.js?v=20261015202244"></script>
+  <script src="js/shell.js?v=20261015202244"></script>
+  <script src="js/chart.js?v=20261015202244"></script>
+  <script src="js/screens/analytics.js?v=20261015202244"></script>
+  <script src="js/screens/analytics-today.js?v=20261015202244"></script>
+  <script src="js/screens/analytics-period.js?v=20261015202244"></script>
+  <script src="js/screens/analytics-orders.js?v=20261015202244"></script>
+  <script src="js/screens/analytics-defect.js?v=20261015202244"></script>
+  <script src="js/screens/people.js?v=20261015202244"></script>
+  <script src="js/screens/kd.js?v=20261015202244"></script>
+  <script src="js/screens/kd-windows.js?v=20261015202244"></script>
+  <script src="js/screens/kd-route.js?v=20261015202244"></script>
+  <script src="js/screens/kd-overview.js?v=20261015202244"></script>
+  <script src="js/screens/kd-type.js?v=20261015202244"></script>
+  <script src="js/screens/kd-dept.js?v=20261015202244"></script>
+  <script src="js/screens/kd-lists.js?v=20261015202244"></script>
+  <script src="js/screens/kd-stats-dept.js?v=20261015202244"></script>
+  <script src="js/screens/kd-stats.js?v=20261015202244"></script>
+  <script src="js/screens/history.js?v=20261015202244"></script>
+  <script src="js/screens/history-audit.js?v=20261015202244"></script>
+  <script src="js/screens/manage.js?v=20261015202244"></script>
+  <script src="js/screens/manage-people.js?v=20261015202244"></script>
+  <script src="js/screens/manage-merge.js?v=20261015202244"></script>
+  <script src="js/screens/manage-catalog.js?v=20261015202244"></script>
+  <script src="js/screens/manage-blocks.js?v=20261015202244"></script>
+  <script src="js/screens/manage-import.js?v=20261015202244"></script>
+  <script src="js/screens/manage-mailing.js?v=20261015202244"></script>
+  <script src="js/screens/manage-journal.js?v=20261015202244"></script>
+  <script src="js/main.js?v=20261015202244"></script>
 </body>
 </html>

@@ -82,6 +82,8 @@
   .mgr-rep__t td.mgr-rep__sub { padding-left: 14pt; }
   .mgr-rep__over { display: block; font-size: 7pt; font-weight: normal; }
   .mgr-rep__empty { margin: 0 0 6pt; }
+  
+  .mgr-rep__lead { margin: 0 0 4pt; font-size: 8.5pt; break-after: avoid; page-break-after: avoid; }
 
   
   .mgr-rep__notes { border-top: 0.5pt solid #000; margin-top: 12pt; padding-top: 4pt; font-size: 7.5pt; break-inside: avoid; }

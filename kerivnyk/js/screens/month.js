@@ -71,8 +71,8 @@
         '<p class="hint">PDF: відкриється вікно друку — оберіть у ньому «Зберегти як PDF».</p></div>' +
         '<div id="mgr-mb" class="mgr-page">' + (l.audits || l.rejected ? totalsCard(l) + deptsCard(l, r.criticalPct) + topCard(l)
           : '<section class="card">' + H.empty('За ' + K.month(r.month) + ' аудитів у локації немає', 'Оберіть інший місяць чи локацію вище.') + '</section>') +
-        '<div><h2 class="h2">Коригуючі дії · ' + esc(scope) + K.help('kd.action') + '</h2><p class="h2-sub">Відкриваються, коли брак, % відділу за тиждень понад норму' +
-        (r.kd ? ' ' + H.pct(r.kd.threshold) : '') + K.help('kd.threshold') + ', або ще посеред тижня — раннім тумблером</p></div>' + P.mgrKd.month(r.kd, scope + ' · ' + K.span(r.from, r.to)) + '</div>' +
+        '<div><h2 class="h2">Коригуючі дії · ' + esc(scope) + K.help('mgr.kd.action') + '</h2><p class="h2-sub">Відкриваються для відділу, коли його брак, % за тиждень понад норму' +
+        (r.kd ? ' ' + H.pct(r.kd.threshold) : '') + K.help('mgr.kd.threshold') + ': за підсумком тижня або достроково, посеред тижня' + K.help('mgr.kd.early') + '</p></div>' + P.mgrKd.month(r.kd, scope + ' · ' + K.span(r.from, r.to)) + '</div>' +
         '<div class="mgr-rep" aria-hidden="true">' + P.mgrReport.html(r) + '</div></section>';
     }
     ctx.on('mgr-m-month', function (t) { st.month = t.value; load(); });

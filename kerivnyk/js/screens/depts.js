@@ -130,7 +130,7 @@
     return '<section class="mgr-dp__sec mgr-dp__sec--wide"><div><h4 class="mgr-dp__st">Брак, % ' + (weekly ? 'по тижнях' : 'по днях') + K.help('mgr.dept.chart') + '</h4>' +
       '<p class="hint">' + (weekly ? 'Стовпчик — 7 днів від ' + esc(K.day(r.from)) + ' (останній може бути коротшим) · ' : '') + 'наведіть на стовпчик або торкніться — його числа</p></div>' +
       '<div class="legend"><span class="mgr-key"><i class="mgr-key__hot"></i>червоний — понад ' + r.criticalPct + '%</span>' +
-      '<span class="mgr-key"><i class="mgr-key__dash"></i>норма — ' + r.criticalPct + '%' + K.help('kd.threshold') + '</span><span class="mgr-key"><i class="mgr-key__none"></i>аудитів у відділі не було</span></div>' +
+      '<span class="mgr-key"><i class="mgr-key__dash"></i>норма — ' + r.criticalPct + '%' + K.help('mgr.kd.threshold') + '</span><span class="mgr-key"><i class="mgr-key__none"></i>аудитів у відділі не було</span></div>' +
       (r.totals.audits || r.totals.rejected ? '<div data-chart="dept"></div>' : '<p class="hint">Аудитів у відділі за період не було.</p>') + '</section>';
   }
   function mountChart(el, r, scope) {
@@ -176,27 +176,27 @@
   function day(v) { return v ? K.day(String(v).slice(0, 10)) : '—'; }
   function action(a) {
     var s = canon(a.state), d = a.daysToImplement;
-    var noAfter = s === 'skip' || s === 'over';   // «після» не буде (дія не потрібна) або ще немає плану — лише «до»
-    return '<article class="mgr-dact"><div class="mgr-dact__top">' + H.kdState(s) + (P.sr.KD_STATES[s] ? K.help(P.sr.KD_STATES[s].help) : '') +
-      (a.weekStart ? '<span class="mgr-dim">тиждень розбору ' + esc(K.span(a.weekStart, a.weekEnd)) + '</span>' : '') + '</div>' +
-      '<dl class="mgr-dact__kv"><dt>Відкрито</dt><dd>' + esc(day(a.openedAt)) + (a.early ? ' <span class="badge">раннім тумблером</span>' + K.help('kd.minSample') +
-        (a.earlyBelow ? '<span class="mgr-dim mgr-block">тиждень завершився: ' + H.pct(a.weekRate) + '</span>' : '') : '') + '</dd>' +
-      '<dt>Впроваджено</dt><dd>' + (a.implementedAt ? esc(day(a.implementedAt)) + (d != null ? ' <span class="mgr-dim">· ' + (d ? 'через ' + days(d) : 'того ж дня') + '</span>' : '') : '<span class="mgr-dim">' + (s === 'skip' ? 'не потрібно' : 'ще ні') + '</span>') + '</dd>' +
-      '<dt>Причина</dt><dd>' + (a.cause ? esc(a.cause) : '<span class="mgr-dim">—</span>') + '</dd>' +
-      '<dt>Брак, % відділу: до → після' + K.help('kd.beforeAfter') + '</dt><dd>' + H.ba(a.before, a.after, noAfter) + '</dd></dl>' +
-      ((a.items || []).length ? '<div class="mgr-dact__items"><span class="mgr-dact__il">Пункти — види браку' + K.help('kd.pareto') + '</span>' + a.items.map(function (it) {
+    var noAfter = s === 'skip' || s === 'over';   // «після» не буде (дія не потрібна) або ще не впроваджено — лише «до»
+    return '<article class="mgr-dact"><div class="mgr-dact__top">' + H.kdState(s, P.mgrKd.word(s)) + P.mgrKd.help(s) +
+      (a.weekStart ? '<span class="mgr-dim">тиждень, через який відкрито: ' + esc(K.span(a.weekStart, a.weekEnd)) + '</span>' : '') + '</div>' +
+      '<dl class="mgr-dact__kv"><dt>Відкрито</dt><dd>' + esc(day(a.openedAt)) + (a.early ? ' <span class="badge">достроково, посеред тижня</span>' + K.help('mgr.kd.early') +
+        (a.earlyBelow ? '<span class="mgr-dim mgr-block">брак, % за весь тиждень: ' + H.pct(a.weekRate) + '</span>' : '') : '') + '</dd>' +
+      '<dt>Впроваджено</dt><dd>' + (a.implementedAt ? esc(day(a.implementedAt)) + (d != null ? ' <span class="mgr-dim">· ' + (d ? 'через ' + days(d) + ' після відкриття' : 'того ж дня') + '</span>' : '') : '<span class="mgr-dim">' + (s === 'skip' ? 'дія не потрібна' : 'ще не впроваджено') + '</span>') + '</dd>' +
+      '<dt>Причина браку' + K.help('mgr.kd.causes') + '</dt><dd>' + (a.cause ? esc(K.causeName(a.cause, a.cause)) : '<span class="mgr-dim">не записано</span>') + '</dd>' +
+      '<dt>Брак, % відділу: до → після' + K.help('mgr.kd.beforeAfter') + '</dt><dd>' + H.ba(a.before, a.after, noAfter) + '</dd></dl>' +
+      ((a.items || []).length ? '<div class="mgr-dact__items"><span class="mgr-dact__il">Види браку, з якими працює дія' + K.help('mgr.kd.items') + '</span>' + a.items.map(function (it) {
         return '<span class="mgr-dact__it"><span>' + esc(it.name) + '</span>' + H.ba(it.before, s === 'watch' ? null : it.after, noAfter) + '</span>';
       }).join('') + '</div>' : '') + '</article>';
   }
   function kdSec(r) {
-    var k = r.kd, top = '<div><h4 class="mgr-dp__st">Коригуючі дії відділу' + (k ? ' · ' + H.num(k.actions.length) : '') + K.help('kd.action') + '</h4>';
+    var k = r.kd, top = '<div><h4 class="mgr-dp__st">Коригуючі дії відділу' + (k ? ' · ' + H.num(k.actions.length) : '') + K.help('mgr.kd.action') + '</h4>';
     if (!k) return '<section class="mgr-dp__sec">' + top + '</div><p class="hint">Даних про коригуючі дії немає.</p></section>';
     var states = KD_ORDER.filter(function (s) { return k.states[s]; });
     var list = k.actions.slice().sort(function (a, b) { return String(b.openedAt) < String(a.openedAt) ? -1 : 1; });
-    return '<section class="mgr-dp__sec">' + top + '<p class="hint">Дії, які йшли хоча б частину цього періоду · стан — на сьогодні' +
+    return '<section class="mgr-dp__sec">' + top + '<p class="hint">Коригуючі дії, які тривали хоча б частину цього періоду · стан — на сьогодні' +
       ' · за період: відкрито <b>' + H.num(k.opened) + '</b>, впроваджено <b>' + H.num(k.implemented) + '</b></p></div>' +
       (!list.length ? '<p class="hint">Коригуючих дій відділу за цей період не було.</p>'
-        : '<div class="mgr-split__key">' + states.map(function (s) { return '<span class="mgr-split__i">' + H.kdState(s, P.sr.KD_STATES[s].label + ' · ' + k.states[s]) + K.help(P.sr.KD_STATES[s].help) + '</span>'; }).join('') + '</div>' +
+        : '<div class="mgr-split__key">' + states.map(function (s) { return '<span class="mgr-split__i">' + H.kdState(s, P.mgrKd.word(s) + ' · ' + k.states[s]) + P.mgrKd.help(s) + '</span>'; }).join('') + '</div>' +
           '<div class="mgr-dacts">' + list.map(action).join('') + '</div>') + '</section>';
   }
   function peopleSec(r) {
@@ -239,7 +239,7 @@
       var list = sorted(r.depts), scope = names.join(' · ') + ' · ' + tname;
       var body = many ? compare(r, st.locs, r.criticalPct, dp.id) : list.length ? table(list, r.criticalPct, dp.id) + cards(list, r.criticalPct, dp.id) : '';
       ctx.el.innerHTML = '<section class="mgr-page"><div><h2 class="h2">' + (many ? 'Порівняння локацій · ' + esc(tname) : 'Рейтинг відділів · ' + esc(names[0] || '') + ' · відділів: ' + list.length) + '</h2>' +
-        '<p class="h2-sub">' + esc(K.span(r.from, r.to)) + ' · ' + esc(K.asOf(r.asOf)) + ' · брак рахується відділу, який його зробив' + K.help('mgr.deptBrak') +
+        '<p class="h2-sub">' + esc(K.span(r.from, r.to)) + ' · ' + esc(K.asOf(r.asOf)) + ' · брак рахується відділу, який його зробив, хоч би де його знайшли' + K.help('mgr.deptBrak') +
         ' · натисніть на відділ — розгорнеться все про нього' + K.help('mgr.dept.open') + '</p></div>' +
         '<div class="card mgr-gap mgr-gap--sm">' + K.locBar('mgr-d', r.locations, st.locs, st.many) +
         '<div class="mgr-pick"><span class="mgr-pick__l">Відділ' + K.help('mgr.deptPick') + '</span>' + K.chips('mgr-d-type', types, st.type, 'Відділ') + '</div>' +

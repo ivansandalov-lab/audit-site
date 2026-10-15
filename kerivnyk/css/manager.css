@@ -131,6 +131,8 @@
 
 
 .mgr-tbl td { vertical-align: top; }
+
+.mgr-tbl th.mgr-wrap { white-space: normal; min-width: 110px; vertical-align: bottom; }
 .mgr-tbl__lv { min-width: 110px; }
 .mgr-tbl__lv .stack { margin-top: 6px; }
 .mgr-top { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 13px; }

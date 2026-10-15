@@ -5,6 +5,10 @@
   var MONTHS_GEN = ['січня', 'лютого', 'березня', 'квітня', 'травня', 'червня', 'липня', 'серпня', 'вересня', 'жовтня', 'листопада', 'грудня'];
   var LV = ['fix', 'repair', 'scrap'];
   var LV_WORD = { fix: 'неправильно зроблене', repair: 'пошкоджене', scrap: 'зламане' };
+  var CAUSE_NAMES = { tool: 'Проблеми з інструментом чи оснасткою', material: 'Проблеми з матеріалом', organization: 'Проблеми в організації роботи',
+    skill: 'Працівник не знав, як зробити правильно', discipline: 'Працівник знав, як правильно, але не зробив', other: 'Інша причина' };
+  var CAUSE_IDS = { 'Інструмент чи оснастка': 'tool', 'Матеріал': 'material', 'Організація роботи': 'organization',
+    'Не знав / не вміє': 'skill', 'Знав, але не зробив': 'discipline', 'Інше': 'other' };
   function h() { return P.sr.h; }
   function esc(s) { return P.esc(s); }
 
@@ -18,6 +22,10 @@
     month: function (m) { return MONTHS[+m.slice(5, 7) - 1] + ' ' + m.slice(0, 4); },
     brak: function (rejected, pct) { return h().num(rejected) + ' шт · ' + h().pct(pct); },
     was: function (prev, cur) { return 'було <b>' + prev + '</b> → стало <b>' + cur + '</b>'; },
+    causeName: function (id, label) {
+      var k = CAUSE_NAMES[id] ? id : CAUSE_IDS[label] || CAUSE_IDS[id];
+      return k ? CAUSE_NAMES[k] : (label || id || '—');
+    },
     total: function (o) { return (o.fix || 0) + (o.repair || 0) + (o.scrap || 0); },
     levels: function (o, height) { return h().legend(o) + h().stack(o, height || 12); },
     rate: function (pct, crit) {
