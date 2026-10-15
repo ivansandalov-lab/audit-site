@@ -5,12 +5,13 @@
 
   S.KD_STATES = {
     ok: { label: 'у нормі', help: 'kd.state.ok' }, over: { label: 'понад норму, не почато', help: 'kd.state.over' },
-    work: { label: 'в роботі', help: 'kd.state.work' }, watch: { label: 'на спостереженні', help: 'kd.state.watch' },
-    done: { label: 'спостереження вдале', help: 'kd.state.done' }, relapse: { label: 'рецидив', help: 'kd.state.relapse' },
+    work: { label: 'в роботі', help: 'kd.state.work' }, watch: { label: 'впроваджено · тиждень результату', help: 'kd.state.watch' },
+    hold: { label: 'під наглядом', help: 'kd.state.hold' },   // 15.10: після дії брак нижче норми, тиждень утримання
+    done: { label: 'закрито: тримається', help: 'kd.state.done' }, relapse: { label: 'рецидив', help: 'kd.state.relapse' },
     skip: { label: 'дія не потрібна', help: 'kd.state.skip' }
   };
   S.kdStateOf = function (status) {
-    return { 'new': 'over', started: 'work', check: 'watch', helped: 'done', not_helped: 'relapse', not_needed: 'skip', none: 'ok' }[status] || 'ok';
+    return { 'new': 'over', started: 'work', check: 'watch', hold: 'hold', helped: 'done', not_helped: 'relapse', not_needed: 'skip', none: 'ok' }[status] || 'ok';
   };
 
 

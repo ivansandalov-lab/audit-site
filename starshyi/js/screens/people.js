@@ -81,21 +81,28 @@
     load();
   }
   function kdHead(depName, r) {
-    return '<div><p class="pp-h">Коригуючі дії' + A.q('kd.action') + '</p><p class="hint">Дії відділу' + (depName ? ' ' + esc(depName) : '') + ' по видах браку, у яких працівник винний' +
+    return '<div><p class="pp-h">Коригуючі дії' + A.q('kd.action') + '</p><p class="hint">КД відділу' + (depName ? ' ' + esc(depName) : '') + ', де серед пунктів є види браку, у яких працівник винний' +
       (r && r.from ? ' · ' + esc(A.span(r.from, r.to)) : '') + '</p></div>';
   }
   function kdBody(r) {
-    var K = P.srKd;
+    var K = P.srKd, mine = {};
+    r.types.forEach(function (t) { mine[t.id] = 1; });
     var types = r.types.length ? '<p class="hint">Види браку працівника за період: </p><div class="pp-kd-types">' + r.types.map(function (t) {
       return '<span class="chip chip--plain">' + esc(t.name) + ' · ' + h.num(t.pieces) + ' шт</span>'; }).join('') + '</div>' : '';
     if (!r.items.length) return '<p style="margin:0"><b>Коригуючих дій у цьому періоді немає.</b></p>' + types;
     return '<div class="pp-kd-list">' + r.items.map(function (a) {
+      var own = a.items.filter(function (it) { return mine[it.defectTypeId]; });
+      var pts = a.items.map(function (it) { return mine[it.defectTypeId] ? '<b>' + esc(it.name) + '</b>' : esc(it.name); }).join(' · ');
+      var ba = own.map(function (it) {
+        return esc(it.name) + ': ' + K.pct(it.before) + (it.after != null ? ' → ' + (a.result && a.result.pending ? 'поки ' : '') + K.pct(it.after) : '');
+      }).join(' · ');
       return '<a class="pp-kd-item" data-ov-close href="#/kd/dept/' + encodeURIComponent(a.departmentId) + '?p=' + a.period + '&t=' + encodeURIComponent(a.defectTypeId) + '">' +
-        '<span class="pp-kd-item__head"><b>' + esc(a.name) + '</b>' + h.kdState(P.sr.kdStateOf(a.status)) + '</span>' +
-        '<span class="hint">' + esc(K.actMeta(a)) + '</span>' +
-        (a.after != null ? '<span class="hint">Результат: ' + esc(K.result(a, r.threshold)) + '</span>'
-          : '<span class="hint">Частка виду браку у відділі за розбір: ' + esc(K.rates(a)) + '</span>') +
-        (a.plan ? '<span class="hint">Що робимо: ' + esc(a.plan) + '</span>' : '') + '</a>';
+        '<span class="pp-kd-item__head"><b>КД · ' + esc(K.week(a.periodStart, a.periodEnd)) + '</b>' + K.stateBadge(a) + '</span>' +
+        '<span class="hint">Пункти КД (жирним — види браку працівника): ' + pts + '</span>' +
+        '<span class="hint">Його види браку, % від перевірених у відділі' + (a.result ? ' (тиждень КД → тиждень результату)' : ' (тиждень КД)') + ': ' + ba + '</span>' +
+        '<span class="hint">Брак, % усього відділу: ' + esc(K.rates(a)) + '</span>' +
+        (a.implementedAt ? '<span class="hint">Впроваджений план · що зроблено (' + h.dayShort(a.implementedAt) + '): ' + esc(a.plan) + '</span>'
+          : a.status === 'not_needed' ? '<span class="hint">Дія не потрібна: «' + esc(a.notNeededReason) + '»</span>' : '<span class="hint">Впроваджений план ще не записано.</span>') + '</a>';
     }).join('') + '</div>' + types;
   }
   function mountWeeks(slot, r) {

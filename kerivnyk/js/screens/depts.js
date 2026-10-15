@@ -2,7 +2,7 @@
   'use strict';
   var P = root.P, esc = P.esc, H = P.sr.h, K = P.mgr;
   var SORTS = [['pct', 'За % браку'], ['checked', 'За перевіреними, шт']];
-  var st = { sort: 'pct', loc: '', type: '' };
+  var st = { sort: 'pct', locs: [], many: false, type: '' };
 
   function sorted(list) {
     return list.slice().sort(function (a, b) {
@@ -11,10 +11,9 @@
       return b.pct - a.pct || b.checked - a.checked;
     });
   }
-  function name(d) {
-    return '<b>' + esc(d.name) + '</b>' + (d.active ? '' : ' ' + H.badge('вимкнено')) + '<span class="mgr-dim mgr-block">' + esc(d.locationName) + '</span>';
-  }
-  function th(label, key, n) { return '<th' + (n ? ' class="n"' : '') + '>' + esc(label) + K.help(key) + '</th>'; }
+  function name(d) { return '<b>' + esc(d.name) + '</b>' + (d.active ? '' : ' ' + H.badge('вимкнено')); }
+  function th(label, key, n) { return '<th' + (n ? ' class="n"' : '') + '>' + esc(label) + (key ? K.help(key) : '') + '</th>'; }
+
   function table(list, crit) {
     return '<div class="tbl-box mgr-desk"><table class="tbl mgr-tbl"><thead><tr><th class="n">№</th><th>Відділ</th>' + th('Аудитів', 'term.audit', 1) +
       th('Перевірено, шт', 'term.checked', 1) + th('Брак, шт', 'mgr.deptBrak', 1) + th('Брак, %', 'term.rate', 1) + th('Рівні браку', 'term.levels') +
@@ -34,32 +33,75 @@
     }).join('') + '</div>';
   }
 
+  function compareRows(r, locs) {
+    var rows = [], by = {};
+    r.depts.forEach(function (d) {
+      var k = d.deptTypeId + '|' + d.name;
+      if (!by[k]) { by[k] = { name: d.name, type: d.deptTypeName, sub: d.deptTypeName !== d.name ? d.deptTypeName : '', cells: {} }; rows.push(by[k]); }
+      by[k].cells[d.locationId] = d;
+    });
+    rows.sort(function (a, b) { return a.type < b.type ? -1 : a.type > b.type ? 1 : (a.name < b.name ? -1 : 1); });
+    return rows.filter(function (x) { return locs.some(function (id) { return x.cells[id]; }); });
+  }
+  function cell(d, crit) {
+    if (!d) return '<span class="mgr-dim">такого відділу в локації немає</span>';
+    return '<div class="mgr-cmpcell"><span class="mgr-cmpcell__pct">' + K.rate(d.pct, crit) + '</span>' +
+      '<span class="mgr-dim">брак ' + H.num(d.rejected) + ' з ' + H.num(d.checked) + ' шт · ' + K.n(d.audits, 'аудит', 'аудити', 'аудитів') + '</span>' +
+      H.stack(d.levels, 6) + '<span class="mgr-top">' + K.topLine(d.top) + '</span>' + (d.active ? '' : H.badge('вимкнено')) + '</div>';
+  }
+  function compare(r, locs, crit) {
+    var rows = compareRows(r, locs), names = {};
+    r.locations.forEach(function (l) { names[l.id] = l.name; });
+    if (!rows.length) return '';
+    return '<div class="tbl-box mgr-desk"><table class="tbl mgr-tbl mgr-cmptbl"><thead><tr><th>Відділ</th>' + locs.map(function (id) {
+      return '<th>' + P.ic('location', 'ui-icon--sm') + ' ' + esc(names[id]) + '</th>'; }).join('') + '</tr></thead><tbody>' +
+      rows.map(function (x) {
+        return '<tr><td><b>' + esc(x.name) + '</b><span class="mgr-dim mgr-block">' + esc(x.sub) + '</span></td>' +
+          locs.map(function (id) { return '<td>' + cell(x.cells[id], crit) + '</td>'; }).join('') + '</tr>';
+      }).join('') + '</tbody></table></div>' +
+      '<div class="mgr-cards mgr-phone">' + rows.map(function (x) {
+        return '<article class="mgr-card"><div class="mgr-card__head"><b>' + esc(x.name) + '</b><span class="mgr-dim">' + esc(x.sub) + '</span></div>' +
+          locs.map(function (id) { return '<div class="mgr-cmpline"><span class="mgr-cmpline__loc">' + P.ic('location', 'ui-icon--sm') + esc(names[id]) + '</span>' + cell(x.cells[id], crit) + '</div>'; }).join('') +
+          '</article>';
+      }).join('') + '</div>';
+  }
+
   P.cab.tab({ id: 'depts', label: 'Відділи', ic: 'department', path: '/depts', order: 20 });
   P.cab.screen('/depts', { tab: 'depts', title: 'Відділи', period: true, render: function (ctx) {
     var req = 0, last = null;
     function load() {
       var my = ++req, box = ctx.el.querySelector('#mgr-dl');
       if (box) box.classList.add('mgr-busy');   // фільтр змінили — старі числа тьмяніють, доки не прийдуть нові
-      P.srv('mgrDepts', { from: ctx.period.from, to: ctx.period.to, locationId: st.loc, deptTypeId: st.type }).then(function (r) {
+      var p = { from: ctx.period.from, to: ctx.period.to, deptTypeId: st.type };
+      if (st.locs.length) p.locationIds = st.locs;
+      P.srv('mgrDepts', p).then(function (r) {
         if (!ctx.alive() || my !== req) return;
-        if (!r.ok && r.code === 'not_found' && (st.loc || st.type)) { st.loc = st.type = ''; load(); return; }   // фільтр на те, чого вже немає
+        if (!r.ok && (r.code === 'not_found' || r.code === 'validation') && (st.locs.length || st.type)) { st.locs = []; st.type = ''; load(); return; }   // вибір на те, чого вже немає
         if (!r.ok) { ctx.el.innerHTML = H.error(r); return; }
+        if (!st.locs.length) { st.locs = r.locations.length ? [r.locations[0].id] : []; if (st.locs.length) { load(); return; } }   // перший захід — перша локація
         last = r; draw(r);
       });
     }
     function draw(r) {
-      var list = sorted(r.depts), types = [['', 'Усі типи відділів']].concat(r.deptTypes.map(function (t) { return [t.id, t.name]; }));
-      var locs = [['', 'Усі локації']].concat(r.locations.map(function (l) { return [l.id, l.name]; }));
-      var scope = (r.location ? r.location.name : 'Усі локації') + (st.type ? ' · ' + types.filter(function (t) { return t[0] === st.type; })[0][1] : '');
-      ctx.el.innerHTML = '<section class="mgr-page"><div><h2 class="h2">Рейтинг відділів · ' + list.length + '</h2><p class="h2-sub">' + esc(scope) + ' · ' +
-        esc(K.span(r.from, r.to)) + ' · ' + esc(K.asOf(r.asOf)) + ' · брак рахується відділу, який його зробив' + K.help('mgr.deptBrak') + '</p></div>' +
-        '<div class="mgr-bar">' + K.select('mgr-d-loc', locs, st.loc, 'Локація') + K.select('mgr-d-type', types, st.type, 'Тип відділу') +
-        K.pills('mgr-d-sort', SORTS, st.sort, 'Сортування') + '</div>' +
-        '<div id="mgr-dl" class="card">' + (list.length ? table(list, r.criticalPct) + cards(list, r.criticalPct)
-          : H.empty('Відділів не знайдено', scope + ' · спробуйте інший тип відділу чи локацію.')) + '</div></section>';
+      var types = [['', 'Усі відділи']].concat(r.deptTypes.map(function (t) { return [t.id, t.name]; }));
+      var many = st.many && st.locs.length > 1, names = r.locations.filter(function (l) { return st.locs.indexOf(l.id) >= 0; }).map(function (l) { return l.name; });
+      var tname = st.type ? types.filter(function (t) { return t[0] === st.type; })[0][1] : 'усі відділи';
+      var list = sorted(r.depts), scope = names.join(' · ') + ' · ' + tname;
+      var body = many ? compare(r, st.locs, r.criticalPct) : list.length ? table(list, r.criticalPct) + cards(list, r.criticalPct) : '';
+      ctx.el.innerHTML = '<section class="mgr-page"><div><h2 class="h2">' + (many ? 'Порівняння локацій · ' + esc(tname) : 'Рейтинг відділів · ' + esc(names[0] || '') + ' · ' + list.length) + '</h2>' +
+        '<p class="h2-sub">' + esc(K.span(r.from, r.to)) + ' · ' + esc(K.asOf(r.asOf)) + ' · брак рахується відділу, який його зробив' + K.help('mgr.deptBrak') + '</p></div>' +
+        '<div class="card mgr-gap mgr-gap--sm">' + K.locBar('mgr-d', r.locations, st.locs, st.many) +
+        '<div class="mgr-pick"><span class="mgr-pick__l">Відділ' + K.help('mgr.deptPick') + '</span>' + K.chips('mgr-d-type', types, st.type, 'Відділ') + '</div>' +
+        (many ? '' : '<div class="mgr-pick"><span class="mgr-pick__l">Порядок</span>' + K.pills('mgr-d-sort', SORTS, st.sort, 'Сортування') + '</div>') +
+        (st.many && st.locs.length < 2 ? '<p class="hint">Оберіть ще одну локацію вище — вони стануть поруч.</p>' : '') + '</div>' +
+        '<div id="mgr-dl" class="card">' + (body || H.empty('Відділів не знайдено', scope + ' · спробуйте інший відділ чи локацію.')) + '</div></section>';
     }
-    ctx.on('mgr-d-loc', function (t) { st.loc = t.value; load(); });
-    ctx.on('mgr-d-type', function (t) { st.type = t.value; load(); });
+    ctx.on('mgr-d-loc', function (t) { st.locs = K.pickLocs(st.locs, t.getAttribute('data-v'), st.many); load(); });
+    ctx.on('mgr-d-many', function () {
+      st.many = !st.many;
+      if (!st.many && st.locs.length > 1) { st.locs = st.locs.slice(0, 1); load(); } else if (last) draw(last);
+    });
+    ctx.on('mgr-d-type', function (t) { st.type = t.getAttribute('data-v'); load(); });
     ctx.on('mgr-d-sort', function (t) { st.sort = t.getAttribute('data-v'); if (last) draw(last); });
     load();
   } });

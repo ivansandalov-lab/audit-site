@@ -274,7 +274,7 @@ mark.hl { padding: 0; border-radius: 2px; background: var(--brand-soft); color: 
 .note { margin: 0; font-size: var(--fs-xs); color: var(--text-3); line-height: 1.5; }
 
 
-:root { --kd-ok: var(--line-strong); --kd-over: var(--danger-fill); --kd-work: var(--warn-fill); --kd-watch: var(--info); --kd-done: var(--ok); --kd-relapse: var(--danger); --kd-skip: var(--line-mid); }
+:root { --kd-hold: color-mix(in srgb, var(--ok) 55%, var(--info)); --kd-ok: var(--line-strong); --kd-over: var(--danger-fill); --kd-work: var(--warn-fill); --kd-watch: var(--info); --kd-done: var(--ok); --kd-relapse: var(--danger); --kd-skip: var(--line-mid); }
 .kds { display: inline-flex; align-items: center; gap: 6px; font-size: var(--fs-xs); font-weight: 600; line-height: 1.3; color: var(--text-2); }
 .kds::before { content: ''; flex: none; width: 10px; height: 10px; border-radius: 3px; background: var(--kd-ok); }
 .kds--over::before { background: var(--kd-over); } .kds--over { color: var(--danger); }
@@ -305,3 +305,5 @@ mark.hl { padding: 0; border-radius: 2px; background: var(--brand-soft); color: 
 .blr--ok .blr__dot { background: var(--ok); box-shadow: 0 0 0 1px var(--ok); }
 .blr__scale { display: flex; justify-content: space-between; font-size: var(--fs-xs); color: var(--text-3); }
 .blr--sm { padding-top: 18px; } .blr--sm .blr__track { height: 12px; }
+.kds--hold::before { background: var(--kd-hold); } .kds--hold { color: var(--ok); }
+.kdm--hold { background: var(--kd-hold); }

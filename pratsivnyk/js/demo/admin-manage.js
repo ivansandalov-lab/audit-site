@@ -22,20 +22,23 @@
 
   var RULES = [
     { key: 'criticalPct', label: 'Критичний брак в аудиті', unit: '%', min: 0.5, max: 50, dec: 1 },
-    { key: 'kdThreshold', label: 'Коригуючі дії: поріг виду браку', unit: '%', min: 0.5, max: 50, dec: 1 },
-    { key: 'kdMinSample', label: 'Коригуючі дії: мінімум перевірених', unit: 'шт', min: 10, max: 5000, dec: 0 },
-    { key: 'kdPeriodDays', label: 'Коригуючі дії: розбір раз на', unit: 'дн.', locked: true },
+    { key: 'kdThreshold', label: 'Коригуючі дії: норма браку відділу', unit: '%', min: 0.5, max: 50, dec: 1 },
+    { key: 'kdReviewDay', label: 'Коригуючі дії: день розбору', unit: '', min: 1, max: 7, dec: 0, names: S.WEEKDAYS },
+    { key: 'kdCycleDays', label: 'Коригуючі дії: тиждень розбору', unit: 'дн.', locked: true },
+    { key: 'kdEarlyMin', label: 'Коригуючі дії: ранній тумблер', unit: 'шт', min: 50, max: 10000, dec: 0 },
+    { key: 'kdPareto', label: 'Коригуючі дії: пункти (Парето)', unit: '%', min: 50, max: 100, dec: 0 },
     { key: 'editWindowMin', label: 'Виправити свій аудит протягом', unit: 'хв', min: 1, max: 240, dec: 0 },
     { key: 'sessionDays', label: 'Повторний вхід раз на', unit: 'дн.', min: 1, max: 60, dec: 0 }
   ];
-  var DEF = { criticalPct: 5, kdThreshold: S.KD.THRESHOLD, kdMinSample: S.KD.MIN_SAMPLE, kdPeriodDays: S.KD.PERIOD_DAYS,
-    editWindowMin: C.LIMITS.editWindowMin, sessionDays: C.SESSION_DAYS };
+  var DEF = { criticalPct: 5, kdThreshold: S.KD.THRESHOLD, kdReviewDay: S.KD.REVIEW_DAY, kdCycleDays: S.KD.CYCLE_DAYS, kdEarlyMin: S.KD.EARLY_MIN,
+    kdPareto: S.KD.PARETO, editWindowMin: C.LIMITS.editWindowMin, sessionDays: C.SESSION_DAYS };
   var GET = { criticalPct: function (db) { return db.settings.criticalPct; }, kdThreshold: function () { return S.KD.THRESHOLD; },
-    kdMinSample: function () { return S.KD.MIN_SAMPLE; }, kdPeriodDays: function () { return S.KD.PERIOD_DAYS; },
+    kdReviewDay: function () { return S.KD.REVIEW_DAY; }, kdCycleDays: function () { return S.KD.CYCLE_DAYS; },
+    kdEarlyMin: function () { return S.KD.EARLY_MIN; }, kdPareto: function () { return S.KD.PARETO; },
     editWindowMin: function () { return C.LIMITS.editWindowMin; }, sessionDays: function () { return C.SESSION_DAYS; } };
   var SET = { criticalPct: function (db, v) { db.settings.criticalPct = v; }, kdThreshold: function (db, v) { S.KD.THRESHOLD = v; },
-    kdMinSample: function (db, v) { S.KD.MIN_SAMPLE = v; }, editWindowMin: function (db, v) { C.LIMITS.editWindowMin = v; },
-    sessionDays: function (db, v) { C.SESSION_DAYS = v; } };
+    kdReviewDay: function (db, v) { S.KD.REVIEW_DAY = v; }, kdEarlyMin: function (db, v) { S.KD.EARLY_MIN = v; }, kdPareto: function (db, v) { S.KD.PARETO = v; },
+    editWindowMin: function (db, v) { C.LIMITS.editWindowMin = v; }, sessionDays: function (db, v) { C.SESSION_DAYS = v; } };
 
   function has(o, k) { return o != null && Object.prototype.hasOwnProperty.call(o, k); }
   function arr(v) { return Array.isArray(v) ? v : []; }
@@ -47,7 +50,7 @@
   function hh(n) { return (n < 10 ? '0' : '') + n + ':00'; }
   function remText(r) { return r && r.on ? 'з ' + hh(r.from) + ' до ' + hh(r.to) + ', кожні ' + r.every + ' год' : 'вимкнено'; }
   function numText(v) { return String(v).replace('.', ','); }
-  function withUnit(v, u) { return numText(v) + (u === '%' ? '%' : ' ' + u); }
+  function withUnit(v, u, names) { return names ? (names[v - 1] || String(v)) : numText(v) + (u === '%' ? '%' : ' ' + u); }
   function locStore(st) { var s = obj(st.get(K.locs, null)); return { add: arr(s.add), edit: obj(s.edit) }; }
   function peopleStore(st) { var s = obj(st.get(K.people, null)); return { add: arr(s.add), edit: obj(s.edit), off: obj(s.off) }; }
   P.demoAccessOff = function (st, id) { return has(peopleStore(st).off, id); };
@@ -267,13 +270,14 @@
       if (r.locked) return C.fail('locked', 'Це число змінюється разом із базою.');
       var v = p.reset === true ? DEF[r.key] : typeof p.value === 'string' ? Number(p.value.replace(',', '.')) : p.value;
       if (!okVal(r, v)) {
+        if (r.names) return verr([{ field: 'value', message: 'Оберіть день тижня зі списку.' }]);
         return verr([{ field: 'value', message: 'Число від ' + numText(r.min) + ' до ' + numText(r.max) + ' ' + r.unit + (r.dec ? ', до одного знака після коми.' : ', ціле.') }]);
       }
       var st = obj(env.storage.get(K.rules, null)), vals = obj(st.values), meta = obj(st.meta), was = GET[r.key](env.db);
       if (v === DEF[r.key]) delete vals[r.key]; else vals[r.key] = v;
       if (v !== was) meta[r.key] = { at: env.now().toISOString(), by: me.id, byName: me.name, from: was, to: v };
       env.storage.set(K.rules, { values: vals, meta: meta });
-      if (v !== was) log(env, me, 'Правила', r.label, [['Значення', withUnit(was, r.unit), withUnit(v, r.unit)]]);
+      if (v !== was) log(env, me, 'Правила', r.label, [['Значення', withUnit(was, r.unit, r.names), withUnit(v, r.unit, r.names)]]);
       env.reload();
       return { ok: true, key: r.key, value: GET[r.key](env.db), was: was };
     }

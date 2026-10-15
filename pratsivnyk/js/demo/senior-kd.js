@@ -1,10 +1,10 @@
 (function (root) {
   'use strict';
   var P = root.P = root.P || {}, C = P.demoCommon, S = P.demoSenior;
-  var KD = S.KD, KEY = 'demo:sr:kd:actions';
-  var DEPT_BARS = 12, MINI_BARS = 7, TREND_SPAN = 5, MAX_BACK = 60, PERIOD_LIST = 24;
-  var ROUTE_BACK = 22;     // маршрут виду браку — щонайменше за стільки розборів (≈ 90 днів). v1.3
-  var GEN_THRESHOLD = 5;   // поріг для генерації тестової історії — сталий, незалежний від правил адміністратора
+  var KD = S.KD, KEY = 'demo:sr:kd2:actions', OLD_KEY = 'demo:sr:kd:actions';
+  var DEPT_BARS = 12, MINI_BARS = 7, MAX_BACK = 26, PERIOD_LIST = 16, ROUTE_BACK = 13;
+  var GEN = { threshold: 5, wd: 5, early: 500, pareto: 70 };
+  var DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
 
   var CAUSES = [
     { id: 'skill', label: 'Не знав / не вміє' },
@@ -16,409 +16,294 @@
   ];
   var CAUSE_IX = Object.create(null);
   CAUSES.forEach(function (c) { CAUSE_IX[c.id] = c; });
-  var STATUS_LABELS = { 'new': 'нова', started: 'в роботі', check: 'перевірка', helped: 'допомогла', not_helped: 'не допомогла', not_needed: 'не потрібно', none: 'дій не було' };
+  var STATUS_LABELS = { 'new': 'понад норму, не почато', check: 'впроваджено · тиждень результату', hold: 'під наглядом',
+    helped: 'закрито: тримається', not_helped: 'рецидив', not_needed: 'дія не потрібна', none: 'дій не було' };
+  var STATE_OF = { 'new': 'over', check: 'watch', hold: 'hold', helped: 'done', not_helped: 'relapse', not_needed: 'skip' };
 
   function clone(o) { return JSON.parse(JSON.stringify(o)); }
-  function sumPieces(d) { return S.pieces(d); }
-  function has(o, k) { return typeof k === 'string' && Object.prototype.hasOwnProperty.call(o, k); }
-  function fmt(v) { return String(Math.round(v * 10) / 10).replace('.', ','); }
+  function has(o, k) { return typeof k === 'string' && o != null && Object.prototype.hasOwnProperty.call(o, k); }
+  function r1(x) { return Math.round(x * 10) / 10; }
+  function mean(list) { return list.length ? list.reduce(function (s, v) { return s + v; }, 0) / list.length : 0; }
+  function daysBetween(a, b) { return Math.round((S.parseDay(b) - S.parseDay(a)) / 86400000); }
 
-
-  function genAudits(db, depId, n) {
-    var from = S.periodStart(n), to = S.periodEnd(n);
-    return db.audits.filter(function (a) { return a.departmentId === depId && a.day >= from && a.day <= to; });
-  }
-  function genStat(list, depId, typeId) {
-    var o = { checked: 0, pieces: 0 };
-    list.forEach(function (a) {
-      o.checked += C.checkedOf(a);
-      a.defects.forEach(function (d) { if (d.defectTypeId === typeId && S.sourceDept(a, d) === depId) o.pieces += sumPieces(d); });
-    });
-    return o;
-  }
-  function addPieces(list, rnd, typeId, k, culprit) {
-    for (var guard = 0; k > 0 && guard < 400; guard++) {
-      var slots = [];
-      list.forEach(function (a) { a.items.forEach(function (it) { if (it.qty > it.rejected) slots.push([a, it]); }); });
-      if (!slots.length) return;
-      var s = rnd.pick(slots), a = s[0], it = s[1];
-      var q = Math.min(k, it.qty - it.rejected, rnd.int(1, 3));
-      var w = culprit && a.checkedWorkers.indexOf(culprit) >= 0 && rnd.chance(0.7) ? culprit : rnd.pick(a.checkedWorkers);
-      var row = a.defects.filter(function (d) { return d.productId === it.productId && d.orderNo === it.orderNo && d.defectTypeId === typeId && !d.departmentId; })[0];
-      if (!row) { row = { productId: it.productId, orderNo: it.orderNo, defectTypeId: typeId, photo: null, guilty: [] }; a.defects.push(row); }
-      var g = row.guilty.filter(function (x) { return x.workerCode === w; })[0];
-      if (g) g.qty += q; else row.guilty.push({ workerCode: w, qty: q });
-      it.rejected += q; a.noDefects = false; k -= q;
-    }
-  }
-  function setRate(db, rnd, depId, typeId, n, target, culprit) {
-    var list = genAudits(db, depId, n), st = genStat(list, depId, typeId);
-    if (!st.checked) return;
-    var want = target > GEN_THRESHOLD ? Math.ceil(target / 100 * st.checked) : Math.floor(target / 100 * st.checked);
-    if (want > st.pieces) addPieces(list, rnd, typeId, want - st.pieces, culprit);
-  }
-  function makeLowData(db, rnd, depId, n, typeId, culprit) {
-    var list = genAudits(db, depId, n);
-    if (!list.length) return;
-    var keepIds = {}, wished = {};
-    db.wishes.forEach(function (w) { if (w.doneAuditId) wished[w.doneAuditId] = 1; });
-    keepIds[list[0].id] = 1;
-    list.forEach(function (a) { if (wished[a.id]) keepIds[a.id] = 1; });
-    db.audits = db.audits.filter(function (a) { return a.departmentId !== depId || a.day < S.periodStart(n) || a.day > S.periodEnd(n) || keepIds[a.id]; });
-    var kept = list.filter(function (a) { return keepIds[a.id]; }), target = rnd.int(40, 52);
-    var total = kept.reduce(function (s, a) { return s + C.checkedOf(a); }, 0);
-    if (total > target) kept.forEach(function (a) { a.items.forEach(function (it) { it.qty = Math.max(it.rejected, 1, Math.floor(it.qty * target / total)); }); });
-    addPieces(kept, rnd, typeId, rnd.int(3, 4), culprit);
-  }
-  function naturalMax(db, depId, typeId, from, to) {
-    var m = 0;
-    for (var n = from; n <= to; n++) {
-      var st = genStat(genAudits(db, depId, n), depId, typeId);
-      if (st.checked) m = Math.max(m, st.pieces / st.checked * 100);
-    }
-    return m;
-  }
-
-  function plan(kind, rnd) {
-    var j = function (a, b) { return Math.round(rnd.between(a, b) * 10) / 10; };
-    switch (kind) {
-      case 'rise': return { rates: { '-4': j(1.9, 2.3), '-3': j(2.8, 3.2), '-2': j(3.6, 4.0), '-1': j(4.4, 4.8), '0': j(5.9, 6.4) } };
-      case 'jump': return { rates: { '0': j(6.3, 7.0) } };
-      case 'near': return { rates: { '-4': j(4.4, 4.7), '-3': j(5.3, 5.6), '-2': j(4.5, 4.8), '-1': j(4.6, 4.9), '0': j(5.2, 5.5) },
-        seed: { at: -3, notNeeded: 'Разовий збій машини — полагодили того ж дня.' } };
-      case 'helped': return { rates: { '-6': j(6.0, 6.6), '-5': j(4.2, 4.6), '-4': j(2.2, 2.8) },
-        seed: { at: -6, causes: ['skill'], plan: 'Провели інструктаж біля робочого місця, показали правильний прийом.', impl: 1 } };
-      case 'helped2': return { rates: { '-4': j(5.5, 6.0), '-2': j(2.6, 3.2), '-1': j(3.4, 3.8), '0': j(4.3, 4.7) },
-        seed: { at: -4, causes: ['tool', 'skill'], plan: 'Замінили голки й налаштували натяг нитки на двох машинах.', impl: 2 } };
-      case 'notHelped': return { rates: { '-3': j(3.8, 4.2), '-2': j(5.7, 6.0), '0': j(5.5, 5.8) },
-        seed: { at: -2, causes: ['discipline'], plan: 'Нагадали про перевірку виробу перед здачею, старший відділу контролює.', impl: 1 } };
-      case 'stale': return { rates: { '-2': j(6.0, 6.4), '-1': j(5.5, 5.8), '0': j(5.6, 6.0) },
-        seed: { at: -2, causes: ['organization'], plan: 'Переставити стіл контролю ближче до лінії й перевіряти кожну десяту штуку.', impl: null, due: 2 } };
-      case 'watch': return { rates: { '-1': j(5.8, 6.3), '0': j(5.3, 5.6) },
-        seed: { at: -1, causes: ['material'], plan: 'Замінили партію ниток на іншого постачальника.', impl: 'current', due: 3 } };
-    }
-    return { rates: {} };
-  }
-
-  function genHook(db, ctx) {
-    var rnd = P.demoDates.makeRnd((ctx.seed || 0) + 4401);
-    var rnd2 = P.demoDates.makeRnd((ctx.seed || 0) + 4402);   // v1.3: власний потік для нових історій — старі не зсуваються
-    var L = S.lastFullPeriod(ctx.today);
-    db.kdSeed = [];
-    db.locations.forEach(function (loc) {
-      var deps = db.departments.filter(function (d) { return d.locationId === loc.id; });
-      if (deps.length < 2) return;
-      var low = rnd.pick(deps), others = rnd.sample(deps.filter(function (d) { return d !== low; }), deps.length - 1);
-      var used = {}, senior = 'u_sen_' + loc.id.slice(4).toLowerCase();
-      ['rise', 'jump', 'near', 'helped', 'helped2', 'notHelped'].forEach(function (kind, i) { story(db, rnd, kind, others[i % others.length], loc, used, senior, L); });
-      var lt = rnd.pick(db.defectTypes.filter(function (t) { return t.deptTypeId === low.deptTypeId; }));
-      makeLowData(db, rnd, low.id, L, lt.id, rnd.pick(db.workers.filter(function (w) { return w.departmentId === low.id; })).code);
-      ['stale', 'watch'].forEach(function (kind, i) { story(db, rnd2, kind, others[(i + 1) % others.length], loc, used, senior, L); });
-    });
-  }
-  function story(db, rnd, kind, dep, loc, used, senior, L) {
-    var types = db.defectTypes.filter(function (t) { return t.deptTypeId === dep.deptTypeId && !used[dep.id + t.id]; })
-      .filter(function (t) { return naturalMax(db, dep.id, t.id, L - 9, L) <= 3.5; });
-    if (!types.length) return;
-    var type = rnd.pick(types), pl = plan(kind, rnd);
-    used[dep.id + type.id] = 1;
-    var culprit = rnd.pick(db.workers.filter(function (w) { return w.departmentId === dep.id; })).code;
-    Object.keys(pl.rates).forEach(function (off) { setRate(db, rnd, dep.id, type.id, L + Number(off), pl.rates[off], culprit); });
-    if (!pl.seed) return;
-    var n = L + pl.seed.at, start = S.periodStart(n + 1);   // дію почали наступного дня після розбору
-    var act = { id: 'KD_' + dep.id + '_' + type.id + '_' + n, locationId: loc.id, departmentId: dep.id, defectTypeId: type.id, period: n,
-      causes: [], causeNote: '', plan: '', who: senior, due: S.addDays(start, pl.seed.due || 2), startedAt: start, startedBy: senior,
-      implementedAt: null, notNeeded: null, seeded: true };
-    if (pl.seed.notNeeded) act.notNeeded = { reason: pl.seed.notNeeded, at: start, by: senior };
-    else {
-      act.causes = pl.seed.causes; act.plan = pl.seed.plan;
-      if (pl.seed.impl === 'current') act.implementedAt = S.periodStart(L + 1);
-      else if (pl.seed.impl) act.implementedAt = S.addDays(start, pl.seed.impl);
-    }
-    db.kdSeed.push(act);
-  }
-
-  function loadHook(db, ctx) {
-    var saved = ctx.storage.get(KEY, {}) || {};
-    db.kdActions = (db.kdSeed || []).filter(function (a) { return !saved[a.id]; }).map(clone)
-      .concat(Object.keys(saved).map(function (id) { return saved[id]; }));
+  function liveRules() { return { threshold: KD.THRESHOLD, wd: KD.REVIEW_DAY, early: KD.EARLY_MIN, pareto: KD.PARETO }; }
+  function rulesOut(R) {
+    return { threshold: R.threshold, early: R.early, pareto: R.pareto, cycleDays: KD.CYCLE_DAYS, reviewWeekday: R.wd, reviewWeekdayName: S.WEEKDAYS[R.wd - 1] };
   }
 
 
-  function makeCx(env, loc) {
-    var today = env.day(), L = S.lastFullPeriod(today), byN = {}, memo = {};
+  function makeCx(env, loc, R, stored) {
+    R = R || liveRules();
+    var today = env.day(), byDay = Object.create(null), first = null;
     env.audits().forEach(function (a) {
       if (a.locationId !== loc.id) return;
-      var n = S.periodOf(a.day);
-      (byN[n] = byN[n] || []).push(a);
+      (byDay[a.day] = byDay[a.day] || []).push(a);
+      if (!first || a.day < first) first = a.day;
     });
-    var deps = env.db.departments.filter(function (d) { return d.locationId === loc.id; });
-    var cx = { env: env, loc: loc, today: today, L: L, deps: deps, byN: byN };
-    cx.stats = function (depId, n) {
-      var k = depId + '|' + n, st = memo[k];
-      if (!st) {
-        st = memo[k] = S.deptStats(env, byN[n] || [], depId);
-        st.audits = (byN[n] || []).filter(function (a) { return a.departmentId === depId; }).length;
+    var cx = { env: env, loc: loc, R: R, T: R.threshold, today: today, byDay: byDay,
+      deps: env.db.departments.filter(function (d) { return d.locationId === loc.id; }),
+      start: function (n) { return S.periodStart(n, R.wd); }, end: function (n) { return S.periodEnd(n, R.wd); },
+      of: function (day) { return S.periodOf(day, R.wd); } };
+    cx.L = cx.of(today) - 1;
+    cx.n0 = first ? Math.max(cx.of(first), cx.L - MAX_BACK) : cx.L;
+    cx.stored = (stored || env.db.kdActions || []).filter(function (a) {
+      return a && a.locationId === loc.id && has(env.ix.dep, a.departmentId) && DAY_RE.test(a.weekStart || '') && DAY_RE.test(a.weekEnd || '');
+    });
+    var dmemo = Object.create(null), rmemo = Object.create(null), kmemo = Object.create(null);
+    cx.day = function (depId, day) {
+      var k = depId + '|' + day;
+      if (!dmemo[k]) {
+        var list = byDay[day] || [], st = S.deptStats(env, list, depId);
+        st.audits = list.filter(function (a) { return a.departmentId === depId; }).length;
+        dmemo[k] = st;
       }
-      return st;
+      return dmemo[k];
     };
-    cx.dates = function (n) {
-      var start = S.periodStart(n), cur = n > L;
-      return { n: n, start: start, end: S.periodEnd(n), current: cur, days: KD.PERIOD_DAYS, minSample: KD.MIN_SAMPLE,
-        daysDone: cur ? Math.max(1, Math.min(KD.PERIOD_DAYS, Math.round((S.parseDay(today) - S.parseDay(start)) / 86400000) + 1)) : KD.PERIOD_DAYS };
+    cx.range = function (depId, from, to) {
+      var k = depId + '|' + from + '|' + to;
+      if (rmemo[k]) return rmemo[k];
+      var o = { checked: 0, rejected: 0, audits: 0, byType: {}, byLevel: { fix: 0, repair: 0, scrap: 0 } };
+      for (var d = from, guard = 0; d <= to && guard < 400; d = S.addDays(d, 1), guard++) {
+        if (!byDay[d]) continue;
+        var x = cx.day(depId, d);
+        o.checked += x.checked; o.rejected += x.rejected; o.audits += x.audits;
+        Object.keys(x.byType).forEach(function (t) { o.byType[t] = (o.byType[t] || 0) + x.byType[t]; });
+        o.byLevel.fix += x.byLevel.fix; o.byLevel.repair += x.byLevel.repair; o.byLevel.scrap += x.byLevel.scrap;
+      }
+      return (rmemo[k] = o);
     };
-    cx.rate = function (depId, typeId, n) {
-      var st = cx.stats(depId, n), pieces = has(st.byType, typeId) ? st.byType[typeId] : 0, rate = C.pct(pieces, st.checked), low = st.checked < KD.MIN_SAMPLE;
-      var o = cx.dates(n);
-      o.checked = st.checked; o.pieces = pieces; o.rate = rate; o.low = low; o.over = !low && rate != null && rate > KD.THRESHOLD;
-      return o;
+    cx.wk = function (depId, n) {
+      var start = cx.start(n), end = cx.end(n), st = cx.range(depId, start, end), cur = n > cx.L;
+      var rate = C.pct(st.rejected, st.checked);
+      return { n: n, start: start, end: end, current: n === cx.L + 1, future: start > today, days: KD.CYCLE_DAYS,
+        daysDone: cur ? Math.max(0, Math.min(KD.CYCLE_DAYS, daysBetween(start, today) + 1)) : KD.CYCLE_DAYS,
+        audits: st.audits, checked: st.checked, rejected: st.rejected, rate: rate,
+        levels: { fix: st.byLevel.fix, repair: st.byLevel.repair, scrap: st.byLevel.scrap }, over: rate != null && rate > R.threshold };
     };
-    cx.period = function (depId, n) {
-      var st = cx.stats(depId, n), o = cx.dates(n);
-      o.audits = st.audits; o.checked = st.checked; o.rejected = st.rejected; o.rate = C.pct(st.rejected, st.checked);
-      o.levels = { fix: st.byLevel.fix, repair: st.byLevel.repair, scrap: st.byLevel.scrap };
-      o.low = st.checked < KD.MIN_SAMPLE;
-      o.over = Object.keys(st.byType).filter(function (t) { return has(env.ix.def, t) && cx.rate(depId, t, n).over; }).length;
-      return o;
+    cx.trig = function (depId, n, noEarly) {
+      var start = cx.start(n), end = cx.end(n);
+      if (!noEarly) {
+        var c = 0, r = 0;
+        for (var d = start; d < end && d <= today; d = S.addDays(d, 1)) {
+          if (!byDay[d]) continue;
+          var x = cx.day(depId, d); c += x.checked; r += x.rejected;
+          if (c >= R.early && C.pct(r, c) > R.threshold) return { openedAt: d, early: true };
+        }
+      }
+      if (n <= cx.L) { var w = cx.range(depId, start, end); if (w.checked && C.pct(w.rejected, w.checked) > R.threshold) return { openedAt: cx.start(n + 1), early: false }; }
+      return null;
     };
-    cx.actions = (env.db.kdActions || []).filter(function (a) { return a.locationId === loc.id && env.ix.dep[a.departmentId] && env.ix.def[a.defectTypeId]; })
-      .map(function (a) { return evalAction(cx, a); });
-    cx.news = [];
-    deps.forEach(function (d) {
-      Object.keys(cx.stats(d.id, L).byType).forEach(function (typeId) {
-        if (!env.ix.def[typeId] || !cx.rate(d.id, typeId, L).over || covered(cx, d.id, typeId)) return;
-        cx.news.push({ status: 'new', departmentId: d.id, defectTypeId: typeId, period: L });
-      });
-    });
+    cx.nextData = function (depId, n) {
+      for (var k = n; k <= cx.L; k++) if (cx.range(depId, cx.start(k), cx.end(k)).checked > 0) return k;
+      return null;
+    };
+    cx.kds = function (depId, decide) {
+      if (!decide && kmemo[depId]) return kmemo[depId];
+      var at = Object.create(null), list = [], cover = null, from = cx.n0;
+      cx.stored.forEach(function (a) { if (a.departmentId !== depId) return; var n = cx.of(a.weekStart); at[n] = a; if (n < from) from = n; });
+      for (var n = Math.max(from, cx.L - 60); n <= cx.L + 1; n++) {
+        var rec = at[n] || null;
+        if (!rec && !(cover && covers(cover, n))) {
+          var tg = cx.trig(depId, n, !!cover && cover.relapseN === n);
+          if (tg) {
+            var v = { id: null, status: 'new', locationId: loc.id, departmentId: depId, n: n, weekStart: cx.start(n), weekEnd: cx.end(n),
+              openedAt: tg.openedAt, early: tg.early, overWeeks: 1 };
+            rec = decide ? decide(v, cx) : null;
+            if (!rec) { list.push(v); cover = v; continue; }
+          }
+        }
+        if (rec) {
+          if (cover && !cover.id && cover.status === 'new') list.splice(list.indexOf(cover), 1);
+          cover = evalAction(cx, rec); list.push(cover);
+          continue;
+        }
+        if (cover && cover.status === 'new' && n > cover.n && n <= cx.L && cx.wk(depId, n).over) cover.overWeeks++;
+      }
+      if (!decide) kmemo[depId] = list;
+      return list;
+    };
+    cx.all = function () { return cx.deps.reduce(function (out, d) { return out.concat(cx.kds(d.id)); }, []); };
     return cx;
   }
 
-  function covered(cx, depId, typeId) {
-    return cx.actions.some(function (a) {
-      return a.departmentId === depId && a.defectTypeId === typeId &&
-        (a.status === 'started' || a.status === 'check' || a.period === cx.L || a.resultPeriod === cx.L);
-    });
+  function covers(a, n) {
+    if (n <= a.n) return true;
+    if (a.status === 'not_needed') return false;
+    if (a.status === 'helped') return n <= a.r2n;
+    if (a.status === 'not_helped') return n < a.relapseN;
+    return true;   // відкрита без рішення · тиждень результату · під наглядом — тривають
   }
 
-  function evalAction(cx, a) {
-    var o = clone(a);
-    if (a.notNeeded) { o.status = 'not_needed'; o.finishedOn = a.notNeeded.at; return o; }
-    if (!a.implementedAt) { o.status = 'started'; return o; }
-    var cp = S.periodOf(a.implementedAt) + 1;
-    for (var n = cp; n <= cx.L; n++) {
-      var r = cx.rate(a.departmentId, a.defectTypeId, n);
-      if (r.low) continue;
-      o.status = r.rate <= KD.THRESHOLD ? 'helped' : 'not_helped';
-      o.resultPeriod = n; o.finishedOn = S.addDays(S.periodEnd(n), 1);
-      return o;
-    }
-    o.status = 'check'; o.checkPeriod = Math.max(cp, cx.L + 1);
+  function evalAction(cx, rec) {
+    var o = clone(rec), dep = rec.departmentId, T = cx.T;
+    o.n = cx.of(rec.weekStart); o.overWeeks = 0;
+    if (rec.notNeeded) { o.status = 'not_needed'; o.finishedOn = rec.notNeeded.at; return o; }
+    if (!rec.implementedAt || !DAY_RE.test(rec.implementedAt)) { o.status = 'new'; return o; }
+    var k = cx.of(rec.implementedAt);
+    if (cx.start(k) < rec.implementedAt) k++;   // тиждень результату — перший, що почався в день впровадження чи пізніше
+    k = Math.max(k, o.n + 1);                    // …і не раніше за тиждень після тижня КД (інакше «до» й «після» — той самий тиждень)
+    var a1 = cx.nextData(dep, k);
+    if (a1 == null) { o.status = 'check'; o.r1n = Math.max(k, cx.L + 1); return o; }
+    o.r1n = a1;
+    if (cx.wk(dep, a1).rate > T) { o.status = 'not_helped'; o.relapseStage = 1; o.relapseN = a1; o.finishedOn = cx.start(a1 + 1); return o; }
+    o.holdSince = cx.start(a1 + 1);
+    var a2 = cx.nextData(dep, a1 + 1);
+    if (a2 == null) { o.status = 'hold'; o.r2n = Math.max(a1 + 1, cx.L + 1); return o; }
+    o.r2n = a2; o.finishedOn = cx.start(a2 + 1);
+    if (cx.wk(dep, a2).rate > T) { o.status = 'not_helped'; o.relapseStage = 2; o.relapseN = a2; } else o.status = 'helped';
     return o;
   }
 
-  function trendOf(dyn) {
-    var r = dyn.map(function (x) { return x.rate == null ? 0 : x.rate; }), last = r.length - 1, up = 0, T = KD.THRESHOLD;
-    var seq = function (from) { return r.slice(from).map(fmt).join(' → ') + '%'; };
-    for (var i = last; i > 0 && r[i] > r[i - 1]; i--) up++;
-    if (r[last] > T && r[last - 1] <= 3 && r[last] - r[last - 1] >= 2.5) return { kind: 'jump', text: 'попередній розбір ' + fmt(r[last - 1]) + '% → цей ' + fmt(r[last]) + '%' };
-    if (up >= 3) return { kind: 'rise', n: up, text: 'вище за попередній ' + up + ' ' + P.plural(up, 'розбір', 'розбори', 'розборів') + ' поспіль: ' + seq(last - up) };
-    var near = r.filter(function (v) { return v >= 4 && v <= 6; }).length;
-    if (near >= 4) return { kind: 'near', n: near, text: 'від 4 до 6% у ' + near + ' розборах із ' + r.length + ': ' + seq(0) };
-    var overRun = 0;
-    for (var k = last; k >= 0 && r[k] > T; k--) overRun++;
-    if (overRun >= 2) return { kind: 'over', n: overRun, text: 'понад ' + T + '% — ' + overRun + '-й розбір поспіль' };
-    return { kind: 'first', text: 'уперше понад ' + T + '% за ' + r.length + ' розборів' };
+  function pareto(env, byType, rejected, pct) {
+    var ids = Object.keys(byType).filter(function (t) { return has(env.ix.def, t) && byType[t] > 0; }).sort(function (a, b) {
+      return byType[b] - byType[a] || (env.ix.def[a].name < env.ix.def[b].name ? -1 : 1);
+    });
+    var out = [], cum = 0;
+    for (var i = 0; i < ids.length && cum * 100 < pct * rejected; i++) { out.push(ids[i]); cum += byType[ids[i]]; }
+    return out;
+  }
+  function itemIds(cx, a) {
+    if (Array.isArray(a.items) && a.items.length) return a.items.filter(function (t) { return has(cx.env.ix.def, t); });
+    var w = cx.range(a.departmentId, a.weekStart, a.weekEnd);
+    return pareto(cx.env, w.byType, w.rejected, cx.R.pareto);
   }
 
-  function series(cx, depId, typeId, from, to) {
-    var out = [];
-    for (var n = Math.max(from, to - MAX_BACK - DEPT_BARS); n <= to; n++) out.push(typeId ? cx.rate(depId, typeId, n) : cx.period(depId, n));
+
+  function pubWeek(cx, depId, n) { var w = cx.wk(depId, n); w.pending = n > cx.L; return w; }
+
+  function view(cx, a) {
+    var ix = cx.env.ix, dep = ix.dep[a.departmentId], bw = cx.range(a.departmentId, a.weekStart, a.weekEnd), u = a.who && has(ix.user, a.who) ? ix.user[a.who] : null;
+    var w1 = a.r1n != null ? pubWeek(cx, a.departmentId, a.r1n) : null, w2 = a.r2n != null ? pubWeek(cx, a.departmentId, a.r2n) : null;
+    var t1 = w1 ? cx.range(a.departmentId, w1.start, w1.end).byType : {}, t2 = w2 ? cx.range(a.departmentId, w2.start, w2.end).byType : {};
+    var cum = 0, ids = itemIds(cx, a);
+    var items = ids.map(function (t) {
+      var pcs = bw.byType[t] || 0, def = ix.def[t];
+      cum += pcs;
+      var it = { defectTypeId: t, name: def.name, level: def.level || 'fix', pieces: pcs, share: C.pct(pcs, bw.rejected), cumShare: C.pct(cum, bw.rejected),
+        before: C.pct(pcs, bw.checked), after: null, afterPieces: null, after2: null, after2Pieces: null, delta: null };
+      if (w1 && w1.checked) { it.afterPieces = t1[t] || 0; it.after = C.pct(it.afterPieces, w1.checked); }
+      if (w2 && w2.checked) { it.after2Pieces = t2[t] || 0; it.after2 = C.pct(it.after2Pieces, w2.checked); }
+      if (w1 && !w1.pending && it.after != null && it.before != null) it.delta = r1(it.after - it.before);
+      return it;
+    });
+    var rate = C.pct(bw.rejected, bw.checked);
+    return { id: a.id || null, key: a.departmentId + '|' + a.weekStart, status: a.status, statusLabel: STATUS_LABELS[a.status], state: STATE_OF[a.status],
+      locationId: cx.loc.id, departmentId: a.departmentId, departmentName: dep ? dep.name : '', period: a.n, periodStart: a.weekStart, periodEnd: a.weekEnd,
+      current: a.weekEnd >= cx.today, openedAt: a.openedAt, early: !!a.early, overWeeks: a.overWeeks || 0,
+      weekRate: rate, weekDone: a.weekEnd < cx.today, earlyBelow: !!a.early && a.weekEnd < cx.today && rate != null && rate <= cx.T,
+      audits: bw.audits, checked: bw.checked, rejected: bw.rejected, rate: rate, over: rate != null && rate > cx.T,
+      levels: { fix: bw.byLevel.fix, repair: bw.byLevel.repair, scrap: bw.byLevel.scrap },
+      items: items, itemsShare: C.pct(cum, bw.rejected), pareto: cx.R.pareto,
+      name: items.length ? items.map(function (x) { return x.name; }).join(' · ') : 'брак відділу', defectTypeId: items.length ? items[0].defectTypeId : null,
+      causes: a.causes || [], causeNote: a.causeNote || '', plan: a.plan || '', who: a.who || null, whoName: u ? u.name : null,
+      implementedAt: a.implementedAt || null, recordedAt: a.recordedAt || null, notNeededReason: a.notNeeded ? a.notNeeded.reason : null,
+      notNeededAt: a.notNeeded ? a.notNeeded.at : null, finishedOn: a.finishedOn || null, holdSince: a.holdSince || null,
+      daysToImplement: a.implementedAt && a.openedAt ? daysBetween(a.openedAt, a.implementedAt) : null,
+      result: w1, hold: w2, after: w1 && !w1.pending ? w1.rate : null, after2: w2 && !w2.pending ? w2.rate : null,
+      relapseStage: a.relapseStage || null, relapsePeriod: a.relapseN != null ? a.relapseN : null };
+  }
+  function openAt(cx, depId, n) { return cx.kds(depId).filter(function (a) { return !a.id && a.status === 'new' && a.n === n; })[0] || null; }
+  function coverAt(cx, depId, n) {
+    var list = cx.kds(depId).filter(function (a) { return a.n <= n && covers(a, n); });
+    return list[list.length - 1] || null;
+  }
+
+  function series(cx, depId, from, to) {
+    var by = Object.create(null), out = [];
+    cx.kds(depId).forEach(function (a) { by[a.n] = a; });
+    for (var n = Math.max(from, to - MAX_BACK - DEPT_BARS); n <= to; n++) {
+      var w = cx.wk(depId, n), a = by[n];
+      w.kdState = a ? STATE_OF[a.status] : null; w.kdEarly = a ? !!a.early : false; w.relapse = cx.kds(depId).filter(function (x) { return x.relapseN === n; }).length;
+      out.push(w);
+    }
+    return out;
+  }
+  function typeSeries(cx, depId, typeId, from, to) {
+    var inKd = Object.create(null), out = [];
+    cx.kds(depId).forEach(function (a) { if (itemIds(cx, a).indexOf(typeId) >= 0) inKd[a.n] = STATE_OF[a.status]; });
+    for (var n = Math.max(from, to - MAX_BACK - DEPT_BARS); n <= to; n++) {
+      var w = cx.wk(depId, n), st = cx.range(depId, w.start, w.end), pcs = has(st.byType, typeId) ? st.byType[typeId] : 0;
+      out.push({ n: n, start: w.start, end: w.end, current: w.current, daysDone: w.daysDone, days: w.days, checked: w.checked, rejected: w.rejected,
+        pieces: pcs, rate: C.pct(pcs, w.checked), share: C.pct(pcs, w.rejected), kdState: has(inKd, String(n)) ? inKd[n] : null });
+    }
     return out;
   }
   function chartWindow(cx, n) {
     var from = cx.L - DEPT_BARS + 1;
     return n < from ? { from: n - 2, to: Math.min(cx.L + 1, n + DEPT_BARS - 3) } : { from: from, to: cx.L + 1 };
   }
-
-  function dynOf(cx, depId, typeId, n) {
-    if (n == null) n = cx.L;
-    return series(cx, depId, typeId, n - TREND_SPAN + 1, n);
-  }
-
   function periodArg(cx, v) {
     if (v == null || v === '') return cx.L;
     var n = typeof v === 'number' ? v : /^\d{1,6}$/.test(String(v)) ? Number(v) : NaN;
     return n === Math.floor(n) && n >= Math.max(0, cx.L - MAX_BACK) && n <= cx.L + 1 ? n : null;
   }
-  function depOf(cx, id) {
-    var d = has(cx.env.ix.dep, id) ? cx.env.ix.dep[id] : null;
-    return d && d.locationId === cx.loc.id ? d : null;
-  }
+  function depOf(cx, id) { var d = has(cx.env.ix.dep, id) ? cx.env.ix.dep[id] : null; return d && d.locationId === cx.loc.id ? d : null; }
   function typeOf(cx, id) { return has(cx.env.ix.def, id) ? cx.env.ix.def[id] : null; }
 
-  function interimOf(cx, depId, typeId) {
-    var r = cx.rate(depId, typeId, cx.L + 1);
-    return r.checked ? { rate: r.rate, checked: r.checked, pieces: r.pieces, start: r.start, end: r.end } : null;
-  }
-
-  function view(cx, a) {
-    var ix = cx.env.ix, t = ix.def[a.defectTypeId], before = cx.rate(a.departmentId, a.defectTypeId, a.period), u = a.who && ix.user[a.who];
-    var o = { id: a.id || null, key: a.departmentId + '|' + a.defectTypeId + '|' + a.period, status: a.status, statusLabel: STATUS_LABELS[a.status],
-      departmentId: a.departmentId, departmentName: ix.dep[a.departmentId].name, defectTypeId: a.defectTypeId, name: t.name, level: t.level || 'fix',
-      period: a.period, periodStart: before.start, periodEnd: before.end, rate: before.rate, checked: before.checked, pieces: before.pieces,
-      causes: a.causes || [], causeNote: a.causeNote || '', plan: a.plan || '', who: a.who || null, whoName: u ? u.name : null,
-      due: a.due || null, startedAt: a.startedAt || null, implementedAt: a.implementedAt || null,
-      notNeededReason: a.notNeeded ? a.notNeeded.reason : null, finishedOn: a.finishedOn || null,
-      after: null, afterStart: null, afterEnd: null, afterChecked: null, afterPieces: null, checkStart: null, checkEnd: null, interim: null,
-      overdue: false, retryable: false };
-    if (a.status === 'started') o.overdue = !!a.due && a.due < cx.today;
-    if (a.status === 'check') { o.checkStart = S.periodStart(a.checkPeriod); o.checkEnd = S.periodEnd(a.checkPeriod); o.interim = interimOf(cx, a.departmentId, a.defectTypeId); }
-    if (a.resultPeriod != null) {
-      var r = cx.rate(a.departmentId, a.defectTypeId, a.resultPeriod);
-      o.after = r.rate; o.afterStart = r.start; o.afterEnd = r.end; o.afterChecked = r.checked; o.afterPieces = r.pieces; o.resultPeriod = a.resultPeriod;
-    }
-    if (a.status === 'not_helped') o.retryable = !cx.actions.some(function (x) { return x.departmentId === a.departmentId && x.defectTypeId === a.defectTypeId && x.period > a.period && x.status !== 'not_needed'; });
-    if (a.status === 'new') {
-      o.trend = trendOf(dynOf(cx, a.departmentId, a.defectTypeId, a.period));
-      o.overRun = overRunOf(cx, a.departmentId, a.defectTypeId, a.period);
-      o.overSince = S.periodStart(a.period - o.overRun + 1);
-    }
-    o.stage = stageOf(o);
-    return o;
-  }
-
-
-  function overRunOf(cx, depId, typeId, n) {
-    var run = 0;
-    for (var k = n; k >= 0 && run < MAX_BACK; k--) {
-      if (!cx.rate(depId, typeId, k).over) break;
-      if (k < n && cx.actions.some(function (x) { return x.departmentId === depId && x.defectTypeId === typeId && (x.period >= k || (x.resultPeriod != null && x.resultPeriod >= k)); })) break;
-      run++;
-    }
-    return run;
-  }
-  function stageOf(v) {
-    if (v.status === 'new') return v.overRun >= 2 ? 'stale' : 'fresh';
-    if (v.status === 'started') return v.overdue ? 'stale' : 'work';
-    if (v.status === 'check') return 'watch';
-    if (v.status === 'not_helped') return 'relapse';
-    return 'closed';
-  }
-  function stageCounts(list) {
-    var c = { fresh: 0, stale: 0, work: 0, watch: 0, relapse: 0, closed: 0 };
-    list.forEach(function (v) { c[v.stage]++; });
-    return c;
-  }
-
   function routeOf(cx, depId, typeId, from) {
-    var acts = cx.actions.filter(function (a) { return a.departmentId === depId && a.defectTypeId === typeId; }), ev = [];
-    var lead = Math.max(0, from - 8);   // кілька розборів до from — щоб знати стан на початок
-    for (var n = lead; n <= cx.L; n++) ev.push({ day: S.periodStart(n + 1), pr: 1, kind: 'review', n: n });
-    acts.forEach(function (a) {
-      if (a.plan) ev.push({ day: a.startedAt, pr: 2, kind: 'work', n: a.period, a: a });
-      if (a.implementedAt && !(a.notNeeded && a.notNeeded.at < a.implementedAt)) ev.push({ day: a.implementedAt, pr: 3, kind: 'watch', n: a.period, a: a });
-      if (a.notNeeded) ev.push({ day: a.notNeeded.at, pr: 4, kind: 'skip', n: a.period, a: a });
-      if (a.resultPeriod != null) ev.push({ day: a.finishedOn, pr: 0, kind: a.status === 'helped' ? 'done' : 'relapse', n: a.resultPeriod, a: a });
+    var kds = cx.kds(depId).filter(function (a) { return itemIds(cx, a).indexOf(typeId) >= 0; }), ev = [], busy = Object.create(null);
+    var lead = Math.max(cx.n0, from - 4);
+    kds.forEach(function (a) {
+      var add = function (day, pr, kind, n) { if (day) { ev.push({ day: day, pr: pr, kind: kind, n: n, a: a }); busy[day] = 1; } };
+      add(a.openedAt, 2, 'over', a.n);
+      if (a.implementedAt) add(a.implementedAt, 3, 'watch', a.n);
+      if (a.notNeeded) add(a.notNeeded.at, 4, 'skip', a.n);
+      if (a.r1n != null && a.r1n <= cx.L) add(cx.start(a.r1n + 1), 0, a.relapseStage === 1 ? 'relapse' : 'hold', a.r1n);
+      if (a.r2n != null && a.r2n <= cx.L) add(cx.start(a.r2n + 1), 0, a.status === 'helped' ? 'done' : 'relapse', a.r2n);
     });
-    ev = ev.filter(function (e) { return e.day <= cx.today; })
-      .sort(function (x, y) { return x.day < y.day ? -1 : x.day > y.day ? 1 : x.pr - y.pr; });
-    var alive = function (day) {
-      return acts.some(function (a) { return a.plan && a.startedAt < day && !(a.finishedOn && a.finishedOn <= day); });
-    };
+    var alive = function (day) { return kds.some(function (a) { return a.openedAt < day && !(a.finishedOn && a.finishedOn <= day); }); };
+    for (var n = lead; n <= cx.L; n++) { var d = cx.start(n + 1); if (!busy[d] && !alive(d)) ev.push({ day: d, pr: 1, kind: 'ok', n: n }); }
+    ev = ev.filter(function (e) { return e.day <= cx.today; }).sort(function (x, y) { return x.day < y.day ? -1 : x.day > y.day ? 1 : x.pr - y.pr; });
     var steps = [];
     ev.forEach(function (e) {
-      var state = e.kind;
-      if (e.kind === 'review') {
-        if (alive(e.day) || acts.some(function (a) { return a.resultPeriod === e.n; })) return;   // дія триває або результат уже показує цей розбір
-        state = cx.rate(depId, typeId, e.n).over ? 'over' : 'ok';
-      }
       var last = steps[steps.length - 1];
-      if (last && last.state === state) return;
-      var x = cx.rate(depId, typeId, e.n);
-      steps.push({ state: state, day: e.day, n: e.n, start: x.start, end: x.end, rate: x.rate, pieces: x.pieces, checked: x.checked, low: x.low,
-        actionId: e.a ? e.a.id : null });
+      if (last && last.state === e.kind) return;
+      var w = cx.wk(depId, e.n), st = cx.range(depId, w.start, w.end), pcs = has(st.byType, typeId) ? st.byType[typeId] : 0;
+      steps.push({ state: e.kind, day: e.day, n: e.n, start: w.start, end: w.end, rate: C.pct(pcs, w.checked), pieces: pcs, checked: w.checked, kdId: e.a ? e.a.id || null : null });
     });
-    var startDay = S.periodStart(from + 1), first = 0;
-    for (var i = 0; i < steps.length; i++) if (steps[i].day <= startDay) first = i;
-    steps = steps.slice(first);
-    if (steps.length && steps[0].day === S.periodStart(lead + 1) && steps[0].day < startDay) {
-      var x0 = cx.rate(depId, typeId, from), s0 = steps[0];   // і числа — того самого першого розбору маршруту
-      s0.day = startDay; s0.asOf = true; s0.n = from; s0.start = x0.start; s0.end = x0.end; s0.rate = x0.rate; s0.pieces = x0.pieces; s0.checked = x0.checked; s0.low = x0.low;
-    }
+    var startDay = cx.start(from + 1), firstI = 0;
+    for (var i = 0; i < steps.length; i++) if (steps[i].day <= startDay) firstI = i;
+    steps = steps.slice(firstI);
+    if (steps.length && steps[0].day < startDay) { steps[0].asOf = true; steps[0].day = startDay; }   // стан діяв ще до початку маршруту
     return steps;
   }
   function routeFrom(cx, depId, typeId) {
     var from = cx.L - ROUTE_BACK + 1;
-    cx.actions.forEach(function (a) { if (a.departmentId === depId && a.defectTypeId === typeId && a.period - 1 < from) from = a.period - 1; });
-    return Math.max(0, cx.L - MAX_BACK, from);
+    cx.kds(depId).forEach(function (a) { if (a.n - 1 < from && itemIds(cx, a).indexOf(typeId) >= 0) from = a.n - 1; });
+    return Math.max(cx.n0, cx.L - MAX_BACK, from);
+  }
+  function typeState(cx, depId, typeId) {
+    var mine = cx.kds(depId).filter(function (a) { return itemIds(cx, a).indexOf(typeId) >= 0; });
+    var cur = mine.filter(function (a) { return a.status === 'new' || a.status === 'check' || a.status === 'hold'; }).pop() || mine[mine.length - 1] || null;
+    if (!cur) return { status: 'none', state: 'ok', label: STATUS_LABELS.none, id: null, key: null, period: null, start: null, end: null, count: 0 };
+    return { status: cur.status, state: STATE_OF[cur.status], label: STATUS_LABELS[cur.status], id: cur.id || null, key: cur.departmentId + '|' + cur.weekStart,
+      period: cur.n, start: cur.weekStart, end: cur.weekEnd, count: mine.length };
   }
 
-  function handlerOf(cx, depId, typeId, n) {
-    var mine = cx.actions.filter(function (a) { return a.departmentId === depId && a.defectTypeId === typeId; });
-    return mine.filter(function (a) { return a.period === n; })[0] ||
-      mine.filter(function (a) { return a.period < n && (a.status === 'started' || a.status === 'check' || (a.resultPeriod != null && a.resultPeriod >= n)); })[0] || null;
-  }
-  function overState(h) {
-    if (!h) return 'over';
-    return { started: 'work', check: 'watch', helped: 'closed', not_helped: 'closed', not_needed: 'skip' }[h.status] || 'over';
-  }
-  function deptFilter(cx, ids) {
-    if (ids == null || ids === '' || (Array.isArray(ids) && !ids.length)) return { all: true, ids: [] };
-    if (!Array.isArray(ids) || ids.length > 100 || ids.some(function (id) { return !depOf(cx, id); }))
-      return { err: C.fail('not_found', 'Такого відділу в локації немає. Оновіть сторінку.') };
-    var set = Object.create(null);
-    ids.forEach(function (id) { set[id] = 1; });
-    return { all: false, set: set, ids: Object.keys(set) };
-  }
-  function mean(list) { return list.length ? list.reduce(function (s, v) { return s + v; }, 0) / list.length : 0; }
-
-  function statsDept(cx, d, inWin, from) {
-    var env = cx.env, mine = function (a) { return a.departmentId === d.id; };
-    var items = cx.news.filter(mine).concat(cx.actions.filter(function (a) { return mine(a) && inWin[a.period]; })).map(function (a) { return view(cx, a); });
-    var by = function (st) { return items.filter(function (v) { return st.indexOf(v.status) >= 0; }).length; };
-    var res = items.filter(function (v) { return v.after != null && v.rate; });
-    var effect = res.length ? { n: res.length, pp: Math.round(mean(res.map(function (v) { return v.after - v.rate; })) * 10) / 10,
-      rel: Math.round(mean(res.map(function (v) { return (v.after - v.rate) / v.rate * 100; }))) } : null;
-    var acts = cx.actions.filter(mine), ids = {};
-    env.db.defectTypes.forEach(function (t) { if (t.deptTypeId === d.deptTypeId) ids[t.id] = 1; });
-    Object.keys(cx.stats(d.id, cx.L).byType).concat(acts.map(function (a) { return a.defectTypeId; })).forEach(function (t) { if (has(env.ix.def, t)) ids[t] = 1; });
-    var types = Object.keys(ids).map(function (id) {
-      var t = env.ix.def[id], x = cx.rate(d.id, id, cx.L);
-      var last = acts.filter(function (a) { return a.defectTypeId === id; }).sort(function (a, b) { return b.period - a.period; })[0];
-      return { defectTypeId: id, name: t.name, level: t.level || 'fix', active: t.active !== false, rate: x.rate, pieces: x.pieces, checked: x.checked,
-        low: x.low, over: x.over, actions: items.filter(function (v) { return v.defectTypeId === id; }).length,
-        last: last ? view(cx, last) : null, route: routeOf(cx, d.id, id, from) };
-    }).filter(function (x) {   // вимкнений у довіднику вид — лише якщо по ньому щось є
-      return x.active || x.last || x.pieces > 0 || x.route.some(function (s) { return s.state !== 'ok'; });
-    }).sort(function (a, b) { return (b.rate || 0) - (a.rate || 0) || (a.name < b.name ? -1 : 1); });
-    var relapse = cx.actions.filter(function (a) { return mine(a) && a.status === 'not_helped' && inWin[a.resultPeriod]; }).length;
-    return { id: d.id, name: d.name, counts: { total: items.length, active: by(['new', 'started']), watch: by(['check']), relapse: relapse },
-      effect: effect, types: types };
-  }
-
-  function details(cx, depId, typeId, n) {
+  function details(cx, depId, typeId, from, to) {
     var ix = cx.env.ix, locId = cx.loc.id, W = Object.create(null), A = Object.create(null), prods = Object.create(null),
-      orders = Object.create(null), byDay = Object.create(null), mine = Object.create(null), withType = 0, total = 0;
-    (cx.byN[n] || []).forEach(function (a) {
+      orders = Object.create(null), byDay = Object.create(null), mine = Object.create(null), withType = 0, total = 0, audits = 0;
+    for (var day = from, g = 0; day <= to && g < 400; day = S.addDays(day, 1), g++) (cx.byDay[day] || []).forEach(function (a) {
       var q = 0, touches = a.departmentId === depId, helpers = Array.isArray(a.helpers) ? a.helpers : [];
       a.defects.forEach(function (d) {
         if (S.sourceDept(a, d) !== depId) return;
         touches = true;
-        if (d.defectTypeId !== typeId) return;
+        if (typeId && d.defectTypeId !== typeId) return;
         var pcs = S.pieces(d), ord = d.orderNo || '';
         q += pcs;
         prods[d.productId] = (prods[d.productId] || 0) + pcs;
         orders[ord] = (orders[ord] || 0) + pcs;
-        d.guilty.forEach(function (g) {
-          var w = W[g.workerCode] = W[g.workerCode] || { qty: 0, audits: {}, helperQty: 0 };
-          w.qty += g.qty || 0; w.audits[a.id] = 1;
-          if (a.departmentId === depId && helpers.indexOf(g.workerCode) >= 0) w.helperQty += g.qty || 0;
+        d.guilty.forEach(function (gg) {
+          var w = W[gg.workerCode] = W[gg.workerCode] || { qty: 0, audits: {}, helperQty: 0 };
+          w.qty += gg.qty || 0; w.audits[a.id] = 1;
+          if (a.departmentId === depId && helpers.indexOf(gg.workerCode) >= 0) w.helperQty += gg.qty || 0;
         });
       });
-      if (touches) mine[a.auditorId] = (mine[a.auditorId] || 0) + 1;   // аудити, у яких аудитор перевіряв цей відділ або записав його брак
+      if (touches) mine[a.auditorId] = (mine[a.auditorId] || 0) + 1;
       if (a.departmentId === depId) {
-        var day = byDay[a.day] = byDay[a.day] || { pieces: 0, checked: 0, audits: 0 };
-        day.checked += C.checkedOf(a); day.audits++;
+        audits++;
+        var x = byDay[a.day] = byDay[a.day] || { pieces: 0, checked: 0, audits: 0 };
+        x.checked += C.checkedOf(a); x.audits++;
       }
       if (!q) return;
       withType++; total += q;
@@ -429,11 +314,10 @@
     function top(map, make) {
       return Object.keys(map).map(function (k) { return make(k, map[k]); }).sort(function (a, b) { return b.qty - a.qty || (a.name < b.name ? -1 : a.name > b.name ? 1 : 0); });
     }
-    var share = function (q) { return C.pct(q, total); };
-    var days = [];
-    for (var k = S.periodStart(n); k <= S.periodEnd(n); k = S.addDays(k, 1)) {
-      var x = byDay[k] || { pieces: 0, checked: 0, audits: 0 };
-      days.push({ day: k, pieces: x.pieces, checked: x.checked, audits: x.audits, future: k > cx.today });
+    var share = function (q) { return C.pct(q, total); }, days = [];
+    for (var k = from, g2 = 0; k <= to && g2 < 400; k = S.addDays(k, 1), g2++) {
+      var y = byDay[k] || { pieces: 0, checked: 0, audits: 0 };
+      days.push({ day: k, pieces: y.pieces, checked: y.checked, audits: y.audits, future: k > cx.today });
     }
     return {
       workers: top(W, function (c, w) {
@@ -441,48 +325,235 @@
         return { code: c, name: c === '' ? 'Невідомий працівник' : known ? known.name : c, qty: w.qty, share: share(w.qty), audits: Object.keys(w.audits).length,
           helper: w.helperQty > 0, helperQty: w.helperQty };
       }),
-      auditors: top(A, function (id, u) {
-        return { id: id, name: has(ix.user, id) ? ix.user[id].name : id, qty: u.qty, share: share(u.qty), audits: u.audits, auditsAll: mine[id] || u.audits };
-      }),
+      auditors: top(A, function (id, u) { return { id: id, name: has(ix.user, id) ? ix.user[id].name : id, qty: u.qty, share: share(u.qty), audits: u.audits, auditsAll: mine[id] || u.audits }; }),
       products: top(prods, function (id, q) { return { id: id, name: has(ix.prod, id) ? ix.prod[id].name : 'Невідомий виріб', qty: q, share: share(q) }; }),
       orders: top(orders, function (no, q) { return { no: no || null, name: no || 'Без замовлення', qty: q, share: share(q) }; }),
-      days: days, auditsWith: withType, auditsTotal: cx.stats(depId, n).audits };
-  }
-
-  function typeState(cx, depId, typeId) {
-    var mine = cx.actions.filter(function (a) { return a.departmentId === depId && a.defectTypeId === typeId; })
-      .sort(function (a, b) { return b.period - a.period; });
-    var isNew = cx.news.some(function (x) { return x.departmentId === depId && x.defectTypeId === typeId; });
-    var cur = isNew ? { status: 'new', period: cx.L } : mine.filter(function (a) { return a.status === 'started' || a.status === 'check'; })[0] || mine[0] || null;
-    if (!cur) return { status: 'none', label: STATUS_LABELS.none, id: null, period: null, start: null, end: null, count: 0 };
-    return { status: cur.status, label: STATUS_LABELS[cur.status], id: cur.id || null, period: cur.period, start: S.periodStart(cur.period), end: S.periodEnd(cur.period),
-      due: cur.due || null, overdue: cur.status === 'started' && !!cur.due && cur.due < cx.today, count: mine.length };
-  }
-
-  function deptActions(cx, depId) {
-    var rank = { 'new': 0, started: 1, check: 2 };
-    return cx.news.concat(cx.actions).filter(function (a) { return a.departmentId === depId; }).map(function (a) { return view(cx, a); })
-      .sort(function (a, b) {
-        var ra = has(rank, a.status) ? rank[a.status] : 3, rb = has(rank, b.status) ? rank[b.status] : 3;
-        return ra - rb || (ra === 1 ? (a.due < b.due ? -1 : a.due > b.due ? 1 : 0) : 0) || b.period - a.period || (a.name < b.name ? -1 : 1);
-      });
+      days: days, auditsWith: withType, auditsTotal: audits };
   }
 
   function reviewOf(cx) {
-    return { n: cx.L, start: S.periodStart(cx.L), end: S.periodEnd(cx.L), nextStart: S.periodStart(cx.L + 1), nextEnd: S.periodEnd(cx.L + 1),
-      readyOn: S.periodStart(cx.L + 2) };
+    return { n: cx.L, start: cx.start(cx.L), end: cx.end(cx.L), reviewDay: cx.start(cx.L + 1), nextStart: cx.start(cx.L + 1), nextEnd: cx.end(cx.L + 1),
+      readyOn: cx.start(cx.L + 2) };
   }
   function since(cx, days) { return S.addDays(cx.today, -(days - 1)); }
   function totals(cx) {
-    var from = since(cx, 30), n = function (st, recent) { return cx.actions.filter(function (a) { return a.status === st && (!recent || a.finishedOn >= from); }).length; };
-    return { 'new': cx.news.length, started: n('started'), check: n('check'), helped30: n('helped', true), notHelped30: n('not_helped', true),
-      notNeeded30: n('not_needed', true) };
+    var from = since(cx, 30), all = cx.all(), n = function (st, recent) { return all.filter(function (a) { return a.status === st && (!recent || a.finishedOn >= from); }).length; };
+    return { 'new': n('new'), check: n('check'), hold: n('hold'), helped30: n('helped', true), notHelped30: n('not_helped', true), notNeeded30: n('not_needed', true) };
   }
-
+  function stateCounts(list, from) {
+    var c = { over: 0, watch: 0, hold: 0, done: 0, relapse: 0, skip: 0 };
+    list.forEach(function (a) { var s = STATE_OF[a.status]; if (s === 'over' || s === 'watch' || s === 'hold' || !from || a.finishedOn >= from) c[s]++; });
+    return c;
+  }
   function people(cx, me) {
-    var list = cx.env.db.users.filter(function (u) { return u.locationIds.indexOf(cx.loc.id) >= 0 && (u.role === 'senior_auditor' || u.role === 'location_lead'); });
+    var list = cx.env.db.users.filter(function (u) { return u.locationIds.indexOf(cx.loc.id) >= 0 && (u.role === 'senior_auditor' || u.role === 'location_lead') && !u.accessOff; });
     if (!list.some(function (u) { return u.id === me.id; }) && cx.env.ix.user[me.id]) list.unshift(cx.env.ix.user[me.id]);
     return list.map(function (u) { return { id: u.id, name: u.name, roleLabel: P.demoDict.roleLabels[u.role], me: u.id === me.id }; });
+  }
+
+
+  function genEnv(db, today) {
+    var ix = { dep: {}, def: {}, user: {}, worker: {}, prod: {}, loc: {} };
+    db.departments.forEach(function (d) { ix.dep[d.id] = d; });
+    db.defectTypes.forEach(function (t) { ix.def[t.id] = t; });
+    return { db: db, ix: ix, day: function () { return today; }, audits: function () { return db.audits; } };
+  }
+  function gStat(g, depId, from, to) { return S.deptStats(g.env, g.db.audits.filter(function (a) { return a.day >= from && a.day <= to; }), depId); }
+  function gAudits(g, depId, from, to) { return g.db.audits.filter(function (a) { return a.departmentId === depId && a.day >= from && a.day <= to; }); }
+  function addPieces(list, rnd, typeId, k, culprit) {
+    for (var guard = 0; k > 0 && guard < 600; guard++) {
+      var slots = [];
+      list.forEach(function (a) { a.items.forEach(function (it) { if (it.qty > it.rejected) slots.push([a, it]); }); });
+      if (!slots.length) return;
+      var s = rnd.pick(slots), a = s[0], it = s[1];
+      var q = Math.min(k, it.qty - it.rejected, rnd.int(1, 3));
+      var w = culprit && a.checkedWorkers.indexOf(culprit) >= 0 && rnd.chance(0.7) ? culprit : rnd.pick(a.checkedWorkers);
+      var row = a.defects.filter(function (d) { return d.productId === it.productId && d.orderNo === it.orderNo && d.defectTypeId === typeId && !d.departmentId; })[0];
+      if (!row) { row = { productId: it.productId, orderNo: it.orderNo, defectTypeId: typeId, photo: null, guilty: [] }; a.defects.push(row); }
+      var gg = row.guilty.filter(function (x) { return x.workerCode === w; })[0];
+      if (gg) gg.qty += q; else row.guilty.push({ workerCode: w, qty: q });
+      it.rejected += q; a.noDefects = false; k -= q;
+    }
+  }
+  function push(g, dep, from, to, target, aFrom, aTo) {
+    for (var round = 0; round < 6; round++) {
+      var st = gStat(g, dep.id, from, to), want = Math.ceil(target / 100 * st.checked) - st.rejected;
+      if (!st.checked || want <= 0) return;
+      var list = gAudits(g, dep.id, aFrom || from, aTo || to);
+      if (!list.length) list = gAudits(g, dep.id, from, to);
+      var strict = list.filter(function (a) { return !g.lenient[a.auditorId]; });
+      if (strict.length) list = strict;
+      var room = 0;
+      list.forEach(function (a) { a.items.forEach(function (it) { room += it.qty - it.rejected; }); });
+      if (room < want * 2) list[list.length - 1].items[0].qty += want * 2 - room;
+      var first = Math.ceil(want * 0.6);
+      addPieces(list, g.rnd, g.types[0].id, first, g.culprit);
+      addPieces(list, g.rnd, (g.types[1] || g.types[0]).id, want - first, g.culprit);
+    }
+  }
+  function cap(g, dep, from, to, max) {
+    for (var d = from; d <= to; d = S.addDays(d, 1)) {
+      var st = gStat(g, dep.id, d, d), list = gAudits(g, dep.id, d, d);
+      if (!st.rejected || !list.length || C.pct(st.rejected, st.checked) <= max) continue;
+      var need = Math.ceil(st.rejected * 100 / max) - st.checked, items = [];
+      list.forEach(function (a) { a.items.forEach(function (it) { items.push(it); }); });
+      items.forEach(function (it, i) { it.qty += Math.floor(need / items.length) + (i < need % items.length ? 1 : 0); });
+    }
+  }
+  var GEN_PLAN = { skill: 'Провели інструктаж біля робочого місця, показали правильний прийом.', discipline: 'Нагадали про перевірку виробу перед здачею; тімлід перевіряє першу партію зміни.',
+    tool: 'Замінили голки й налаштували натяг нитки на двох машинах.', material: 'Замінили партію ниток на іншого постачальника.', organization: 'Переставили стіл контролю ближче до лінії.' };
+  var GEN_SKIP = ['Разовий збій машини — полагодили того ж дня.', 'Партія з браком від постачальника — повернули.'];
+
+  var BUNDLES = [['done', 'open'], ['skip', 'hold'], ['relapse1'], ['early'], ['relapse2']];
+  var FIRST = { done: -4, open: 0, skip: -2, hold: -1, relapse1: -3, early: 1, relapse2: -5 };
+  function shape(g, dep, kind) {
+    var L = g.L, s = function (o) { return S.periodStart(L + o, GEN.wd); }, e = function (o) { return S.periodEnd(L + o, GEN.wd); };
+    var j = function (a, b) { return Math.round(g.rnd.between(a, b) * 10) / 10; }, dec = g.dec, id = dep.id;
+    var impl = function (o, plus, causes) { return function (v) { return seedRec(g, v, { implementedAt: S.addDays(s(o), plus), causes: causes }); }; };
+    switch (kind) {
+      case 'open':
+        cap(g, dep, s(0), S.addDays(e(0), -1), 4); push(g, dep, s(0), e(0), j(6.2, 6.8), e(0), e(0));
+        dec[id + '|' + L] = function () { return null; }; break;
+      case 'done':
+        push(g, dep, s(-4), e(-4), j(6.3, 6.9)); cap(g, dep, s(-3), e(-1), 4.2);
+        dec[id + '|' + (L - 4)] = impl(-3, 0, ['tool']); break;
+      case 'skip':
+        push(g, dep, s(-2), e(-2), j(5.6, 6.0));
+        dec[id + '|' + (L - 2)] = function (v) { return seedRec(g, v, { notNeeded: GEN_SKIP[0] }); }; break;
+      case 'hold':
+        push(g, dep, s(-1), e(-1), j(6.3, 6.9)); cap(g, dep, s(0), e(0), 4.3);
+        dec[id + '|' + (L - 1)] = impl(0, 0, ['skill', 'organization']); break;
+      case 'relapse1':
+        push(g, dep, s(-3), e(-3), j(6.2, 6.8)); push(g, dep, s(-1), e(-1), j(5.7, 6.2));
+        dec[id + '|' + (L - 3)] = impl(-2, 1, ['discipline']);
+        dec[id + '|' + (L - 1)] = impl(0, 1, ['material']); break;
+      case 'relapse2':
+        push(g, dep, s(-5), e(-5), j(6.3, 6.8)); cap(g, dep, s(-4), e(-4), 4); push(g, dep, s(-3), e(-3), j(5.7, 6.1));
+        dec[id + '|' + (L - 5)] = impl(-4, 0, ['tool']); break;
+      case 'early': {
+        var to = [S.addDays(g.today, -1), S.addDays(e(1), -1)].sort()[0];
+        if (to < s(1) || gStat(g, id, s(1), to).checked < GEN.early) break;
+        push(g, dep, s(1), to, j(6.3, 6.9));
+        dec[id + '|' + (L + 1)] = function () { return null; }; break;
+      }
+    }
+  }
+  function seedRec(g, v, o) {
+    var w = g.cx.range(v.departmentId, v.weekStart, v.weekEnd), rec = { id: 'KD_' + v.departmentId + '_' + v.weekStart, locationId: v.locationId,
+      departmentId: v.departmentId, weekStart: v.weekStart, weekEnd: v.weekEnd, openedAt: v.openedAt, early: v.early,
+      items: pareto(g.env, w.byType, w.rejected, GEN.pareto), causes: [], causeNote: '', plan: '', who: g.senior, implementedAt: null,
+      recordedAt: null, recordedBy: g.senior, startedAt: null, notNeeded: null, seeded: true };
+    if (o.notNeeded) { var at = [S.addDays(v.openedAt, 1), g.today].sort()[0]; rec.notNeeded = { reason: o.notNeeded, at: at, by: g.senior }; rec.recordedAt = rec.startedAt = at; }
+    else {
+      var day = [o.implementedAt, g.today].sort()[0];
+      rec.implementedAt = day < v.openedAt ? v.openedAt : day; rec.recordedAt = rec.startedAt = rec.implementedAt;
+      rec.causes = o.causes; rec.plan = GEN_PLAN[o.causes[0]];
+    }
+    g.db.kdSeed.push(rec);
+    return rec;
+  }
+  function genHook(db, ctx) {
+    var today = ctx.today, rnd = P.demoDates.makeRnd((ctx.seed || 0) + 4501), env = genEnv(db, today);
+    var L = S.lastFullPeriod(today, GEN.wd);
+    db.kdSeed = [];
+    db.locations.forEach(function (loc) {
+      var deps = db.departments.filter(function (d) { return d.locationId === loc.id && d.active !== false; });
+      var g = { db: db, env: env, rnd: rnd, L: L, today: today, dec: {}, senior: 'u_sen_' + loc.id.slice(4).toLowerCase(), lenient: {} };
+      db.users.forEach(function (u) { if (u.lenient) g.lenient[u.id] = 1; });
+      var usual = function (d) { var st = gStat(g, d.id, S.periodStart(L - 8, GEN.wd), S.periodEnd(L, GEN.wd)); return C.pct(st.rejected, st.checked) || 0; };
+      deps.map(function (d) { return { d: d, u: usual(d) }; }).sort(function (a, b) { return a.u - b.u || (a.d.id < b.d.id ? -1 : 1); }).forEach(function (x, i) {
+        var bundle = BUNDLES[i];
+        if (!bundle) return;
+        var dep = x.d, types = db.defectTypes.filter(function (t) { return t.deptTypeId === dep.deptTypeId && t.active !== false; });
+        var ws = db.workers.filter(function (w) { return w.departmentId === dep.id; });
+        if (types.length < 2 || !ws.length) return;
+        g.types = rnd.sample(types, 2); g.culprit = rnd.pick(ws).code;
+        var first = Math.min.apply(null, bundle.map(function (k) { return FIRST[k]; }));
+        cap(g, dep, S.periodStart(L + first - 3, GEN.wd), S.addDays(S.periodStart(L + first, GEN.wd), -1), 4.5);   // тихі 3 тижні перед сценарієм — сценарій не накладається на старі КД
+        bundle.forEach(function (k) { shape(g, dep, k); });
+      });
+      g.cx = makeCx(env, loc, GEN, []);
+      deps.forEach(function (d) {
+        g.cx.kds(d.id, function (v) {
+          var k = d.id + '|' + v.n;
+          if (has(g.dec, k)) return g.dec[k](v);
+          if (v.n > L - 1) return null;   // свіжі перевищення лишаються без рішення
+          if (rnd.chance(0.15)) return seedRec(g, v, { notNeeded: rnd.pick(GEN_SKIP) });
+          var cs = rnd.sample(Object.keys(GEN_PLAN), rnd.int(1, 2));
+          return seedRec(g, v, { implementedAt: S.addDays(v.openedAt, rnd.int(0, 2)), causes: cs });
+        });
+      });
+    });
+  }
+
+  function loadHook(db, ctx) {
+    var saved = ctx.storage.get(KEY, {}) || {};
+    if (typeof saved !== 'object' || Array.isArray(saved)) saved = {};
+    db.kdActions = (db.kdSeed || []).filter(function (a) { return !has(saved, a.id); }).map(clone)
+      .concat(Object.keys(saved).map(function (id) { return saved[id]; }).filter(function (a) { return a && typeof a === 'object'; }));
+  }
+
+
+  function periodSum(cx, list, from, to) {
+    var inR = function (d) { return !!d && d >= from && d <= to; };
+    var opened = list.filter(function (a) { return inR(a.openedAt); }), impl = list.filter(function (a) { return inR(a.implementedAt); });
+    var d = impl.map(function (a) { return daysBetween(a.openedAt, a.implementedAt); });
+    var res = { belowAfter1: 0, notBelowAfter1: 0, pending: 0 }, held = { done: 0, relapse: 0, pending: 0 }, before = [], after = [], cause = Object.create(null);
+    impl.forEach(function (a) {
+      if (a.status === 'check') res.pending++;
+      else if (a.relapseStage === 1) res.notBelowAfter1++;
+      else { res.belowAfter1++; held[a.status === 'helped' ? 'done' : a.status === 'hold' ? 'pending' : 'relapse']++; }
+      if (a.status !== 'check') view(cx, a).items.forEach(function (it) { if (it.before != null && it.after != null) { before.push(it.before); after.push(it.after); } });
+      (a.causes || []).forEach(function (c) { if (has(CAUSE_IX, c)) cause[c] = (cause[c] || 0) + 1; });
+    });
+    return { opened: opened.length, earlyOpened: opened.filter(function (a) { return a.early; }).length, implemented: impl.length,
+      implementedDaysAvg: d.length ? r1(mean(d)) : null, notImplemented: opened.filter(function (a) { return a.status === 'new'; }).length,
+      notNeeded: opened.filter(function (a) { return a.status === 'not_needed'; }).length, results: res, held: held,
+      effect: { items: before.length, avgBefore: before.length ? r1(mean(before)) : null, avgAfter: after.length ? r1(mean(after)) : null,
+        avgDeltaPp: before.length ? r1(mean(after) - mean(before)) : null },
+      causes: CAUSES.filter(function (c) { return cause[c.id]; }).map(function (c) { return { id: c.id, label: c.label, n: cause[c.id] }; }) };
+  }
+  function rangeOf(p, env) {
+    var today = env.day(), to = DAY_RE.test(p.to || '') && p.to <= today ? p.to : today;
+    var from = DAY_RE.test(p.from || '') && p.from <= to ? p.from : S.addDays(to, -29);
+    if (from < S.addDays(to, -365)) from = S.addDays(to, -365);
+    return { from: from, to: to };
+  }
+  function locSummary(env, locId, from, to) {
+    var loc = has(env.ix.loc, locId) ? env.ix.loc[locId] : null;
+    if (!loc) return C.fail('not_found', 'Локацію не знайдено.');
+    var rg = rangeOf({ from: from, to: to }, env), cx = makeCx(env, loc), all = cx.all(), ps = periodSum(cx, all, rg.from, rg.to), T = cx.T;
+    var st = stateCounts(all.filter(function (a) { return !a.finishedOn || a.finishedOn <= rg.to; }), rg.from);
+    st.done = all.filter(function (a) { return a.status === 'helped' && a.finishedOn >= rg.from && a.finishedOn <= rg.to; }).length;
+    st.relapse = all.filter(function (a) { return a.status === 'not_helped' && a.finishedOn >= rg.from && a.finishedOn <= rg.to; }).length;
+    st.skip = all.filter(function (a) { return a.status === 'not_needed' && a.finishedOn >= rg.from && a.finishedOn <= rg.to; }).length;
+    var weeks = [];
+    for (var n = cx.of(rg.from); n <= cx.of(rg.to); n++) {
+      var c = 0, r = 0, s = cx.start(n), e = cx.end(n), inW = function (d) { return !!d && d >= s && d <= e; };
+      cx.deps.forEach(function (d) { var w = cx.range(d.id, s, e); c += w.checked; r += w.rejected; });
+      weeks.push({ n: n, start: s, end: e, current: n > cx.L, rate: C.pct(r, c), checked: c, rejected: r,
+        opened: all.filter(function (a) { return inW(a.openedAt); }).length, implemented: all.filter(function (a) { return inW(a.implementedAt); }).length,
+        belowAfter: all.filter(function (a) { return a.r1n === n && n <= cx.L && a.relapseStage !== 1; }).length,
+        relapse: all.filter(function (a) { return a.relapseN === n; }).length });
+    }
+    var depts = cx.deps.map(function (d) {
+      var mine = all.filter(function (a) { return a.departmentId === d.id; }), w = cx.wk(d.id, cx.L);
+      return { id: d.id, name: d.name, weekRate: w.rate, weekChecked: w.checked, over: w.over, open: mine.filter(function (a) { return a.status === 'new'; }).length,
+        watch: mine.filter(function (a) { return a.status === 'check'; }).length, hold: mine.filter(function (a) { return a.status === 'hold'; }).length,
+        relapse: mine.filter(function (a) { return a.status === 'not_helped' && a.finishedOn >= rg.from && a.finishedOn <= rg.to; }).length };
+    });
+    var actions = all.filter(function (a) { return a.openedAt <= rg.to && !(a.finishedOn && a.finishedOn < rg.from); }).map(function (a) {
+      var v = view(cx, a);
+      return { id: v.id, key: v.key, departmentId: v.departmentId, departmentName: v.departmentName, weekStart: v.periodStart, weekEnd: v.periodEnd,
+        openedAt: v.openedAt, early: v.early, earlyBelow: v.earlyBelow, weekRate: v.weekRate, weekDone: v.weekDone, implementedAt: v.implementedAt, daysToImplement: v.daysToImplement,
+        cause: v.causes.length && has(CAUSE_IX, v.causes[0]) ? CAUSE_IX[v.causes[0]].label : null, done: v.plan || null, before: v.rate, after: v.after, after2: v.after2,
+        state: v.state, items: v.items.map(function (it) { return { defectTypeId: it.defectTypeId, name: it.name, share: it.share, before: it.before, after: it.after }; }) };
+    }).sort(function (a, b) { return a.openedAt < b.openedAt ? 1 : a.openedAt > b.openedAt ? -1 : 0; });
+    return { ok: true, location: { id: loc.id, name: loc.name }, from: rg.from, to: rg.to, today: cx.today,
+      cycle: { days: KD.CYCLE_DAYS, reviewWeekday: cx.R.wd, reviewWeekdayName: S.WEEKDAYS[cx.R.wd - 1] }, threshold: T, early: cx.R.early, pareto: cx.R.pareto,
+      states: st, period: { opened: ps.opened, earlyOpened: ps.earlyOpened, implemented: ps.implemented, implementedDaysAvg: ps.implementedDaysAvg,
+        notImplemented: ps.notImplemented, notNeeded: ps.notNeeded, results: ps.results, held: ps.held },
+      effect: ps.effect, causes: ps.causes, depts: depts, weeks: weeks, actions: actions };
   }
 
 
@@ -491,41 +562,38 @@
     var r = S.loc(p, me, env); if (r.err) return r;
     return { cx: makeCx(env, r.loc) };
   }
-  function findAction(cx, id) { return cx.actions.filter(function (a) { return a.id === id; })[0] || null; }
-
-  function eligible(cx, p) {
-    var dep = depOf(cx, p.departmentId), t = typeOf(cx, p.defectTypeId), n = periodArg(cx, p.period);
-    if (!dep || !t || t.deptTypeId !== dep.deptTypeId) return { err: C.fail('not_found', 'Такого виду браку у відділі не знайдено. Оновіть сторінку.') };
-    if (n == null) return { err: C.fail('not_found', 'Такого розбору немає. Оновіть сторінку.') };
-    var isNew = cx.news.some(function (x) { return x.departmentId === dep.id && x.defectTypeId === t.id && x.period === n; });
-    var retry = cx.actions.filter(function (a) { return a.departmentId === dep.id && a.defectTypeId === t.id && a.status === 'not_helped' && a.resultPeriod === n; })[0];
-    if (retry && view(cx, retry).retryable === false) retry = null;
-    if (!isNew && !retry) return { err: C.fail('conflict', 'Для цього виду браку рішення вже є. Оновіть сторінку — покажемо актуальний стан.') };
-    if (findAction(cx, 'KD_' + dep.id + '_' + t.id + '_' + n)) return { err: C.fail('conflict', 'Дію за цей розбір уже записано. Оновіть сторінку.') };
-    return { dep: dep, type: t, period: n, retryOf: retry ? retry.id : null };
+  function findAction(cx, id) { return typeof id === 'string' ? cx.all().filter(function (a) { return a.id === id; })[0] || null : null; }
+  function openKd(cx, p) {
+    var dep = depOf(cx, p.departmentId), n = periodArg(cx, p.period);
+    if (!dep) return { err: C.fail('not_found', 'Відділ не знайдено. Оновіть сторінку.') };
+    if (n == null) return { err: C.fail('not_found', 'Такого тижня немає. Оновіть сторінку.') };
+    var kd = openAt(cx, dep.id, n);
+    if (!kd) return { err: C.fail('conflict', 'Для цього тижня відділу рішення вже є або КД немає. Оновіть сторінку — покажемо актуальний стан.') };
+    return { kd: kd, dep: dep };
   }
-
-  function planErrors(cx, me, p, checkDue) {
+  function planErrors(cx, me, p, kd, lockDay) {
     var errs = [], causes = Array.isArray(p.causes) ? p.causes : [];
     if (!causes.length) errs.push({ field: 'causes', message: 'Оберіть причину — хоча б одну.' });
-    else if (causes.some(function (c) { return typeof c !== 'string' || !Object.prototype.hasOwnProperty.call(CAUSE_IX, c); }) || causes.length !== causes.filter(function (c, i) { return causes.indexOf(c) === i; }).length)
+    else if (causes.some(function (c) { return typeof c !== 'string' || !has(CAUSE_IX, c); }) || causes.length !== causes.filter(function (c, i) { return causes.indexOf(c) === i; }).length)
       errs.push({ field: 'causes', message: 'Причини мають бути з довідника, кожна один раз.' });
     if (causes.indexOf('other') >= 0 && String(p.causeNote || '').trim().length < 3) errs.push({ field: 'causeNote', message: 'Поясніть, що сталося, — ви обрали «Інше».' });
+    else if (String(p.causeNote || '').trim().length > 300) errs.push({ field: 'causeNote', message: 'Коротше, будь ласка: до 300 знаків.' });
     var planText = String(p.plan || '').trim();
-    if (planText.length < 3) errs.push({ field: 'plan', message: 'Напишіть, що зробимо, — хоча б кілька слів.' });
+    if (planText.length < 3) errs.push({ field: 'plan', message: 'Напишіть, що зроблено, — хоча б кілька слів.' });
     else if (planText.length > 1000) errs.push({ field: 'plan', message: 'Коротше, будь ласка: до 1000 знаків.' });
-    if (!people(cx, me).some(function (u) { return u.id === p.who; })) errs.push({ field: 'who', message: 'Оберіть, хто робить.' });
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(String(p.due || ''))) errs.push({ field: 'due', message: 'Оберіть дату, до якої зробити.' });
-    else if (checkDue && p.due < cx.today) errs.push({ field: 'due', message: 'Дата — не раніше сьогодні.' });
-    else if (p.due > S.addDays(cx.today, 60)) errs.push({ field: 'due', message: 'Дата — не пізніше ніж через 60 днів.' });
+    if (!people(cx, me).some(function (u) { return u.id === p.who; })) errs.push({ field: 'who', message: 'Оберіть, хто відповідає.' });
+    var day = p.day;
+    if (lockDay) { if (day != null && day !== '' && day !== kd.implementedAt) errs.push({ field: 'day', message: 'Тиждень результату вже виміряно — дату впровадження не змінити.' }); }
+    else if (!DAY_RE.test(String(day || ''))) errs.push({ field: 'day', message: 'Оберіть дату впровадження.' });
+    else if (day < kd.openedAt || day > cx.today) errs.push({ field: 'day', message: 'Дата — від відкриття КД (' + kd.openedAt.split('-').reverse().join('.') + ') до сьогодні.' });
     return errs;
   }
-
   function save(env, rec) {
-    var keep = ['id', 'locationId', 'departmentId', 'defectTypeId', 'period', 'causes', 'causeNote', 'plan', 'who', 'due',
-      'startedAt', 'startedBy', 'implementedAt', 'notNeeded', 'retryOf', 'seeded'], o = {};
+    var keep = ['id', 'locationId', 'departmentId', 'weekStart', 'weekEnd', 'openedAt', 'early', 'items', 'causes', 'causeNote', 'plan', 'who',
+      'implementedAt', 'recordedAt', 'recordedBy', 'startedAt', 'notNeeded', 'seeded'], o = {};
     keep.forEach(function (k) { if (rec[k] !== undefined) o[k] = rec[k]; });
     var all = S.get(env, KEY, {}) || {};
+    if (typeof all !== 'object' || Array.isArray(all)) all = {};
     all[o.id] = o; S.set(env, KEY, all);
     var list = env.db.kdActions = env.db.kdActions || [], i;
     for (i = 0; i < list.length && list[i].id !== o.id; i++) { /* шукаємо */ }
@@ -536,66 +604,61 @@
     var cx = makeCx(env, loc);
     return { ok: true, action: view(cx, findAction(cx, id)), totals: totals(cx) };
   }
-
-  var DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
-  function rangeOf(p, env) {
-    var today = env.day(), to = DAY_RE.test(p.to || '') && p.to <= today ? p.to : today;
-    var from = DAY_RE.test(p.from || '') && p.from <= to ? p.from : S.addDays(to, -29);
-    if (from < S.addDays(to, -365)) from = S.addDays(to, -365);
-    return { from: from, to: to };
+  function newRec(cx, kd, me) {
+    return { id: 'KD_' + kd.departmentId + '_' + kd.weekStart, locationId: cx.loc.id, departmentId: kd.departmentId, weekStart: kd.weekStart, weekEnd: kd.weekEnd,
+      openedAt: kd.openedAt, early: kd.early, items: itemIds(cx, kd), causes: [], causeNote: '', plan: '', who: null, implementedAt: null,
+      recordedAt: cx.today, recordedBy: me.id, startedAt: cx.today, notNeeded: null };
   }
 
   function remapDefect(env, fromIds, toId) {
-    var set = Object.create(null), all = S.get(env, KEY, {}) || {}, n = 0, taken = Object.create(null);
-    function slot(a) { return a.departmentId + '|' + a.period; }
+    var set = Object.create(null), all = S.get(env, KEY, {}) || {}, n = 0;
+    if (typeof all !== 'object' || Array.isArray(all)) all = {};
     (fromIds || []).forEach(function (id) { if (typeof id === 'string' && id !== toId) set[id] = 1; });
-    (env.db.kdActions || []).forEach(function (a) { if (a.defectTypeId === toId) taken[slot(a)] = 1; });
-    (env.db.kdSeed || []).forEach(function (a) { if (set[a.defectTypeId] && !has(all, a.id)) all[a.id] = clone(a); });
+    var hit = function (a) { return a && Array.isArray(a.items) && a.items.some(function (t) { return has(set, t); }); };
+    (env.db.kdSeed || []).forEach(function (a) { if (hit(a) && !has(all, a.id)) all[a.id] = clone(a); });
     Object.keys(all).forEach(function (id) {
       var a = all[id];
-      if (!a || typeof a !== 'object' || !has(set, a.defectTypeId) || taken[slot(a)]) return;
-      taken[slot(a)] = 1; a.defectTypeId = toId; n++;
+      if (!hit(a)) return;
+      var out = [];
+      a.items.forEach(function (t) { var x = has(set, t) ? toId : t; if (out.indexOf(x) < 0) out.push(x); });
+      a.items = out; n++;
     });
     if (n) { S.set(env, KEY, all); env.reload(); }
     return n;
   }
-  P.demoKd = { remapDefect: remapDefect };
+  P.demoKd = {
+    remapDefect: remapDefect,
+    locSummary: function (env, locId, from, to) { return locSummary(env, locId, from, to); }
+  };
+
+  function canSummary(me, locId) {
+    if (me.role === 'manager' || me.role === 'admin') return C.hasLoc(me, locId) || !!(me.can && me.can.viewAllLocations);
+    return (me.role === 'senior_auditor' || me.role === 'location_lead') && C.hasLoc(me, locId);
+  }
+  var RANK = { 'new': 0, check: 1, hold: 2 };
+  function byRank(a, b) {
+    var ra = has(RANK, a.status) ? RANK[a.status] : 3, rb = has(RANK, b.status) ? RANK[b.status] : 3;
+    return ra - rb || b.period - a.period || (a.departmentName < b.departmentName ? -1 : 1);
+  }
 
   P.demoApis.push({
     srKdCauses: function () { return { ok: true, causes: clone(CAUSES) }; },
 
     srKdOverview: function (p, me, env) {
       var r = S.loc(p, me, env); if (r.err) return r.err;
-      var cx = makeCx(env, r.loc), from = since(cx, 30);
+      var cx = makeCx(env, r.loc), from = since(cx, 30), R = cx.R;
       var depts = cx.deps.map(function (d, order) {
-        var mine = cx.actions.filter(function (a) { return a.departmentId === d.id; });
-        var news = cx.news.filter(function (x) { return x.departmentId === d.id; }).map(function (x) { return view(cx, x); })
-          .sort(function (a, b) { return b.rate - a.rate; });
-        var count = function (st, recent) { return mine.filter(function (a) { return a.status === st && (!recent || a.finishedOn >= from); }); };
-        var started = count('started').map(function (a) { return view(cx, a); }), check = count('check').map(function (a) { return view(cx, a); });
-        var done = mine.filter(function (a) { return (a.status === 'helped' || a.status === 'not_helped') && a.finishedOn >= from; })
-          .sort(function (a, b) { return a.finishedOn < b.finishedOn ? 1 : -1; }).map(function (a) { return view(cx, a); });
-        var st = cx.stats(d.id, cx.L), busy = {};
-        mine.concat(cx.news).forEach(function (a) { if (a.departmentId === d.id) busy[a.defectTypeId] = 1; });
-        var top = Object.keys(st.byType).filter(function (t) { return has(env.ix.def, t) && !busy[t]; }).map(function (t) {
-          var x = cx.rate(d.id, t, cx.L), def = env.ix.def[t];
-          return { defectTypeId: t, name: def.name, level: def.level || 'fix', pieces: x.pieces, checked: x.checked, rate: x.rate };
-        }).filter(function (x) { return x.pieces > 0; }).sort(function (a, b) { return b.pieces - a.pieces || (a.name < b.name ? -1 : 1); });
-        var soon = started.filter(function (a) { return a.due && a.due <= S.addDays(cx.today, 1); })
-          .sort(function (a, b) { return a.due < b.due ? -1 : 1; })[0] || null;
-        var stages = stageCounts(news.concat(mine.map(function (a) { return view(cx, a); })).filter(function (v) {
-          return (v.stage !== 'relapse' && v.stage !== 'closed') || v.finishedOn >= from;
-        }));
-        return { id: d.id, name: d.name, order: order, checked: st.checked, lowData: st.checked < KD.MIN_SAMPLE, minSample: KD.MIN_SAMPLE,
-          counts: { 'new': news.length, started: started.length, check: check.length, helped: count('helped', true).length }, stages: stages,
-          last: cx.period(d.id, cx.L), series: series(cx, d.id, null, cx.L - MINI_BARS + 1, cx.L),
-          news: news, started: started, check: check, done: done, top: top.slice(0, 2), soonDue: soon ? soon.due : null };
-      }).sort(function (a, b) { return (b.counts['new'] > 0) - (a.counts['new'] > 0) || (b.counts.started + b.counts.check > 0) - (a.counts.started + a.counts.check > 0) || a.order - b.order; });
-      var sum = { depts: depts.length, lowDepts: 0, audits: 0, checked: 0, rejected: 0, over: 0 };
-      depts.forEach(function (d) { sum.audits += d.last.audits; sum.checked += d.last.checked; sum.rejected += d.last.rejected; sum.over += d.last.over; if (d.lowData) sum.lowDepts++; });
+        var kds = cx.kds(d.id), last = cx.wk(d.id, cx.L), cur = cx.wk(d.id, cx.L + 1), now = coverAt(cx, d.id, cx.L + 1);
+        if (now && !(now.status === 'new' || now.status === 'check' || now.status === 'hold')) now = null;
+        return { id: d.id, name: d.name, order: order, last: last, cur: cur, earlyLeft: Math.max(0, R.early - cur.checked),
+          series: series(cx, d.id, cx.L - MINI_BARS + 1, cx.L), kd: now ? view(cx, now) : null,
+          states: stateCounts(kds, from), total: kds.length };
+      }).sort(function (a, b) { return (b.kd && b.kd.status === 'new') - (a.kd && a.kd.status === 'new') || !!b.kd - !!a.kd || a.order - b.order; });
+      var sum = { depts: depts.length, audits: 0, checked: 0, rejected: 0, over: 0 };
+      depts.forEach(function (d) { sum.audits += d.last.audits; sum.checked += d.last.checked; sum.rejected += d.last.rejected; if (d.last.over) sum.over++; });
       sum.rate = C.pct(sum.rejected, sum.checked);
-      return { ok: true, review: reviewOf(cx), totals: totals(cx), sum: sum, depts: depts, actionsTotal: cx.actions.length + cx.news.length,
-        threshold: KD.THRESHOLD, minSample: KD.MIN_SAMPLE };
+      return { ok: true, review: reviewOf(cx), rules: rulesOut(R), totals: totals(cx), states: stateCounts(cx.all(), from), sum: sum, depts: depts,
+        actionsTotal: cx.all().length, threshold: R.threshold, today: cx.today };
     },
 
     srKdDept: function (p, me, env) {
@@ -603,30 +666,30 @@
       var cx = makeCx(env, r.loc), dep = depOf(cx, p.departmentId);
       if (!dep) return C.fail('not_found', 'Відділ не знайдено. Поверніться до всіх відділів.');
       var n = periodArg(cx, p.period);
-      if (n == null) return C.fail('not_found', 'Такого розбору немає. Оберіть розбір зі списку.');
-      var per = cx.period(dep.id, n), st = cx.stats(dep.id, n), win = chartWindow(cx, n);
-      var ids = {};
+      if (n == null) return C.fail('not_found', 'Такого тижня немає. Оберіть тиждень зі списку.');
+      var per = cx.wk(dep.id, n), st = cx.range(dep.id, per.start, per.end), win = chartWindow(cx, n), kds = cx.kds(dep.id);
+      var mine = kds.filter(function (a) { return a.n === n; })[0] || null, cov = coverAt(cx, dep.id, n);
+      var par = pareto(env, st.byType, st.rejected, cx.R.pareto), ids = {};
       env.db.defectTypes.forEach(function (t) { if (t.deptTypeId === dep.deptTypeId) ids[t.id] = 1; });
       Object.keys(st.byType).forEach(function (t) { if (has(env.ix.def, t)) ids[t] = 1; });
       var types = Object.keys(ids).map(function (id) {
-        var t = env.ix.def[id], x = cx.rate(dep.id, id, n);
-        return { defectTypeId: id, name: t.name, level: t.level || 'fix', active: t.active !== false, pieces: x.pieces, rate: x.rate, over: x.over,
-          share: C.pct(x.pieces, per.rejected), dyn: series(cx, dep.id, id, n - MINI_BARS + 1, n), state: typeState(cx, dep.id, id) };
-      }).filter(function (x) {   // вимкнений у довіднику вид показуємо, лише якщо по ньому щось є
-        return x.active || x.state.status !== 'none' || x.dyn.some(function (y) { return y.pieces > 0; });
-      }).sort(function (a, b) { return b.pieces - a.pieces || (a.name < b.name ? -1 : 1); });
-      var actions = deptActions(cx, dep.id), counts = { 'new': 0, started: 0, check: 0, helped: 0, not_helped: 0, not_needed: 0 };
-      actions.forEach(function (a) { counts[a.status]++; });
-      var stages = stageCounts(actions);   // v1.3 — групи «у часі» для сторінки відділу
+        var t = env.ix.def[id], pcs = st.byType[id] || 0, route = routeOf(cx, dep.id, id, routeFrom(cx, dep.id, id));
+        return { defectTypeId: id, name: t.name, level: t.level || 'fix', active: t.active !== false, pieces: pcs, rate: C.pct(pcs, per.checked),
+          share: C.pct(pcs, per.rejected), pareto: par.indexOf(id) >= 0, inKd: !!mine && itemIds(cx, mine).indexOf(id) >= 0,
+          dyn: typeSeries(cx, dep.id, id, n - MINI_BARS + 1, n), state: typeState(cx, dep.id, id), route: route.slice(-4), routeLen: route.length };
+      }).filter(function (x) { return x.active || x.state.status !== 'none' || x.dyn.some(function (y) { return y.pieces > 0; }); })
+        .sort(function (a, b) { return b.pieces - a.pieces || (a.name < b.name ? -1 : 1); });
       var periods = [];
-      for (var k = cx.L + 1; k > cx.L + 1 - PERIOD_LIST && k >= 0; k--) periods.push(cx.dates(k));
-      if (n < periods[periods.length - 1].n) periods.push(cx.dates(n));
+      for (var k = cx.L + 1; k > cx.L + 1 - PERIOD_LIST && k >= 0; k--) periods.push(cx.wk(dep.id, k));
+      if (n < periods[periods.length - 1].n) periods.push(cx.wk(dep.id, n));
+      periods = periods.map(function (x) { return { n: x.n, start: x.start, end: x.end, current: x.current, rate: x.rate, over: x.over }; });
       var uc = 0, ur = 0;
-      for (var q = Math.max(0, n - 7); q <= n; q++) { var su = cx.stats(dep.id, q); uc += su.checked; ur += su.rejected; }
-      var blur = S.blur(per.rate, C.pct(ur, uc), per.checked, null, KD.THRESHOLD);
-      return { ok: true, review: reviewOf(cx), dept: { id: dep.id, name: dep.name }, threshold: KD.THRESHOLD, minSample: KD.MIN_SAMPLE,
-        canWrite: S.canManage(me), today: cx.today, period: per, blur: blur, decide: n >= cx.L, minPeriod: Math.max(0, cx.L - MAX_BACK), maxPeriod: cx.L + 1,
-        periods: periods, series: series(cx, dep.id, null, win.from, win.to), types: types, actions: actions, counts: counts, stages: stages };
+      for (var q = Math.max(0, n - 3); q <= n; q++) { var su = cx.wk(dep.id, q); uc += su.checked; ur += su.rejected; }
+      var actions = kds.map(function (a) { return view(cx, a); }).sort(byRank);
+      return { ok: true, review: reviewOf(cx), rules: rulesOut(cx.R), dept: { id: dep.id, name: dep.name }, threshold: cx.T, canWrite: S.canManage(me), today: cx.today,
+        period: per, blur: S.blur(per.rate, C.pct(ur, uc), per.checked, null, cx.T), decide: n >= cx.L, minPeriod: Math.max(0, cx.L - MAX_BACK), maxPeriod: cx.L + 1,
+        periods: periods, series: series(cx, dep.id, win.from, win.to), kd: mine ? view(cx, mine) : null,
+        cover: cov && cov !== mine ? view(cx, cov) : null, pareto: par, types: types, actions: actions, states: stateCounts(kds) };
     },
 
     srKdType: function (p, me, env) {
@@ -634,105 +697,97 @@
       var cx = makeCx(env, r.loc), dep = depOf(cx, p.departmentId), t = typeOf(cx, p.defectTypeId);
       if (!dep) return C.fail('not_found', 'Відділ не знайдено. Поверніться до всіх відділів.');
       var n = periodArg(cx, p.period);
-      if (n == null) return C.fail('not_found', 'Такого розбору немає. Оберіть розбір зі списку.');
-      if (!t || (t.deptTypeId !== dep.deptTypeId && !has(cx.stats(dep.id, n).byType, t.id))) return C.fail('not_found', 'Такого виду браку у відділі не знайдено. Оновіть сторінку.');
-      var x = cx.rate(dep.id, t.id, n), per = cx.period(dep.id, n), d = details(cx, dep.id, t.id, n), prev = cx.rate(dep.id, t.id, n - 1), win = chartWindow(cx, n);
-      var by = cx.stats(dep.id, n).byType, withDefect = Object.keys(by).filter(function (id) { return by[id] > 0; });
-      var mineOf = function (a) { return a.departmentId === dep.id && a.defectTypeId === t.id; };
-      var history = cx.news.filter(mineOf).concat(cx.actions.filter(mineOf).sort(function (a, b) { return b.period - a.period; }))
-        .map(function (a) { return view(cx, a); });
+      if (n == null) return C.fail('not_found', 'Такого тижня немає. Оберіть тиждень зі списку.');
+      var per = cx.wk(dep.id, n), st = cx.range(dep.id, per.start, per.end);
+      if (!t || (t.deptTypeId !== dep.deptTypeId && !has(st.byType, t.id))) return C.fail('not_found', 'Такого виду браку у відділі не знайдено. Оновіть сторінку.');
+      var pcs = st.byType[t.id] || 0, prev = cx.wk(dep.id, n - 1), pst = cx.range(dep.id, prev.start, prev.end), ppcs = pst.byType[t.id] || 0;
+      var d = details(cx, dep.id, t.id, per.start, per.end), win = chartWindow(cx, n), par = pareto(env, st.byType, st.rejected, cx.R.pareto);
+      var withDefect = Object.keys(st.byType).filter(function (id) { return st.byType[id] > 0; });
+      var history = cx.kds(dep.id).filter(function (a) { return itemIds(cx, a).indexOf(t.id) >= 0; }).map(function (a) { return view(cx, a); }).reverse();
       return { ok: true, dept: { id: dep.id, name: dep.name }, type: { id: t.id, name: t.name, level: t.level || 'fix', active: t.active !== false },
-        threshold: KD.THRESHOLD, minSample: KD.MIN_SAMPLE, canWrite: S.canManage(me), today: cx.today, decide: n >= cx.L, period: per,
-        pieces: x.pieces, checked: x.checked, rate: x.rate, over: x.over, low: x.low, share: C.pct(x.pieces, per.rejected),
-        prev: { n: prev.n, start: prev.start, end: prev.end, pieces: prev.pieces, checked: prev.checked, rate: prev.rate },
-        rank: x.pieces ? 1 + withDefect.filter(function (id) { return by[id] > x.pieces; }).length : null, rankOf: withDefect.length,
-        trend: x.over ? trendOf(dynOf(cx, dep.id, t.id, n)) : null,
-        series: series(cx, dep.id, t.id, win.from, win.to),
-        workers: d.workers, auditors: d.auditors, products: d.products, orders: d.orders, days: d.days,
-        auditsWith: d.auditsWith, auditsTotal: d.auditsTotal, history: history, state: typeState(cx, dep.id, t.id),
-        route: routeOf(cx, dep.id, t.id, routeFrom(cx, dep.id, t.id)) };
+        threshold: cx.T, rules: rulesOut(cx.R), canWrite: S.canManage(me), today: cx.today, decide: n >= cx.L, period: per,
+        pieces: pcs, checked: per.checked, rate: C.pct(pcs, per.checked), share: C.pct(pcs, per.rejected), pareto: par.indexOf(t.id) >= 0,
+        prev: { n: prev.n, start: prev.start, end: prev.end, pieces: ppcs, checked: prev.checked, rate: C.pct(ppcs, prev.checked) },
+        rank: pcs ? 1 + withDefect.filter(function (id) { return st.byType[id] > pcs; }).length : null, rankOf: withDefect.length,
+        series: typeSeries(cx, dep.id, t.id, win.from, win.to),
+        workers: d.workers, auditors: d.auditors, products: d.products, orders: d.orders, days: d.days, auditsWith: d.auditsWith, auditsTotal: d.auditsTotal,
+        history: history, state: typeState(cx, dep.id, t.id), route: routeOf(cx, dep.id, t.id, routeFrom(cx, dep.id, t.id)) };
     },
 
     srKdItem: function (p, me, env) {
       var r = S.loc(p, me, env); if (r.err) return r.err;
       var cx = makeCx(env, r.loc), a;
-      if (p.id) {
-        a = findAction(cx, p.id);
-        if (!a) return C.fail('not_found', 'Дію не знайдено. Оновіть сторінку.');
-      } else {
-        var n = periodArg(cx, p.period);
-        if (n == null) return C.fail('not_found', 'Такого розбору немає. Оновіть сторінку.');
-        a = cx.news.filter(function (x) { return x.departmentId === p.departmentId && x.defectTypeId === p.defectTypeId && x.period === n; })[0];
-        if (!a) {
-          var e = eligible(cx, { departmentId: p.departmentId, defectTypeId: p.defectTypeId, period: n });
-          if (e.err) return e.err;
-          a = { status: 'new', departmentId: e.dep.id, defectTypeId: e.type.id, period: n };
-        }
-      }
-      var v = view(cx, a), d = details(cx, a.departmentId, a.defectTypeId, a.period), per = cx.period(a.departmentId, a.period);
-      v.series = series(cx, a.departmentId, a.defectTypeId, Math.min(cx.L - DEPT_BARS + 1, a.period - 2), cx.L + 1);
-      v.trend = v.trend || (v.rate != null && v.rate > KD.THRESHOLD ? trendOf(dynOf(cx, a.departmentId, a.defectTypeId, a.period)) : null);
-      v.workers = d.workers; v.auditors = d.auditors; v.products = d.products; v.orders = d.orders;
-      v.auditsWith = d.auditsWith; v.auditsTotal = d.auditsTotal; v.deptRejected = per.rejected; v.share = C.pct(v.pieces, per.rejected);
-      return { ok: true, item: v, review: reviewOf(cx), causes: clone(CAUSES), people: people(cx, me), today: cx.today,
-        threshold: KD.THRESHOLD, minSample: KD.MIN_SAMPLE, canWrite: S.canManage(me) };
+      if (p.id) { a = findAction(cx, p.id); if (!a) return C.fail('not_found', 'КД не знайдено. Оновіть сторінку.'); }
+      else { var o = openKd(cx, p); if (o.err) return o.err; a = o.kd; }
+      var v = view(cx, a), d = details(cx, a.departmentId, null, a.weekStart, a.weekEnd);
+      v.series = series(cx, a.departmentId, Math.min(cx.L - DEPT_BARS + 1, a.n - 2), cx.L + 1);
+      v.workers = d.workers; v.auditors = d.auditors; v.products = d.products; v.auditsTotal = d.auditsTotal;
+      v.items.forEach(function (it) { var x = details(cx, a.departmentId, it.defectTypeId, a.weekStart, a.weekEnd); it.workers = x.workers.slice(0, 5); it.products = x.products.slice(0, 3); it.auditsWith = x.auditsWith; });
+      return { ok: true, item: v, review: reviewOf(cx), rules: rulesOut(cx.R), causes: clone(CAUSES), people: people(cx, me), today: cx.today,
+        threshold: cx.T, canWrite: S.canManage(me) };
     },
 
     srKdList: function (p, me, env) {
       var r = S.loc(p, me, env); if (r.err) return r.err;
-      var cx = makeCx(env, r.loc), dep = p.departmentId || null;
-      var all = cx.news.concat(cx.actions).filter(function (a) { return !dep || a.departmentId === dep; }).map(function (a) { return view(cx, a); });
-      var group = function (a) { return a.status === 'new' ? 'new' : a.status === 'started' ? 'started' : a.status === 'check' ? 'check' : 'done'; };
-      var counts = { 'new': 0, started: 0, check: 0, done: 0, all: all.length };
-      all.forEach(function (a) { counts[group(a)]++; });
-      var state = Object.prototype.hasOwnProperty.call(counts, p.state) ? p.state : 'all', rank = { 'new': 0, started: 1, check: 2, done: 3 };
-      var items = all.filter(function (a) { return state === 'all' || group(a) === state; }).sort(function (a, b) {
-        return rank[group(a)] - rank[group(b)] || (group(a) === 'started' ? (a.due < b.due ? -1 : a.due > b.due ? 1 : 0) : 0) ||
-          b.period - a.period || (a.name < b.name ? -1 : 1);
-      });
-      return { ok: true, state: state, counts: counts, items: items, review: reviewOf(cx), today: cx.today, threshold: KD.THRESHOLD,
+      var cx = makeCx(env, r.loc), dep = typeof p.departmentId === 'string' && p.departmentId ? p.departmentId : null;
+      var all = cx.all().filter(function (a) { return !dep || a.departmentId === dep; }).map(function (a) { return view(cx, a); });
+      var counts = { 'new': 0, check: 0, hold: 0, helped: 0, not_helped: 0, not_needed: 0, all: all.length };
+      all.forEach(function (a) { counts[a.status]++; });
+      var state = has(counts, p.state) ? p.state : 'all';
+      return { ok: true, state: state, counts: counts, items: all.filter(function (a) { return state === 'all' || a.status === state; }).sort(byRank),
+        review: reviewOf(cx), rules: rulesOut(cx.R), today: cx.today, threshold: cx.T,
         departments: cx.deps.map(function (d) { return { id: d.id, name: d.name }; }) };
     },
 
     srKdStats: function (p, me, env) {
       var r = S.loc(p, me, env); if (r.err) return r.err;
-      var cx = makeCx(env, r.loc), days = Number(p.days) === 90 ? 90 : 30, from = since(cx, days), periods = [];
-      var f = deptFilter(cx, p.departmentIds); if (f.err) return f.err;
-      var deps = cx.deps.filter(function (d) { return f.all || f.set[d.id]; }), mineDep = function (a) { return f.all || f.set[a.departmentId]; };
-      for (var n = cx.L; S.periodEnd(n) >= from; n--) periods.push(n);
-      var inWin = {}; periods.forEach(function (x) { inWin[x] = 1; });
-      var acts = cx.actions.filter(function (a) { return inWin[a.period] && mineDep(a); }), real = acts.filter(function (a) { return a.status !== 'not_needed'; });
-      var news = cx.news.filter(mineDep), over = 0;
-      var results = cx.actions.filter(function (a) { return a.resultPeriod != null && inWin[a.resultPeriod] && mineDep(a); });
-      var relapsed = function (x, d, t) {
-        return results.filter(function (a) { return a.status === 'not_helped' && a.resultPeriod === x && (!d || (a.departmentId === d && a.defectTypeId === t)); });
-      };
-      var byReview = periods.slice().reverse().map(function (x) {
-        var o = cx.dates(x), items = [], states = { over: 0, work: 0, watch: 0, closed: 0, skip: 0 };
-        deps.forEach(function (d) {
-          Object.keys(cx.stats(d.id, x).byType).forEach(function (t) {
-            var rt = cx.rate(d.id, t, x);
-            if (!rt.over) return;
-            var h = handlerOf(cx, d.id, t, x), state = overState(h), rel = relapsed(x, d.id, t).length > 0;
-            states[state]++;
-            items.push({ departmentId: d.id, departmentName: d.name, defectTypeId: t, name: has(env.ix.def, t) ? env.ix.def[t].name : 'Невідомий вид браку',
-              rate: rt.rate, pieces: rt.pieces, checked: rt.checked, state: state, relapse: rel, status: h ? h.status : 'new' });
-          });
-        });
-        items.sort(function (a, b) { return b.rate - a.rate || (a.name < b.name ? -1 : 1); });
-        over += items.length;
-        o.over = items.length; o.items = items; o.states = states; o.relapse = relapsed(x).length;
-        o.started = real.filter(function (a) { return a.period === x; }).length;
+      var cx = makeCx(env, r.loc), days = Number(p.days) === 90 ? 90 : 30, from = since(cx, days), ids = p.departmentIds, set = null;
+      if (!(ids == null || ids === '' || (Array.isArray(ids) && !ids.length))) {
+        if (!Array.isArray(ids) || ids.length > 100 || ids.some(function (id) { return !depOf(cx, id); })) return C.fail('not_found', 'Такого відділу в локації немає. Оновіть сторінку.');
+        set = Object.create(null); ids.forEach(function (id) { set[id] = 1; });
+      }
+      var deps = cx.deps.filter(function (d) { return !set || set[d.id]; }), all = [];
+      deps.forEach(function (d) { all = all.concat(cx.kds(d.id)); });
+      var weeks = [];
+      for (var n = cx.of(from); n <= cx.L + 1; n++) weeks.push(n);
+      var byWeek = weeks.map(function (x) {
+        var o = { n: x, start: cx.start(x), end: cx.end(x), current: x > cx.L, checked: 0, rejected: 0, overDepts: 0 };
+        deps.forEach(function (d) { var w = cx.wk(d.id, x); o.checked += w.checked; o.rejected += w.rejected; if (w.over && x <= cx.L) o.overDepts++; });
+        o.rate = C.pct(o.rejected, o.checked);
+        var mine = all.filter(function (a) { return a.n === x; });
+        o.states = stateCounts(mine); o.opened = mine.length; o.early = mine.filter(function (a) { return a.early; }).length;
+        o.relapse = all.filter(function (a) { return a.relapseN === x; }).length;
+        o.items = mine.map(function (a) { var v = view(cx, a); return { id: v.id, key: v.key, departmentId: v.departmentId, departmentName: v.departmentName, rate: v.rate, state: v.state, early: v.early, earlyBelow: v.earlyBelow, name: v.name }; });
+        o.earlyBelow = o.items.filter(function (i) { return i.earlyBelow; }).length;
         return o;
       });
-      var cnt = function (st) { return acts.filter(function (a) { return st.indexOf(a.status) >= 0; }).length; };
-      return { ok: true, days: days, from: from, review: reviewOf(cx), today: cx.today,
-        departments: cx.deps.map(function (d) { return { id: d.id, name: d.name }; }), departmentIds: f.ids,
-        kpi: { reviews: periods.length, over: over, started: real.length,
-          helped: results.filter(function (a) { return a.status === 'helped'; }).length, notHelped: results.filter(function (a) { return a.status === 'not_helped'; }).length,
-          running: cnt(['started', 'check']), notNeeded: cnt(['not_needed']), waiting: news.length },
-        byReview: byReview, depts: deps.map(function (d) { return statsDept(cx, d, inWin, periods[periods.length - 1]); }),
-        threshold: KD.THRESHOLD, minSample: KD.MIN_SAMPLE };
+      var ps = periodSum(cx, all, from, cx.today);
+      ps.relapse = all.filter(function (a) { return a.status === 'not_helped' && a.finishedOn >= from; }).length;
+      ps.weeks = weeks.length; ps.waiting = all.filter(function (a) { return a.status === 'new'; }).length;
+      var stDepts = deps.map(function (d) {
+        var kds = cx.kds(d.id), inWin = kds.filter(function (a) { return a.openedAt >= from || !a.finishedOn || a.finishedOn >= from; });
+        var deltas = [];
+        inWin.forEach(function (a) { if (a.status !== 'check' && a.status !== 'new' && a.status !== 'not_needed') view(cx, a).items.forEach(function (it) { if (it.delta != null) deltas.push({ d: it.delta, b: it.before }); }); });
+        var tids = {};
+        env.db.defectTypes.forEach(function (t) { if (t.deptTypeId === d.deptTypeId) tids[t.id] = 1; });
+        kds.forEach(function (a) { itemIds(cx, a).forEach(function (t) { tids[t] = 1; }); });
+        var lw = cx.wk(d.id, cx.L), lst = cx.range(d.id, lw.start, lw.end), rf = cx.of(from) - 1;
+        var types = Object.keys(tids).filter(function (id) { return has(env.ix.def, id); }).map(function (id) {
+          var t = env.ix.def[id], pcs = lst.byType[id] || 0, withIt = kds.filter(function (a) { return itemIds(cx, a).indexOf(id) >= 0; });
+          var last = withIt[withIt.length - 1], lv = last ? view(cx, last) : null, li = lv ? lv.items.filter(function (it) { return it.defectTypeId === id; })[0] : null;
+          return { defectTypeId: id, name: t.name, level: t.level || 'fix', active: t.active !== false, rate: C.pct(pcs, lw.checked), pieces: pcs, share: C.pct(pcs, lw.rejected),
+            kds: withIt.filter(function (a) { return inWin.indexOf(a) >= 0; }).length,
+            last: lv ? { id: lv.id, key: lv.key, period: lv.period, periodStart: lv.periodStart, periodEnd: lv.periodEnd, status: lv.status, state: lv.state,
+              before: li.before, after: li.after, after2: li.after2, delta: li.delta, result: lv.result } : null,
+            route: routeOf(cx, d.id, id, rf) };
+        }).filter(function (x) { return x.active || x.last || x.pieces > 0; }).sort(function (a, b) { return (b.rate || 0) - (a.rate || 0) || (a.name < b.name ? -1 : 1); });
+        return { id: d.id, name: d.name, weekRate: lw.rate, over: lw.over, states: stateCounts(inWin, from), total: inWin.length,
+          effect: deltas.length ? { n: deltas.length, pp: r1(mean(deltas.map(function (x) { return x.d; }))),
+            rel: Math.round(mean(deltas.filter(function (x) { return x.b; }).map(function (x) { return x.d / x.b * 100; }))) } : null, types: types };
+      });
+      return { ok: true, days: days, from: from, review: reviewOf(cx), rules: rulesOut(cx.R), today: cx.today, threshold: cx.T,
+        departments: cx.deps.map(function (d) { return { id: d.id, name: d.name }; }), departmentIds: set ? Object.keys(set) : [],
+        kpi: ps, byWeek: byWeek, depts: stDepts };
     },
 
     srKdWorker: function (p, me, env) {
@@ -741,34 +796,52 @@
       if (!w) return C.fail('not_found', 'Працівника не знайдено. Оновіть сторінку.');
       var rg = rangeOf(p, env), pieces = Object.create(null);
       S.audits(env, r.loc.id, rg.from, rg.to).forEach(function (a) {
-        a.defects.forEach(function (d) {
-          d.guilty.forEach(function (g) { if (g.workerCode === w.code && g.qty > 0) pieces[d.defectTypeId] = (pieces[d.defectTypeId] || 0) + g.qty; });
-        });
+        a.defects.forEach(function (d) { d.guilty.forEach(function (g) { if (g.workerCode === w.code && g.qty > 0) pieces[d.defectTypeId] = (pieces[d.defectTypeId] || 0) + g.qty; }); });
       });
-      var cx = makeCx(env, r.loc), rank = { 'new': 0, started: 1, check: 2 };
-      var items = cx.news.concat(cx.actions).filter(function (a) {
-        return a.departmentId === w.departmentId && has(pieces, a.defectTypeId) && S.periodStart(a.period) <= rg.to && !(a.finishedOn && a.finishedOn < rg.from);
-      }).map(function (a) { return view(cx, a); }).sort(function (a, b) {
-        var ra = has(rank, a.status) ? rank[a.status] : 3, rb = has(rank, b.status) ? rank[b.status] : 3;
-        return ra - rb || b.period - a.period || (a.name < b.name ? -1 : 1);
-      });
+      var cx = makeCx(env, r.loc), items = has(cx.env.ix.dep, w.departmentId) && depOf(cx, w.departmentId) ? cx.kds(w.departmentId).filter(function (a) {
+        return a.openedAt <= rg.to && !(a.finishedOn && a.finishedOn < rg.from) && itemIds(cx, a).some(function (t) { return has(pieces, t); });
+      }).map(function (a) {
+        var v = view(cx, a), mineT = v.items.filter(function (it) { return has(pieces, it.defectTypeId); });
+        v.defectTypeId = mineT[0].defectTypeId; v.workerTypes = mineT.map(function (it) { return it.name; });
+        return v;
+      }).sort(byRank) : [];
       var types = Object.keys(pieces).filter(function (id) { return has(env.ix.def, id); }).map(function (id) {
-        return { id: id, name: env.ix.def[id].name, pieces: pieces[id], actions: items.filter(function (a) { return a.defectTypeId === id; }).length };
+        return { id: id, name: env.ix.def[id].name, pieces: pieces[id], actions: items.filter(function (a) { return a.items.some(function (it) { return it.defectTypeId === id; }); }).length };
       }).sort(function (a, b) { return b.pieces - a.pieces || (a.name < b.name ? -1 : 1); });
-      return { ok: true, from: rg.from, to: rg.to, today: cx.today, threshold: KD.THRESHOLD,
+      return { ok: true, from: rg.from, to: rg.to, today: cx.today, threshold: cx.T,
         worker: { name: w.name, departmentId: w.departmentId, departmentName: env.ix.dep[w.departmentId] ? env.ix.dep[w.departmentId].name : '' },
         types: types, items: items };
     },
 
-    srKdStart: function (p, me, env) {
+    kdLocSummary: function (p, me, env) {
+      var id = typeof p.locationId === 'string' ? p.locationId : '';
+      if (!has(env.ix.loc, id)) return C.fail('not_found', 'Локацію не знайдено.');
+      if (!canSummary(me, id)) return C.forbidden();
+      return locSummary(env, id, p.from, p.to);
+    },
+
+    srKdImplement: function (p, me, env) {
       var w = writable(p, me, env); if (w.err) return w.err;
-      var cx = w.cx, e = eligible(cx, p); if (e.err) return e.err;
-      var errs = planErrors(cx, me, p, true);
+      var cx = w.cx, o = openKd(cx, p); if (o.err) return o.err;
+      var errs = planErrors(cx, me, p, o.kd, false);
       if (errs.length) return C.fail('validation', 'Перевірте поля — дещо не заповнено.', errs);
-      var rec = save(env, { id: 'KD_' + e.dep.id + '_' + e.type.id + '_' + e.period, locationId: cx.loc.id, departmentId: e.dep.id,
-        defectTypeId: e.type.id, period: e.period, causes: p.causes.slice(), causeNote: String(p.causeNote || '').trim(),
-        plan: String(p.plan).trim(), who: p.who, due: p.due, startedAt: cx.today, startedBy: me.id, implementedAt: null, notNeeded: null,
-        retryOf: e.retryOf });
+      var rec = newRec(cx, o.kd, me);
+      rec.causes = p.causes.slice(); rec.causeNote = String(p.causeNote || '').trim(); rec.plan = String(p.plan).trim(); rec.who = p.who; rec.implementedAt = p.day;
+      save(env, rec);
+      return after(env, cx.loc, rec.id);
+    },
+
+    srKdEditPlan: function (p, me, env) {
+      var w = writable(p, me, env); if (w.err) return w.err;
+      var cx = w.cx, a = findAction(cx, p.id);
+      if (!a) return C.fail('not_found', 'КД не знайдено. Оновіть сторінку.');
+      if (!a.implementedAt || a.status === 'not_needed') return C.fail('conflict', 'Плану в цієї КД немає — її позначено «не потрібно».');
+      var lock = a.status !== 'check', errs = planErrors(cx, me, p, a, lock);
+      if (errs.length) return C.fail('validation', 'Перевірте поля — дещо не заповнено.', errs);
+      var rec = clone(a);
+      rec.causes = p.causes.slice(); rec.causeNote = String(p.causeNote || '').trim(); rec.plan = String(p.plan).trim(); rec.who = p.who;
+      if (!lock) rec.implementedAt = p.day;
+      save(env, rec);
       return after(env, cx.loc, rec.id);
     },
 
@@ -779,42 +852,13 @@
       if (reason.length > 300) return C.fail('validation', 'Причина задовга.', [{ field: 'reason', message: 'Коротше, будь ласка: до 300 знаків.' }]);
       if (p.id) {
         var a = findAction(cx, p.id);
-        if (!a) return C.fail('not_found', 'Дію не знайдено. Оновіть сторінку.');
-        if (a.status !== 'started' && a.status !== 'not_needed') return C.fail('conflict', 'Дію вже впроваджено — результат покаже розбір.');
-        rec = clone(a);
-        rec.notNeeded = { reason: reason, at: a.notNeeded ? a.notNeeded.at : cx.today, by: me.id };
+        if (!a) return C.fail('not_found', 'КД не знайдено. Оновіть сторінку.');
+        if (a.status !== 'not_needed') return C.fail('conflict', 'План уже впроваджено — результат покаже тиждень після впровадження.');
+        rec = clone(a); rec.notNeeded = { reason: reason, at: a.notNeeded.at, by: me.id };
       } else {
-        var e = eligible(cx, p); if (e.err) return e.err;
-        rec = { id: 'KD_' + e.dep.id + '_' + e.type.id + '_' + e.period, locationId: cx.loc.id, departmentId: e.dep.id, defectTypeId: e.type.id,
-          period: e.period, causes: [], causeNote: '', plan: '', who: me.id, due: null, startedAt: cx.today, startedBy: me.id,
-          implementedAt: null, notNeeded: { reason: reason, at: cx.today, by: me.id }, retryOf: e.retryOf };
+        var o = openKd(cx, p); if (o.err) return o.err;
+        rec = newRec(cx, o.kd, me); rec.who = me.id; rec.notNeeded = { reason: reason, at: cx.today, by: me.id };
       }
-      save(env, rec);
-      return after(env, cx.loc, rec.id);
-    },
-
-    srKdImplement: function (p, me, env) {
-      var w = writable(p, me, env); if (w.err) return w.err;
-      var cx = w.cx, a = findAction(cx, p.id);
-      if (!a) return C.fail('not_found', 'Дію не знайдено. Оновіть сторінку.');
-      if (a.status !== 'started' && a.status !== 'check') return C.fail('conflict', a.status === 'not_needed' ? 'Дію закрито як «не потрібно».' : 'Результат дії вже виміряно — дату змінити не можна.');
-      var day = p.day || cx.today;
-      if (!/^\d{4}-\d{2}-\d{2}$/.test(String(day)) || day < a.startedAt || day > cx.today)
-        return C.fail('validation', 'Перевірте дату.', [{ field: 'day', message: 'Дата — від дня початку дії до сьогодні.' }]);
-      var rec = clone(a); rec.implementedAt = day;
-      save(env, rec);
-      return after(env, cx.loc, rec.id);
-    },
-
-    srKdEditPlan: function (p, me, env) {
-      var w = writable(p, me, env); if (w.err) return w.err;
-      var cx = w.cx, a = findAction(cx, p.id);
-      if (!a) return C.fail('not_found', 'Дію не знайдено. Оновіть сторінку.');
-      if (a.status !== 'started' && a.status !== 'check') return C.fail('conflict', 'Завершену дію не змінюють — почніть нову, якщо брак повернеться.');
-      var errs = planErrors(cx, me, p, p.due !== a.due);
-      if (errs.length) return C.fail('validation', 'Перевірте поля — дещо не заповнено.', errs);
-      var rec = clone(a);
-      rec.causes = p.causes.slice(); rec.causeNote = String(p.causeNote || '').trim(); rec.plan = String(p.plan).trim(); rec.who = p.who; rec.due = p.due;
       save(env, rec);
       return after(env, cx.loc, rec.id);
     }
@@ -822,5 +866,5 @@
 
   P.demoGenHooks.push(genHook);
   P.demoLoadHooks.push(loadHook);
-  P.demoResetKeys.push(KEY);
+  P.demoResetKeys.push(KEY, OLD_KEY);
 })(typeof window !== 'undefined' ? window : globalThis);

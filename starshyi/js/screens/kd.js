@@ -20,62 +20,55 @@
     var d = Math.round((to - from) * 10) / 10;
     return d === 0 ? 'без змін' : (d > 0 ? '+' : '−') + String(Math.abs(d)).replace('.', ',') + ' в. п.';
   };
-  K.perNote = function (p, lastN) {
-    return p.current ? 'триває · день ' + p.daysDone + ' з ' + p.days : p.n === lastN ? 'останній повний' : '';
-  };
+  K.wdAcc = function (wd) { return ['понеділок', 'вівторок', 'середу', 'четвер', 'пʼятницю', 'суботу', 'неділю'][(wd || 5) - 1]; };
+  K.week = function (a, b) { return 'тиждень ' + K.rangeShort(a, b); };
+  K.weekNote = function (p, lastN) { return p.current ? 'триває · день ' + p.daysDone + ' з ' + p.days : p.n === lastN ? 'останній завершений' : ''; };
 
   K.segNav = function (on, extra) {
-    return '<div class="kd-top"><div class="seg" style="flex:none">' + [['/kd', 'По відділах'], ['/kd/list', 'Список дій'], ['/kd/stats', 'Чи допомагають']].map(function (x) {
+    return '<div class="kd-top"><div class="seg" style="flex:none">' + [['/kd', 'По відділах'], ['/kd/list', 'Список КД'], ['/kd/stats', 'Чи допомагають']].map(function (x) {
       return '<a class="seg__btn' + (x[0] === on ? ' seg__btn--on' : '') + '" href="#' + x[0] + '" style="text-decoration:none">' + x[1] + '</a>';
     }).join('') + '</div>' + (extra || '') + '</div>';
   };
+  K.ruleLine = function (R) {
+    var q = function (k) { return P.help ? P.help.btn(k) : ''; };
+    return '<p class="hint kd-rule">Розбір — щотижня в ' + esc(K.wdAcc(R.reviewWeekday)) + ' зранку, за 7 днів перед ним' + q('kd.review') + '. КД відділу — брак, % відділу за тиждень понад норму ' +
+      R.threshold + '%' + q('kd.threshold') + '. Ранній тумблер — від ' + K.num(R.early) + ' шт у тижні, що триває' + q('kd.minSample') + '. Пункти — види браку, що разом дають ' + R.pareto + '% браку' + q('kd.pareto') + '.</p>';
+  };
   K.cap = function (html) { return '<p class="kd-cap">' + html + '</p>'; };
-  K.stateBadge = function (a, today) {
-    var st = P.sr.kdStateOf(a.status);
+  K.stateBadge = function (a) {
     if (a.status === 'none') return H.kdState('ok', 'дій не було');
-    if (a.status === 'started') {
-      if (a.overdue) return H.kdState(st, 'в роботі · термін минув ' + H.dayShort(a.due));
-      if (a.due && a.due <= K.addDays(today, 1)) return H.kdState(st, 'в роботі · термін ' + (a.due === today ? 'сьогодні' : 'завтра') + ', ' + H.dayShort(a.due));
-    }
+    var st = P.sr.kdStateOf(a.status);
+    if (a.status === 'new' && a.earlyBelow) return H.kdState(st, 'відкрито раннім тумблером · тиждень завершився: ' + K.pct(a.weekRate) + ' (не вище норми)');
+    if (a.status === 'new' && a.overWeeks >= 2) return H.kdState(st, 'понад норму, не почато · ' + K.plural(a.overWeeks, 'тиждень', 'тижні', 'тижнів'));
     return H.kdState(st);
   };
+  K.earlyBadge = function (a) { return a && a.early ? H.badge('ранній тумблер · ' + H.dayShort(a.openedAt), 'warn') : ''; };
   K.rates = function (a) {
-    if (a.after != null) return K.pct(a.rate) + ' → ' + K.pct(a.after);
-    if (a.interim) return K.pct(a.rate) + ' → поки ' + K.pct(a.interim.rate);
+    if (a.after != null) return K.pct(a.rate) + ' → ' + K.pct(a.after) + (a.after2 != null ? ' → ' + K.pct(a.after2) : '');
+    if (a.result && a.result.pending && a.result.checked) return K.pct(a.rate) + ' → поки ' + K.pct(a.result.rate);
     return K.pct(a.rate);
   };
-  K.result = function (a, T) { return K.rates(a) + (a.after != null ? ' · поріг ' + T + '%' : ''); };
+  K.result = function (a, T) { return K.rates(a) + (a.after != null ? ' · норма ' + T + '%' : ''); };
   K.actMeta = function (a) {
-    var per = 'розбір ' + K.rangeShort(a.periodStart, a.periodEnd);
-    if (a.status === 'new') return per + ' · ' + K.num(a.pieces) + ' шт з ' + K.num(a.checked) + ' · рішення немає' +
-      (a.overRun >= 2 ? ' · понад норму ' + K.plural(a.overRun, 'розбір', 'розбори', 'розборів') + ' поспіль, з ' + H.dayShort(a.overSince) : '');
-    if (a.status === 'started') return per + ' · впровадити до ' + H.dayShort(a.due) + (a.whoName ? ' · ' + a.whoName : '');
-    if (a.status === 'check') return per + ' · впроваджено ' + H.dayShort(a.implementedAt) + ' · перевірка — розбір ' + K.rangeShort(a.checkStart, a.checkEnd);
+    var per = K.week(a.periodStart, a.periodEnd), r = a.result, h = a.hold;
+    if (a.status === 'new') return per + ' · відкрито ' + H.dayShort(a.openedAt) + (a.early ? ' (ранній тумблер)' : '') + ' · ' + K.num(a.rejected) + ' шт з ' + K.num(a.checked) +
+      (a.earlyBelow ? ' · тиждень завершився: ' + K.pct(a.weekRate) + ', не вище норми' : '') + ' · плану немає';
     if (a.status === 'not_needed') return per + ' · «' + a.notNeededReason + '»';
-    return per + ' → перевірка в розборі ' + K.rangeShort(a.afterStart, a.afterEnd);
-  };
-  K.steps = function (a) {
-    var s1 = a.status === 'new' ? 'now' : 'done', s2 = a.implementedAt ? 'done' : a.status === 'started' ? 'now' : '',
-      s3 = a.status === 'check' ? 'now' : a.status === 'helped' || a.status === 'not_helped' ? 'done' : '';
-    var dot = function (k, t) { return '<span><i class="dotd' + (k ? ' dotd--' + k : '') + '"></i>' + t + '</span>'; };
-    return '<div class="steps">' + dot(s1, 'Почато' + (a.startedAt && a.status !== 'new' ? ' ' + H.dayShort(a.startedAt) : '')) + '<i class="ln"></i>' +
-      dot(s2, 'Впроваджено' + (a.implementedAt ? ' ' + H.dayShort(a.implementedAt) : '')) + '<i class="ln"></i>' +
-      dot(s3, 'Перевірка' + (a.checkStart ? ' ' + K.rangeShort(a.checkStart, a.checkEnd) : a.afterStart ? ' ' + K.rangeShort(a.afterStart, a.afterEnd) : '')) + '</div>';
+    var impl = per + ' · впроваджено ' + H.dayShort(a.implementedAt);
+    if (a.status === 'check') return impl + ' · тиждень результату ' + K.rangeShort(r.start, r.end);
+    if (a.status === 'hold') return impl + ' · під наглядом з ' + H.dayShort(a.holdSince) + ' · тиждень утримання ' + K.rangeShort(h.start, h.end);
+    return impl + ' · результат ' + K.rangeShort(r.start, r.end) + (h ? ' · утримання ' + K.rangeShort(h.start, h.end) : '');
   };
   K.CAUSE_LABELS = { skill: 'Не знав / не вміє', discipline: 'Знав, але не зробив', tool: 'Інструмент чи оснастка', material: 'Матеріал', organization: 'Організація роботи', other: 'Інше' };
   K.causeText = function (a) {
     return a.causes.map(function (c, i) { return (K.CAUSE_LABELS[c] || c) + (i === 0 && a.causes.length > 1 ? ' (головна)' : ''); }).join(' · ');
   };
   K.ref = function (a) {
-    return a.id ? ' data-id="' + esc(a.id) + '"' : ' data-dep="' + esc(a.departmentId) + '" data-type="' + esc(a.defectTypeId) + '" data-period="' + a.period + '"';
+    return a.id ? ' data-id="' + esc(a.id) + '"' : ' data-dep="' + esc(a.departmentId) + '" data-period="' + a.period + '"';
   };
   K.refOf = function (t) {
     var id = t.getAttribute('data-id');
-    return id ? { id: id } : { departmentId: t.getAttribute('data-dep'), defectTypeId: t.getAttribute('data-type'), period: +t.getAttribute('data-period') };
-  };
-  K.formula = function (x, T) {
-    return '<p class="kd-formula"><b' + (x.over ? ' class="kd-hot"' : '') + '>' + K.pct(x.rate) + '</b><span>= ' + K.num(x.pieces) + ' шт цього виду браку ÷ ' +
-      K.num(x.checked) + ' перевірених у відділі за ' + K.rangeShort(x.start, x.end) + '</span>' + H.badge('поріг ' + T + '%') + '</p>';
+    return id ? { id: id } : { departmentId: t.getAttribute('data-dep'), period: +t.getAttribute('data-period') };
   };
   K.tile = function (val, label, hot) {
     return '<div class="kd-tile"><b' + (hot ? ' class="kd-hot"' : '') + '>' + esc(val) + '</b><span>' + esc(label) + '</span></div>';
@@ -117,51 +110,61 @@
   };
 
   function selected(sel, n) { return sel != null && (typeof sel === 'object' ? Object.prototype.hasOwnProperty.call(sel, n) : sel === n); }
-  function barCls(x, sel) { return (x.low || x.current ? 'kd-dim' : '') + (selected(sel, x.n) ? ' kd-sel' : ''); }
+  function barCls(x, sel) { return (x.current ? 'kd-dim' : '') + (selected(sel, x.n) ? ' kd-sel' : ''); }
   K.spanOf = function (series) { return series.length ? H.dayShort(series[0].start) + ' – ' + H.dayShort(series[series.length - 1].end) : ''; };
+  function kdMark(x) {
+    if (x.relapse) return { text: '✕' + (x.relapse > 1 ? x.relapse : ''), cls: 'kd-relmark', title: 'рецидив виміряно в цьому тижні' };
+    if (!x.kdState) return null;
+    return { text: '●', cls: 'kd-wmk kd-wmk--' + x.kdState, title: 'КД за цей тиждень: ' + P.sr.KD_STATES[x.kdState].label };
+  }
   K.deptItems = function (series, unit, sel) {
     return series.map(function (x) {
-      return { key: x.n, x: K.rangeShort(x.start, x.end), v: unit === 'pcs' ? x.rejected : x.rate || 0, levels: x.levels, none: !x.checked && !x.rejected, cls: barCls(x, sel), p: x };
+      return { key: x.n, x: K.rangeShort(x.start, x.end), v: unit === 'pcs' ? x.rejected : x.rate || 0, levels: x.levels, none: !x.checked && !x.rejected,
+        cls: barCls(x, sel), mark: kdMark(x), p: x };
     });
   };
   K.deptTip = function (x, T) {
-    var sub = x.current ? 'розбір триває · день ' + x.daysDone + ' з ' + x.days : x.low ? 'перевірено менше ' + x.minSample + ' шт' : '';
-    return P.srChart.tipDay({ title: 'Розбір ' + K.range(x.start, x.end), sub: sub, none: !x.checked && !x.rejected ? 'Аудитів у відділі не було' : '',
-      audits: x.audits, checked: x.checked, rejected: x.rejected, pct: x.rate, levels: x.levels,
-      rows: [['Видів браку понад ' + T + '%', x.low ? 'не рахується' : String(x.over), x.over ? 'danger' : '']] });
+    var rows = [['Норма', T + '%']];
+    if (x.kdState) rows.push(['КД за цей тиждень', P.sr.KD_STATES[x.kdState].label + (x.kdEarly ? ' · ранній тумблер' : '')]);
+    if (x.relapse) rows.push(['Рецидив виміряно', 'так', 'danger']);
+    return P.srChart.tipDay({ title: 'Тиждень ' + K.range(x.start, x.end), sub: x.current ? 'тиждень триває · день ' + x.daysDone + ' з ' + x.days : '',
+      none: !x.checked && !x.rejected ? 'Аудитів у відділі не було' : '', audits: x.audits, checked: x.checked, rejected: x.rejected, pct: x.rate, levels: x.levels,
+      over: x.over, rows: rows });
   };
   K.deptChart = function (el, series, o) {
     return P.srChart.mount(el, { items: K.deptItems(series, o.unit || 'pct', o.sel), height: o.height || (o.mini ? 48 : 280), mini: !!o.mini, max: o.max,
-      label: o.label || 'Брак відділу по розборах', tip: function (it) { return K.deptTip(it.p, o.T); }, onPin: o.onPin });
+      xAll: !o.mini, line: o.unit === 'pcs' || !o.T ? null : { v: o.T, label: 'норма ' + o.T + '%' },
+      label: o.label || 'Брак відділу по тижнях', tip: function (it) { return K.deptTip(it.p, o.T); }, onPin: o.onPin });
   };
   K.typeItems = function (series, sel) {
     return series.map(function (x) {
-      return { key: x.n, x: K.rangeShort(x.start, x.end), v: x.rate || 0, hot: x.over, none: !x.checked, cls: barCls(x, sel), p: x };
+      var v = x.rate || 0;
+      return { key: x.n, x: K.rangeShort(x.start, x.end), v: v, none: !x.checked, cls: barCls(x, sel), p: x,
+        segs: x.kdState && v ? [{ v: v, cls: 'kd-sg kd-sg--' + x.kdState }] : null };
     });
   };
-  K.typeTip = function (x, name, T, marks) {
-    var sub = name + (x.current ? ' · розбір триває, день ' + x.daysDone + ' з ' + x.days : x.low && x.checked ? ' · перевірено менше ' + x.minSample + ' шт' : '');
+  K.typeTip = function (x, name, marks) {
     var foot = marks && Object.prototype.hasOwnProperty.call(marks, x.n) ? marks[x.n] : '';
-    if (!x.checked) return P.srChart.tip({ title: 'Розбір ' + K.range(x.start, x.end), sub: name, foot: 'Аудитів у відділі не було' });
-    return P.srChart.tip({ title: 'Розбір ' + K.range(x.start, x.end), sub: sub, foot: foot,
-      rows: [['Цього виду браку', K.num(x.pieces) + ' шт'], ['Перевірено у відділі', K.num(x.checked) + ' шт'], ['Частка', K.pct(x.rate), x.over ? 'danger' : ''], ['Поріг', T + '%']] });
+    if (!x.checked) return P.srChart.tip({ title: 'Тиждень ' + K.range(x.start, x.end), sub: name, foot: 'Аудитів у відділі не було' });
+    return P.srChart.tip({ title: 'Тиждень ' + K.range(x.start, x.end), sub: name + (x.current ? ' · тиждень триває, день ' + x.daysDone + ' з ' + x.days : ''), foot: foot,
+      rows: [['Цього виду браку', K.num(x.pieces) + ' шт'], ['Перевірено у відділі', K.num(x.checked) + ' шт'], ['% від перевірених', K.pct(x.rate)],
+        ['Частка браку відділу', K.pct(x.share)], ['Пункт КД', x.kdState ? P.sr.KD_STATES[x.kdState].label : 'ні']] });
   };
   K.typeChart = function (el, series, o) {
     var marks = o.sel != null && typeof o.sel === 'object' ? o.sel : null;
-    return P.srChart.mount(el, { items: K.typeItems(series, o.sel), height: o.height || (o.mini ? 36 : 200), mini: !!o.mini,
-      label: o.label || 'Частка виду браку по розборах', line: { v: o.T, label: 'поріг ' + o.T + '%' },
-      tip: function (it) { return K.typeTip(it.p, o.name, o.T, marks); }, onPin: o.onPin });
+    return P.srChart.mount(el, { items: K.typeItems(series, o.sel), height: o.height || (o.mini ? 36 : 200), mini: !!o.mini, xAll: !o.mini,
+      label: o.label || 'Вид браку по тижнях, % від перевірених', tip: function (it) { return K.typeTip(it.p, o.name, marks); }, onPin: o.onPin });
   };
   K.pinRow = function (x, selN, facts) {
-    return '<div class="kd-pin"><span><b>Зафіксовано: розбір ' + esc(K.range(x.start, x.end)) + '</b> · ' + facts + '</span>' +
-      (x.n === selN ? '<span class="hint">це обраний розбір</span>'
-        : '<button class="btn btn--secondary btn--sm" type="button" data-act="kd-show" data-n="' + x.n + '">Показати цей розбір</button>') + '</div>';
+    return '<div class="kd-pin"><span><b>Зафіксовано: тиждень ' + esc(K.range(x.start, x.end)) + '</b> · ' + facts + '</span>' +
+      (x.n === selN ? '<span class="hint">це обраний тиждень</span>'
+        : '<button class="btn btn--secondary btn--sm" type="button" data-act="kd-show" data-n="' + x.n + '">Показати цей тиждень</button>') + '</div>';
   };
-  K.chartKeys = function (kind, T, min, selText) {
-    return '<div class="legend kd-keys">' + (kind === 'dept' ? ['fix', 'repair', 'scrap'].map(function (k) { return H.lvl(k); }).join('')
-      : '<span class="kd-key kd-key--hot">понад ' + T + '%</span><span class="kd-key kd-key--one">до ' + T + '% включно</span>') +
-      '<span class="kd-key kd-key--dim">блідий — перевірено менше ' + min + ' шт або розбір триває</span>' +
-      (selText ? '<span class="kd-key kd-key--sel">' + esc(selText) + '</span>' : '') + '</div>';
+  K.chartKeys = function (kind, T, selText) {
+    return '<div class="legend kd-keys">' + (kind === 'dept' ? ['fix', 'repair', 'scrap'].map(function (k) { return H.lvl(k); }).join('') +
+        '<span class="kd-key kd-key--line">риска — норма ' + T + '%</span><span class="kd-key kd-key--mk"><b>●</b>КД за тиждень (колір — її стан)</span><span class="kd-key kd-key--rel"><b>✕</b>рецидив виміряно</span>'
+      : '<span class="kd-key">тиждень без КД з цим видом браку</span><span class="kd-key kd-key--in">тиждень, коли вид браку був пунктом КД (колір — стан КД)</span>') +
+      '<span class="kd-key kd-key--dim">блідий — тиждень триває</span>' + (selText ? '<span class="kd-key kd-key--sel">' + esc(selText) + '</span>' : '') + '</div>';
   };
 
   K.done = function (ctx, kind, title, text) {
@@ -183,26 +186,21 @@
   K.errSlot = function (f) { return '<p class="err" data-err="' + f + '" style="display:none"></p>'; };
   K.decisionBtns = function (a) {
     var b = function (cls, act, label, ic) { return '<button class="btn ' + cls + ' btn--sm" type="button" data-act="' + act + '"' + K.ref(a) + '>' + (ic ? P.ic(ic, 'ui-icon--sm') : '') + label + '</button>'; };
-    if (a.status === 'new') return b('btn--primary', 'start', 'Почати дію') + b('btn--quiet', 'nn', 'Не потрібно');
-    if (a.status === 'started') return b('btn--primary', 'impl', 'Впроваджено', 'check') + b('btn--secondary', 'edit', 'Змінити план', 'edit') + b('btn--quiet', 'nn', 'Не потрібно');
-    if (a.status === 'check') return b('btn--secondary', 'edit', 'Змінити план', 'edit') + b('btn--secondary', 'impl', 'Змінити дату впровадження', 'calendar');
-    if (a.status === 'not_helped' && a.retryable) return b('btn--primary', 'retry-kd', 'Почати нову дію');
+    if (a.status === 'new') return b('btn--primary', 'impl', 'Впроваджений план', 'check') + b('btn--quiet', 'nn', 'Не потрібно');
     if (a.status === 'not_needed') return b('btn--secondary', 'nn', 'Змінити причину', 'edit');
-    return '';
+    return b('btn--secondary', 'edit', 'Змінити план', 'edit');
   };
   K.bindActions = function (ctx, find) {
-    ctx.on('start', function (t) { K.openStart(ctx, K.refOf(t)); });
-    ctx.on('nn', function (t) { K.openNotNeeded(ctx, K.refOf(t), find(t)); });   // без знайденої дії вікно відкриється з порожнім заголовком — сервер усе одно перевірить
-    ctx.on('edit', function (t) { K.openStart(ctx, K.refOf(t), { edit: true }); });
-    ctx.on('impl', function (t) { var a = find(t); if (a) K.openImplement(ctx, a); });
-    ctx.on('retry-kd', function (t) { var a = find(t); if (a) K.openStart(ctx, { departmentId: a.departmentId, defectTypeId: a.defectTypeId, period: a.resultPeriod }); });
+    ctx.on('impl', function (t) { K.openPlan(ctx, K.refOf(t)); });
+    ctx.on('edit', function (t) { K.openPlan(ctx, K.refOf(t), { edit: true }); });
+    ctx.on('nn', function (t) { K.openNotNeeded(ctx, K.refOf(t), find(t)); });
     ctx.on('open', function (t) { K.openDrawer(ctx, K.refOf(t)); });
     ctx.on('kd-all', K.toggleMore);
   };
   K.finder = function (list) {
     return function (t) {
       var r = K.refOf(t);
-      return list.filter(function (a) { return r.id ? a.id === r.id : !a.id && a.departmentId === r.departmentId && a.defectTypeId === r.defectTypeId && a.period === r.period; })[0];
+      return list.filter(function (a) { return a && (r.id ? a.id === r.id : !a.id && a.departmentId === r.departmentId && a.period === r.period); })[0];
     };
   };
 })(window);

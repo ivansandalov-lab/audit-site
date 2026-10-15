@@ -5,21 +5,20 @@
 
   function tile(id, name, o, prev, on, days) {
     return '<button class="mgr-tile' + (on ? ' mgr-tile--on' : '') + '" type="button" data-act="mgr-loc" data-id="' + esc(id) + '" aria-pressed="' + on + '">' +
-      '<span class="mgr-tile__head"><b class="mgr-tile__name">' + P.ic(id ? 'location' : 'chart', 'ui-icon--sm') + esc(name) + '</b>' +
+      '<span class="mgr-tile__head"><b class="mgr-tile__name">' + P.ic('location', 'ui-icon--sm') + esc(name) + '</b>' +
       (on ? '<span class="mgr-tile__on">' + P.ic('check', 'ui-icon--sm') + 'обрано</span>' : '') + '</span>' +
       '<span class="mgr-tile__hero"><b class="mgr-tile__pct">' + H.pct(o.pct) + '</b><span class="mgr-dim">брак, % за ' + K.dn(days) + '</span></span>' +
       '<span class="mgr-tile__sub">' + (o.audits ? H.num(o.rejected) + ' з ' + H.num(o.checked) + ' шт · ' + K.n(o.audits, AUD[0], AUD[1], AUD[2]) : 'аудитів за період не було') + '</span>' +
       H.stack(o.levels, 6) +
-      '<span class="mgr-tile__was">попередні ' + K.dn(days) + ': ' + K.was(H.pct(prev.pct), H.pct(o.pct)) + '</span></button>';
+      '<span class="mgr-tile__was">попередні ' + K.dn(days) + ': ' + K.was(H.pct(prev.pct), H.pct(o.pct)) + '</span>' + P.mgrKd.tile(o.kd) + '</button>';
   }
 
   function tiles(r, sel) {
     var n = r.totals.days;
     return '<section class="mgr-tiles" aria-label="Локація">' +
-      tile('', 'Усі локації', sumLocs(r.locations), sumLocs(r.locations.map(function (l) { return l.prev; })), !sel, n) +
       r.locations.map(function (l) { return tile(l.id, l.name, l, l.prev, sel === l.id, n); }).join('') + '</section>' +
       '<p class="hint mgr-tiles__key">Плитка перемикає всю сторінку на локацію' + K.help('mgr.tiles') + ' · смужка — рівні браку' + K.help('term.levels') + ': ' +
-      K.LV.map(function (k) { return H.lvl(k); }).join(' ') + ' · «було → стало»' + K.help('mgr.was') + '</p>';
+      K.LV.map(function (k) { return H.lvl(k); }).join(' ') + ' · «було → стало»' + K.help('mgr.was') + ' · коригуючі дії зараз' + K.help('mgr.kd.now') + '</p>';
   }
   function sumLocs(list) {
     var o = { audits: 0, checked: 0, rejected: 0, levels: { fix: 0, repair: 0, scrap: 0 } };
@@ -87,21 +86,31 @@
   }
 
   P.cab.tab({ id: 'overview', label: 'Огляд', ic: 'chart', path: '/overview', order: 10 });
+  var last = '';   // остання обрана локація (повертаючись на вкладку без ?loc= — та сама)
   P.cab.screen('/overview', { tab: 'overview', title: 'Огляд', period: true, render: function (ctx) {
-    var sel = (ctx.query && ctx.query.loc) || '';
-    P.srv('mgrOverview', { from: ctx.period.from, to: ctx.period.to, locationId: sel }).then(function (r) {
+    var sel = (ctx.query && ctx.query.loc) || last;
+    function load() {
+      P.srv('mgrOverview', { from: ctx.period.from, to: ctx.period.to, locationId: sel }).then(show);
+    }
+    function show(r) {
       if (!ctx.alive()) return;
+      if (r.ok && !r.location && r.locations.length) { sel = r.locations[0].id; load(); return; }   // без вибору — перша локація
+      if (!r.ok && r.code === 'not_found' && sel === last && last) { last = sel = ''; load(); return; }   // запамʼятована локація зникла
       if (!r.ok) {
         ctx.el.innerHTML = r.code === 'not_found' ? H.empty('Такої локації немає', 'Адреса веде на локацію, якої немає в списку.') +
-          '<p style="text-align:center"><a class="btn btn--secondary btn--sm" href="#/overview">Показати всі локації</a></p>' : H.error(r);
+          '<p style="text-align:center"><a class="btn btn--secondary btn--sm" href="#/overview">Показати першу локацію</a></p>' : H.error(r);
         return;
       }
-      var scope = r.location ? r.location.name : 'Усі локації';
-      ctx.el.innerHTML = '<div class="mgr-page">' + tiles(r, sel) + summary(r, scope) +
+      if (!r.location) { ctx.el.innerHTML = '<section class="card">' + H.empty('Локацій ще немає', 'Коли адміністратор додасть локацію, тут зʼявляться її числа.') + '</section>'; return; }   // жодної локації
+      var scope = r.location.name, kscope = scope + ' · ' + K.span(r.from, r.to);
+      last = r.location.id;
+      ctx.el.innerHTML = '<div class="mgr-page">' + tiles(r, sel) + summary(r, scope) + P.mgrKd.page(r.kd, kscope) +
         '<div class="row"><section class="card col--wide mgr-gap">' + daysCard(r, scope) + '</section>' +
         '<section class="card col mgr-gap">' + compareCard(r, scope) + '</section></div></div>';
       mountChart(ctx.el, r, scope);
-    });
-    ctx.on('mgr-loc', function (t) { var id = t.getAttribute('data-id'); if (id !== sel) ctx.go('/overview', id ? { loc: id } : null); });
+      P.mgrKd.mount(ctx.el, r.kd, kscope);
+    }
+    load();
+    ctx.on('mgr-loc', function (t) { var id = t.getAttribute('data-id'); if (id !== sel) ctx.go('/overview', { loc: id }); });
   } });
 })(window);

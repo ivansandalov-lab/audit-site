@@ -48,10 +48,31 @@
     kpi: function (val, label, key) {
       return '<div class="kpi"><span class="kpi__val">' + esc(val) + '</span><span class="kpi__label">' + esc(label) + (key ? K.help(key) : '') + '</span></div>';
     },
-    kd: function (o) {
-      if (!o) return '<span class="mgr-dim">—</span>';
-      return '<span class="mgr-kd">' + h().kdState('work', 'почато ' + o.started) + h().kdState('watch', 'впроваджено ' + o.implemented) +
-        h().kdState('skip', 'не потрібно ' + o.notNeeded) + '</span>';
+    seg: function (act, opts, cur, label) {
+      var multi = Array.isArray(cur);
+      return '<div class="seg seg--sm mgr-seg" role="group" aria-label="' + esc(label) + '">' + opts.map(function (o) {
+        var on = multi ? cur.indexOf(o[0]) >= 0 : o[0] === cur;
+        return '<button class="seg__btn' + (on ? ' seg__btn--on' : '') + '" type="button" data-act="' + act + '" data-v="' + esc(o[0]) + '" aria-pressed="' + on + '">' +
+          (multi && on ? P.ic('check', 'ui-icon--sm') : '') + esc(o[1]) + '</button>';
+      }).join('') + '</div>';
+    },
+    chips: function (act, opts, cur, label) {
+      return '<div class="chips mgr-chips" role="group" aria-label="' + esc(label) + '">' + opts.map(function (o) {
+        var on = o[0] === cur;
+        return '<button class="chip-pick' + (on ? ' chip-pick--on' : '') + '" type="button" data-act="' + act + '" data-v="' + esc(o[0]) + '" aria-pressed="' + on + '">' + esc(o[1]) + '</button>';
+      }).join('') + '</div>';
+    },
+    pickLocs: function (cur, id, many) {
+      if (!many) return [id];
+      var i = cur.indexOf(id), next = cur.slice();
+      if (i < 0) next.push(id); else if (next.length > 1) next.splice(i, 1);
+      return next;
+    },
+    locBar: function (prefix, locations, sel, many) {
+      return '<div class="mgr-pick"><span class="mgr-pick__l">' + (many ? 'Локації для порівняння' : 'Локація') + K.help('mgr.locSwitch') + '</span>' +
+        K.seg(prefix + '-loc', locations.map(function (l) { return [l.id, l.name]; }), many ? sel : sel[0], 'Локація') +
+        '<button class="chip-pick mgr-cmpbtn' + (many ? ' chip-pick--on' : '') + '" type="button" data-act="' + prefix + '-many" aria-pressed="' + many + '">' +
+        P.ic(many ? 'check' : 'add', 'ui-icon--sm') + 'Порівняти кілька</button></div>';
     },
 
     cell: function (v) {
@@ -60,21 +81,18 @@
       return String(v);
     },
     monthRows: function (r) {
+      var l = r.location, withKd = !!(r.hasKd && r.kd);
       var head = ['Локація', 'Відділ', 'Аудитів', 'Перевірено, шт', 'Брак, шт', 'Брак, %'].concat(LV.map(function (k) { return LV_WORD[k] + ', шт'; }),
         ['Найчастіші види браку']);
-      if (r.hasKd) head = head.concat(['Коригуючі дії: почато', 'Коригуючі дії: впроваджено', 'Коригуючі дії: не потрібно']);
-      function row(loc, dep, o) {
-        var x = [loc, dep, o.audits, o.checked, o.rejected, o.pct].concat(LV.map(function (k) { return o.levels[k]; }),
+      if (withKd) head = head.concat(['Коригуючі дії: відкрито', 'Коригуючі дії: впроваджено']);
+      function row(dep, o, kd) {
+        var x = [l.name, dep, o.audits, o.checked, o.rejected, o.pct].concat(LV.map(function (k) { return o.levels[k]; }),
           [(o.top || []).map(function (t) { return t.name + ' (' + t.pieces + ' шт)'; }).join(', ')]);
-        if (r.hasKd) x = x.concat(o.kd ? [o.kd.started, o.kd.implemented, o.kd.notNeeded] : ['', '', '']);
+        if (withKd) x = x.concat(kd ? [kd.opened, kd.implemented] : ['', '']);
         return x;
       }
-      var rows = [head];
-      r.locations.forEach(function (l) {
-        rows.push(row(l.name, 'Усі відділи', l));
-        l.depts.forEach(function (d) { rows.push(row(l.name, d.name + (d.active ? '' : ' (вимкнено)'), d)); });
-      });
-      rows.push(row('Усі локації', 'Усі відділи', r.totals));
+      var rows = [head, row('Усі відділи', l, r.kd && r.kd.period)];
+      l.depts.forEach(function (d) { rows.push(row(d.name + (d.active ? '' : ' (вимкнено)'), d, d.kd)); });
       return rows;
     },
     csv: function (rows) {

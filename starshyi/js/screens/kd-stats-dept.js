@@ -5,48 +5,48 @@
   var SORT = {
     name: function (x) { return x.name; },
     rate: function (x) { return x.rate; },
-    acts: function (x) { return x.actions; },
-    before: function (x) { return x.last ? x.last.rate : null; },
-    after: function (x) { var a = x.last; return !a ? null : a.after != null ? a.after : a.interim ? a.interim.rate : null; },
-    diff: function (x) { var a = x.last; return a && a.after != null ? Math.round((a.after - a.rate) * 10) / 10 : null; }
+    acts: function (x) { return x.kds; },
+    before: function (x) { return x.last ? x.last.before : null; },
+    after: function (x) { return x.last ? x.last.after : null; },
+    diff: function (x) { return x.last ? x.last.delta : null; }
   };
 
   K.sdState = function (ui, id) { return ui[id] || (ui[id] = { find: '', sort: 'rate', dir: -1 }); };
 
   K.sdHead = function () {
-    return '<div class="kd-dl-head"><span>Відділ</span><span>Дій усього' + help('kd.stats.total') + '</span><span>Активні' + help('kd.stats.active') + '</span>' +
-      '<span>На спостереженні' + help('kd.state.watch') + '</span><span>Рецидиви' + help('kd.state.relapse') + '</span><span>Зміна після дії' + help('kd.stats.effect') + '</span><span></span></div>';
+    return '<div class="kd-dl-head"><span>Відділ</span><span>КД усього' + help('kd.stats.total') + '</span><span>Понад норму, не почато' + help('kd.state.over') + '</span>' +
+      '<span>Спостерігаємо' + help('kd.stats.pending') + '</span><span>Рецидиви' + help('kd.state.relapse') + '</span><span>Пункти після дії' + help('kd.stats.effect') + '</span><span></span></div>';
   };
-  K.sdRow = function (d, open, r) {
-    var c = d.counts, e = d.effect;
+  K.sdRow = function (d, open) {
+    var c = d.states, e = d.effect;
     var n = function (v, label, state) {
       return '<span class="kd-dr__n' + (v ? '' : ' kd-dr__n--zero') + '" data-l="' + esc(label) + '">' + (state && v ? H.kdMark(state, label) : '') + '<b>' + v + '</b></span>';
     };
-    var eff = e ? '<b>' + esc(signed(e.pp) + ' в. п. · ' + signed(e.rel) + '%') + '</b><span>' + esc('середнє з ' + K.plural(e.n, 'дії', 'дій', 'дій') + ' з результатом') + '</span>'
-      : '<span>дій із результатом немає</span>';
+    var eff = e ? '<b>' + esc(signed(e.pp) + ' в. п.' + (e.rel ? ' · ' + signed(e.rel) + '%' : '')) + '</b><span>' + esc('середнє по ' + K.plural(e.n, 'пункту', 'пунктах', 'пунктах') + ' з результатом') + '</span>'
+      : '<span>пунктів із результатом немає</span>';
     return '<div class="kd-dr' + (open ? ' kd-dr--open' : '') + '"><button class="kd-dr__btn" type="button" data-act="kd-open-dept" data-id="' + esc(d.id) + '" aria-expanded="' + open + '">' +
-      '<span class="kd-dr__name">' + esc(d.name) + '</span>' + n(c.total, 'Дій усього') + n(c.active, 'Активні', 'work') + n(c.watch, 'На спостереженні', 'watch') +
-      n(c.relapse, 'Рецидиви', 'relapse') + '<span class="kd-dr__eff" data-l="Зміна після дії">' + eff + '</span>' +
+      '<span class="kd-dr__name">' + esc(d.name) + '<span class="kd-dr__sub">останній тиждень: ' + K.pct(d.weekRate) + '</span></span>' + n(d.total, 'КД усього') + n(c.over, 'Понад норму, не почато', 'over') +
+      n(c.watch + c.hold, 'Спостерігаємо', 'hold') + n(c.relapse, 'Рецидиви', 'relapse') + '<span class="kd-dr__eff" data-l="Пункти після дії">' + eff + '</span>' +
       '<span class="kd-dr__chev">' + P.ic(open ? 'chevron-up' : 'chevron-down') + '</span></button></div>';
   };
   function signed(v) { return v === 0 ? '0' : (v > 0 ? '+' : '−') + String(Math.abs(v)).replace('.', ','); }
 
-  function baCell(x, T, today) {
+  function baCell(x) {
     var a = x.last;
-    if (!a) return '<span class="kd-sr__nob">' + K.loadBar(x.rate, T, x.low) + '<span class="kd-sr__hint">дій не було</span></span>';
-    if (a.after != null) return '<b class="kd-nowrap">' + K.pct(a.rate) + ' → ' + K.pct(a.after) + '</b><span class="kd-sr__diff">' + esc(K.change(a.rate, a.after)) + '</span>' + K.stateBadge(a, today);
-    if (a.status === 'check') return '<b class="kd-nowrap">' + K.pct(a.rate) + ' → ' + (a.interim ? 'поки ' + K.pct(a.interim.rate) : '…') + '</b>' + K.stateBadge(a, today);
-    if (a.status === 'started') return '<b class="kd-nowrap">' + K.pct(a.rate) + ' → …</b>' + K.stateBadge(a, today);
-    return '<b class="kd-nowrap">' + K.pct(a.rate) + '</b>' + K.stateBadge(a, today);
+    if (!a) return '<span class="kd-sr__nob"><span class="kd-sr__hint">пунктом КД не був</span></span>';
+    var head = '<span class="kd-sr__hint">' + esc(K.week(a.periodStart, a.periodEnd)) + '</span>';
+    if (a.after != null && a.result && !a.result.pending) return head + '<b class="kd-nowrap">' + K.pct(a.before) + ' → ' + K.pct(a.after) + '</b><span class="kd-sr__diff">' + esc(K.change(a.before, a.after)) + '</span>' + K.stateBadge(a);
+    if (a.result && a.result.pending) return head + '<b class="kd-nowrap">' + K.pct(a.before) + ' → ' + (a.after != null ? 'поки ' + K.pct(a.after) : '…') + '</b>' + K.stateBadge(a);
+    return head + '<b class="kd-nowrap">' + K.pct(a.before) + '</b>' + K.stateBadge(a);
   }
-  function rowHtml(d, x, r) {
-    var ref = ' data-dep="' + esc(d.id) + '" data-type="' + esc(x.defectTypeId) + '"', T = r.threshold;
-    return '<div class="kd-sr' + (x.over ? ' kd-sr--over' : '') + '" data-act="kd-tw"' + ref + '>' +
+  function rowHtml(d, x) {
+    var ref = ' data-dep="' + esc(d.id) + '" data-type="' + esc(x.defectTypeId) + '"';
+    return '<div class="kd-sr' + (x.last && (x.last.state === 'over' || x.last.state === 'watch' || x.last.state === 'hold') ? ' kd-sr--over' : '') + '" data-act="kd-tw"' + ref + '>' +
       '<span class="kd-sr__name"><button class="kd-t__btn" type="button" data-act="kd-tw"' + ref + '>' + esc(x.name) + '</button>' +
       '<span class="kd-t__sub">' + H.lvl(x.level) + (x.active ? '' : '<span class="hint">вимкнений у довіднику</span>') + '</span></span>' +
-      '<span class="kd-sr__now" data-l="Зараз"><b' + (x.over ? ' class="kd-hot"' : '') + '>' + K.pct(x.rate) + '</b></span>' +
-      '<span class="kd-sr__acts" data-l="Дій"><b>' + x.actions + '</b></span>' +
-      '<span class="kd-sr__ba">' + baCell(x, T, r.today) + '</span>' +
+      '<span class="kd-sr__now" data-l="Зараз"><b>' + K.pct(x.rate) + '</b><span class="kd-sr__hint">' + K.pct(x.share) + ' браку</span></span>' +
+      '<span class="kd-sr__acts" data-l="У КД"><b>' + x.kds + '</b></span>' +
+      '<span class="kd-sr__ba">' + baCell(x) + '</span>' +
       '<span class="kd-sr__route" data-l="Маршрут">' + K.routeMarks(x.route, ref) + '</span></div>';
   }
   function sortBtn(u, k, label) {
@@ -65,16 +65,17 @@
   }
   K.sdPanel = function (el, d, u, r, keepFind) {
     var list = listOf(d, u);
-    var rows = list.length ? list.map(function (x) { return rowHtml(d, x, r); }).join('')
+    var rows = list.length ? list.map(function (x) { return rowHtml(d, x); }).join('')
       : '<p class="kd-text kd-types__none">' + (d.types.length ? 'Видів браку з такою назвою у відділі немає.' : 'У довіднику відділу немає видів браку.') + '</p>';
     var box = el.querySelector('[data-kd-sd-list]');
     if (keepFind && box) { box.innerHTML = rows; return; }
-    var T = r.threshold, rv = r.review;
+    var rv = r.review;
     el.innerHTML = '<div class="kd-sd__tools"><label class="kd-find">' + P.ic('search', 'ui-icon--sm') + '<input class="input" type="search" data-input="kd-sd-find" value="' + esc(u.find) +
       '" placeholder="Назва виду браку" aria-label="Пошук виду браку за назвою"></label>' + sortBtn(u, 'name', 'За назвою') +
-      K.cap('«Зараз» — частка виду браку в останньому повному розборі (' + esc(K.rangeShort(rv.start, rv.end)) + '). «Дій» — за ' + r.days + ' днів. «До → після» — остання дія за весь час. Норма — ' + T + '%.') + '</div>' +
+      K.cap('«Зараз» — % виду браку від перевірених у відділі за останній завершений тиждень (' + esc(K.rangeShort(rv.start, rv.end)) + ') і його частка браку відділу. «У КД» — у скількох КД за ' + r.days +
+        ' днів вид був пунктом. «До → після» — % виду браку в тижні КД і в тижні результату останньої такої КД.') + '</div>' +
       '<div class="kd-sd__scroll"><div class="kd-sr kd-sr--head"><span>Вид браку' + help('term.defectType') + '</span>' +
-      '<span>' + sortBtn(u, 'rate', 'Зараз, %') + help('kd.stats.now') + '</span><span>' + sortBtn(u, 'acts', 'Дій') + help('kd.stats.acts') + '</span>' +
+      '<span>' + sortBtn(u, 'rate', 'Зараз, %') + help('kd.stats.now') + '</span><span>' + sortBtn(u, 'acts', 'У КД') + help('kd.stats.acts') + '</span>' +
       '<span class="kd-sr__bahead">' + sortBtn(u, 'before', 'До') + sortBtn(u, 'after', 'Після') + sortBtn(u, 'diff', 'Різниця') + help('kd.beforeAfter') + '</span>' +
       '<span>Маршрут' + help('kd.route') + '</span></div><div data-kd-sd-list>' + rows + '</div></div>';
   };

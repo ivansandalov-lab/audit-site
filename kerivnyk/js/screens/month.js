@@ -1,40 +1,42 @@
 (function (root) {
   'use strict';
   var P = root.P, esc = P.esc, H = P.sr.h, K = P.mgr;
-  var st = { month: '' };   // обраний місяць ('' — сервер дає попередній завершений)
+  var st = { month: '', loc: '' };   // обраний місяць ('' — сервер дає попередній завершений) і локація ('' — перша)
 
-  function kd(o) { return K.kd(o); }
-  function th(label, key, n) { return '<th' + (n ? ' class="n"' : '') + '>' + esc(label) + K.help(key) + '</th>'; }
+  function th(label, key, n) { return '<th' + (n ? ' class="n"' : '') + '>' + esc(label) + (key ? K.help(key) : '') + '</th>'; }
   function lvNums(l) { return K.LV.map(function (k) { return '<span class="lvl lvl--' + k + '">' + H.num(l[k]) + '</span>'; }).join(''); }
 
-  function totalsCard(r) {
-    var t = r.totals;
-    return '<section class="card mgr-gap"><h2 class="card-title">Усі локації</h2><div class="kpis">' +
-      K.kpi(H.num(t.audits), 'аудитів', 'term.audit') + K.kpi(H.num(t.checked), 'перевірено, шт', 'term.checked') + K.kpi(H.num(t.rejected), 'брак, шт', 'mgr.deptBrak') +
-      K.kpi(H.pct(t.pct), 'брак, % від перевіреного', 'term.rate') + '</div>' +
-      (K.total(t.levels) ? K.levels(t.levels, 14) : '<p class="hint">Браку за місяць не знайдено.</p>') +
-      '<dl class="kv mgr-kv"><dt>Найчастіші види браку' + K.help('mgr.top') + '</dt><dd><span class="mgr-top">' + K.topLine(t.top) + '</span></dd>' +
-      (r.hasKd ? '<dt>Коригуючі дії' + K.help('mgr.monthKd') + '</dt><dd>' + kd(t.kd) + '</dd>' : '') +
-      '</dl></section>';
+  function totalsCard(l) {
+    return '<section class="card mgr-gap mgr-avoid"><h2 class="card-title">' + P.ic('location', 'ui-icon--sm') + ' ' + esc(l.name) + ' · підсумок місяця</h2><div class="kpis">' +
+      K.kpi(H.num(l.audits), 'аудитів', 'term.audit') + K.kpi(H.num(l.checked), 'перевірено, шт', 'term.checked') + K.kpi(H.num(l.rejected), 'брак, шт', 'mgr.deptBrak') +
+      K.kpi(H.pct(l.pct), 'брак, % від перевіреного', 'term.rate') + '</div>' +
+      (K.total(l.levels) ? K.levels(l.levels, 14) : '<p class="hint">Браку за місяць не знайдено.</p>') + '</section>';
   }
-  function locCard(l, r) {
+  function deptsCard(l, crit) {
     var rows = l.depts;
-    return '<section class="card mgr-gap"><div class="card-head" style="flex-wrap:wrap"><h2 class="card-title" style="flex:1">' + P.ic('location', 'ui-icon--sm') + ' ' + esc(l.name) + '</h2>' +
-      '<span class="hint">' + K.n(l.audits, 'аудит', 'аудити', 'аудитів') + ' · перевірено ' + H.num(l.checked) + ' шт · брак, шт: ' + H.num(l.rejected) + ' · брак, %: ' + H.pct(l.pct) + '</span>' +
-      (r.hasKd ? '<span class="hint mgr-kdline">коригуючі дії: ' + kd(l.kd) + '</span>' : '') + '</div>' + H.stack(l.levels, 8) +
+    return '<section class="card mgr-gap"><h2 class="card-title">Якість відділів' + K.help('mgr.deptBrak') + '</h2>' +
       '<div class="tbl-box mgr-desk"><table class="tbl mgr-tbl"><thead><tr><th>Відділ</th>' + th('Аудитів', 'term.audit', 1) + th('Перевірено, шт', 'term.checked', 1) +
-      th('Брак, шт', 'mgr.deptBrak', 1) + th('Брак, %', 'term.rate', 1) + th('Рівні браку, шт', 'term.levels') + th('Найчастіші види браку', 'mgr.top') +
-      (r.hasKd ? th('Коригуючі дії', 'mgr.monthKd') : '') + '</tr></thead><tbody>' +
+      th('Брак, шт', 'mgr.deptBrak', 1) + th('Брак, %', 'term.rate', 1) + th('Рівні браку, шт', 'term.levels') + th('Коригуючі дії: відкрито · впроваджено', 'mgr.monthKd') + '</tr></thead><tbody>' +
       rows.map(function (d) {
         return '<tr><td><b>' + esc(d.name) + '</b>' + (d.active ? '' : ' ' + H.badge('вимкнено')) + '</td><td class="n">' + H.num(d.audits) + '</td><td class="n">' + H.num(d.checked) + '</td>' +
-          '<td class="n">' + H.num(d.rejected) + '</td><td class="n">' + H.pct(d.pct) + '</td><td><span class="mgr-lvn">' + lvNums(d.levels) + '</span></td>' +
-          '<td><span class="mgr-top">' + K.topLine(d.top) + '</span></td>' + (r.hasKd ? '<td>' + kd(d.kd) + '</td>' : '') + '</tr>';
+          '<td class="n">' + H.num(d.rejected) + '</td><td class="n">' + K.rate(d.pct, crit) + '</td><td><span class="mgr-lvn">' + lvNums(d.levels) + '</span></td>' +
+          '<td>' + (d.kd ? H.num(d.kd.opened) + ' · ' + H.num(d.kd.implemented) : '<span class="mgr-dim">—</span>') + '</td></tr>';
       }).join('') + '</tbody></table></div>' +
       '<div class="mgr-cards mgr-phone">' + rows.map(function (d) {
         return '<article class="mgr-card"><div class="mgr-card__head"><b>' + esc(d.name) + '</b>' + (d.active ? '' : H.badge('вимкнено')) + '</div><dl class="mgr-card__kv">' +
-          '<dt>Аудитів</dt><dd>' + H.num(d.audits) + '</dd><dt>Перевірено</dt><dd>' + H.num(d.checked) + ' шт</dd><dt>Брак, шт · брак, %</dt><dd>' + K.brak(d.rejected, d.pct) + '</dd>' +
-          (r.hasKd ? '<dt>Коригуючі дії' + K.help('mgr.monthKd') + '</dt><dd>' + kd(d.kd) + '</dd>' : '') + '</dl><span class="mgr-lvn">' + lvNums(d.levels) + '</span>' +
-          '<div class="mgr-top">' + K.topLine(d.top) + '</div></article>';
+          '<dt>Аудитів</dt><dd>' + H.num(d.audits) + '</dd><dt>Перевірено</dt><dd>' + H.num(d.checked) + ' шт</dd><dt>Брак, шт · брак, %</dt><dd>' + H.num(d.rejected) + ' шт · ' + K.rate(d.pct, crit) + '</dd>' +
+          (d.kd ? '<dt>Коригуючі дії: відкрито · впроваджено' + K.help('mgr.monthKd') + '</dt><dd>' + H.num(d.kd.opened) + ' · ' + H.num(d.kd.implemented) + '</dd>' : '') +
+          '</dl><span class="mgr-lvn">' + lvNums(d.levels) + '</span></article>';
+      }).join('') + '</div></section>';
+  }
+  function topCard(l) {
+    return '<section class="card mgr-gap"><div><h2 class="card-title">Найчастіші види браку кожного відділу · до 10' + K.help('mgr.top10') + '</h2>' +
+      '<p class="hint">Частка — від усього браку, шт цього відділу за місяць</p></div><div class="mgr-top10">' + l.depts.map(function (d) {
+        return '<div class="mgr-top10__d mgr-avoid"><h3 class="mgr-top10__h">' + esc(d.name) + ' <span class="mgr-dim">· брак ' + H.num(d.rejected) + ' шт</span></h3>' +
+          (!d.top.length ? '<p class="hint">Браку не знайдено.</p>' : '<ol class="mgr-top10__l">' + d.top.map(function (t) {
+            return '<li><span class="lvl lvl--' + esc(t.level) + '">' + esc(t.name) + '</span><b>' + H.num(t.pieces) + ' шт · ' + H.pct(t.share) + '</b>' +
+              '<span class="mgr-top10__bar"><i class="s-' + esc(t.level) + '" style="width:' + (t.share || 0) + '%"></i></span></li>';
+          }).join('') + '</ol>') + '</div>';
       }).join('') + '</div></section>';
   }
   function monthLabel(m, i) { return K.month(m.month) + (i === 0 ? ' (по сьогодні)' : '') + ' · ' + K.n(m.audits, 'аудит', 'аудити', 'аудитів'); }
@@ -45,27 +47,44 @@
     function load() {
       var my = ++req, box = ctx.el.querySelector('#mgr-mb');
       if (box) box.classList.add('mgr-busy');
-      P.srv('mgrMonth', { month: st.month }).then(function (r) {
+      P.srv('mgrMonth', { month: st.month, locationId: st.loc }).then(function (r) {
         if (!ctx.alive() || my !== req) return;
         if (!r.ok && r.code === 'validation' && st.month) { st.month = ''; load(); return; }   // місяць випав зі списку — беремо стандартний
+        if (!r.ok && r.code === 'not_found' && st.loc) { st.loc = ''; load(); return; }        // локації вже немає — перша
         if (!r.ok) { ctx.el.innerHTML = H.error(r); return; }
-        data = r; st.month = r.month; draw();
+        if (!r.location) { ctx.el.innerHTML = '<section class="card">' + H.empty('Локацій ще немає', 'Коли адміністратор додасть локацію, тут зʼявляться її числа.') + '</section>'; return; }   // жодної локації
+        data = r; st.month = r.month; st.loc = r.location.id; draw();
       });
     }
     function draw() {
-      var r = data, opts = r.months.map(function (m, i) { return [m.month, monthLabel(m, i)]; });
-      ctx.el.innerHTML = '<section class="mgr-page"><div><h2 class="h2">Звіт за місяць · ' + esc(K.month(r.month)) + '</h2><p class="h2-sub">' +
+      var r = data, l = r.location, opts = r.months.map(function (m, i) { return [m.month, monthLabel(m, i)]; });
+      var scope = l.name + ' · ' + K.month(r.month);
+      ctx.el.innerHTML = '<section class="mgr-page mgr-month"><div><h2 class="h2">Звіт за місяць · ' + esc(scope) + '</h2><p class="h2-sub">' +
         esc(K.span(r.from, r.to)) + (r.partial ? ' · місяць ще триває — дані по ' + esc(K.day(r.to)) : '') + ' · ' + esc(K.asOf(r.asOf)) +
-        ' · брак, шт — штуки, зараховані відділу, який його зробив' + K.help('mgr.deptBrak') + '</p></div>' +
+        ' · кожна локація — окремий звіт</p></div>' +
+        '<div class="card mgr-gap mgr-gap--sm mgr-noprint"><div class="mgr-pick"><span class="mgr-pick__l">Локація' + K.help('mgr.locSwitch') + '</span>' +
+        K.seg('mgr-m-loc', r.locations.map(function (x) { return [x.id, x.name]; }), l.id, 'Локація') + '</div>' +
         '<div class="mgr-bar">' + K.select('mgr-m-month', opts, r.month, 'Місяць') +
-        '<button class="btn btn--primary" type="button" data-act="mgr-m-csv">' + P.ic('import', 'ui-icon--sm') + 'Завантажити для Excel (CSV)</button>' +
+        '<button class="btn btn--primary" type="button" data-act="mgr-m-pdf">' + P.ic('export', 'ui-icon--sm') + 'Завантажити PDF</button>' + K.help('mgr.pdf') +
+        '<button class="btn btn--secondary" type="button" data-act="mgr-m-csv">' + P.ic('import', 'ui-icon--sm') + 'Для Excel (CSV)</button>' +
         '<button class="btn btn--secondary" type="button" data-act="mgr-m-copy">' + P.ic('table', 'ui-icon--sm') + 'Скопіювати таблицю</button>' + K.help('mgr.export') + '</div>' +
-        '<div id="mgr-mb" class="mgr-page">' + (r.totals.audits || r.totals.rejected ? totalsCard(r) + r.locations.map(function (l) { return locCard(l, r); }).join('')
-          : '<section class="card">' + H.empty('За ' + K.month(r.month) + ' аудитів немає', 'Оберіть інший місяць у списку вище.') + '</section>') + '</div></section>';
+        '<p class="hint">PDF: відкриється вікно друку — оберіть у ньому «Зберегти як PDF».</p></div>' +
+        '<div id="mgr-mb" class="mgr-page">' + (l.audits || l.rejected ? totalsCard(l) + deptsCard(l, r.criticalPct) + topCard(l)
+          : '<section class="card">' + H.empty('За ' + K.month(r.month) + ' аудитів у локації немає', 'Оберіть інший місяць чи локацію вище.') + '</section>') +
+        '<div><h2 class="h2">Коригуючі дії · ' + esc(scope) + K.help('kd.action') + '</h2><p class="h2-sub">Відкриваються, коли брак, % відділу за тиждень понад норму (або раніше — раннім тумблером)' +
+        (r.kd ? ' ' + H.pct(r.kd.threshold) : '') + K.help('kd.threshold') + '</p></div>' + P.mgrKd.month(r.kd, scope + ' · ' + K.span(r.from, r.to)) + '</div></section>';
     }
     ctx.on('mgr-m-month', function (t) { st.month = t.value; load(); });
+    ctx.on('mgr-m-loc', function (t) { st.loc = t.getAttribute('data-v'); load(); });
+    ctx.on('mgr-m-pdf', function () {
+      var doc = root.document, html = doc.documentElement, was = doc.title, theme = html.getAttribute('data-theme');
+      doc.title = 'Звіт за місяць · ' + data.location.name + ' · ' + K.month(data.month);
+      html.setAttribute('data-theme', 'light');
+      root.addEventListener('afterprint', function back() { root.removeEventListener('afterprint', back); doc.title = was; html.setAttribute('data-theme', theme || 'light'); });
+      setTimeout(function () { root.print(); }, 50);
+    });
     ctx.on('mgr-m-csv', function () {
-      var name = 'audit-zvit-' + data.month + '.csv';
+      var name = 'audit-zvit-' + data.location.id.toLowerCase() + '-' + data.month + '.csv';
       try { K.download(name, K.csv(K.monthRows(data))); P.toast('ok', 'Файл завантажено · ' + name, 'Відкривається в Excel: роздільник «;», кома в дробах.'); }
       catch (e) { P.toast('danger', 'Не вдалося завантажити файл', String((e && e.message) || e)); }
     });

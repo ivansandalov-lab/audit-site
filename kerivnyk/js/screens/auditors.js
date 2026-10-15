@@ -1,39 +1,63 @@
 (function (root) {
   'use strict';
   var P = root.P, esc = P.esc, H = P.sr.h, K = P.mgr;
-  var SORTS = [['audits', 'Більше аудитів'], ['checked', 'Більше перевірено'], ['pieces', 'Більше знайдено браку'], ['pct', 'Більший % браку'],
-    ['days', 'Більше днів з аудитами'], ['name', 'За іменем']];
-  var st = { sort: 'audits', q: '', loc: '' };   // вибір живе між перемальовуваннями
+  var SORTS = [['audits', 'Більше аудитів'], ['days', 'Більше днів з аудитами'], ['checked', 'Більше перевірено'], ['norm', 'Більша частка днів з нормою вибірки'], ['name', 'За іменем']];
+  var st = { sort: 'audits', q: '', locs: [], many: false };   // вибір живе між перемальовуваннями
 
   function sorted(list) {
     var k = st.sort;
+    function v(a) { return k === 'norm' ? (a.norm.pct == null ? -1 : a.norm.pct) : a[k] == null ? -1 : a[k]; }
     return list.slice().sort(function (a, b) {
+      if (a.senior !== b.senior) return a.senior ? -1 : 1;
       if (k === 'name') return a.name < b.name ? -1 : 1;
-      var x = a[k] == null ? -1 : a[k], y = b[k] == null ? -1 : b[k];
-      return y - x || (a.name < b.name ? -1 : 1);
+      return v(b) - v(a) || (a.name < b.name ? -1 : 1);
     });
   }
   function who(a) {
-    return '<b>' + esc(a.name) + '</b>' + (a.active ? '' : ' ' + H.badge('вимкнено')) +
+    return '<b>' + esc(a.name) + '</b>' + (a.senior ? ' <span class="badge mgr-senior">старший</span>' : '') + (a.active ? '' : ' ' + H.badge('вимкнено')) +
       '<span class="mgr-dim mgr-block">' + esc(a.roleLabel) + ' · ' + esc(a.locations.join(', ')) + '</span>';
   }
   function last(a) { return a.lastAt ? P.fmt.dateTime(a.lastAt) : '—'; }
-  function th(label, key) { return '<th class="n">' + esc(label) + (key ? K.help(key) : '') + '</th>'; }
+  function one(v) { return String(Math.round(v * 10) / 10).replace('.', ','); }
+  function norm(o) { return o.of ? H.num(o.ok) + ' з ' + H.num(o.of) + ' · <b>' + H.pct(o.pct) + '</b>' : '<span class="mgr-dim">—</span>'; }
+  function kd(a) {
+    if (!a.senior) return '<span class="mgr-dim">—</span>';
+    if (!a.kd) return '<span class="mgr-dim">немає даних</span>';
+    return '<span class="mgr-kdnums"><span>відкрито <b>' + H.num(a.kd.opened) + '</b></span><span>впроваджено <b>' + H.num(a.kd.implemented) + '</b></span>' +
+      '<span>до впровадження ≈ <b>' + (a.kd.daysAvg == null ? '—' : one(a.kd.daysAvg) + ' дн.') + '</b></span></span>';
+  }
+  function th(label, key, cls) { return '<th class="' + (cls || 'n') + '">' + esc(label) + (key ? K.help(key) : '') + '</th>'; }
   function table(list) {
     return '<div class="tbl-box mgr-desk"><table class="tbl mgr-tbl"><thead><tr><th>Аудитор' + K.help('term.auditor') + '</th>' + th('Аудитів', 'term.audit') +
-      th('Перевірено, шт', 'term.checked') + th('Знайдено браку, шт', 'mgr.found') + th('Брак, % від перевіреного', 'mgr.auditorPct') +
-      th('Частка від усього браку', 'mgr.share') + th('Днів з аудитами', 'mgr.daysWithAudits') + th('Останній аудит') + '</tr></thead><tbody>' + list.map(function (a) {
-        return '<tr><td>' + who(a) + '</td><td class="n">' + H.num(a.audits) + '</td><td class="n">' + H.num(a.checked) + '</td><td class="n">' + H.num(a.pieces) + '</td>' +
-          '<td class="n">' + H.pct(a.pct) + '</td><td class="n">' + H.pct(a.share) + '</td><td class="n">' + H.num(a.days) + '</td><td class="n mgr-dim">' + esc(last(a)) + '</td></tr>';
+      th('Днів з аудитами', 'mgr.daysWithAudits') + th('Перевірено, шт', 'term.checked') + th('Днів з виконаною нормою вибірки', 'mgr.normDays') +
+      th('Коригуючі дії локації (старші)', 'mgr.seniorKd', ' ') + th('Останній аудит') + '</tr></thead><tbody>' + list.map(function (a) {
+        return '<tr' + (a.senior ? ' class="mgr-row--senior"' : '') + '><td>' + who(a) + '</td><td class="n">' + H.num(a.audits) + '</td><td class="n">' + H.num(a.days) + '</td>' +
+          '<td class="n">' + H.num(a.checked) + '</td><td class="n">' + norm(a.norm) + '</td><td>' + kd(a) + '</td><td class="n mgr-dim">' + esc(last(a)) + '</td></tr>';
       }).join('') + '</tbody></table></div>';
   }
   function cards(list) {
     return '<div class="mgr-cards mgr-phone">' + list.map(function (a) {
-      return '<article class="mgr-card"><div class="mgr-card__head"><span>' + who(a) + '</span></div><dl class="mgr-card__kv">' +
-        '<dt>Аудитів</dt><dd>' + H.num(a.audits) + ' · днів ' + H.num(a.days) + '</dd><dt>Перевірено</dt><dd>' + H.num(a.checked) + ' шт</dd>' +
-        '<dt>Знайдено браку, шт · брак, %' + K.help('mgr.auditorPct') + '</dt><dd>' + H.num(a.pieces) + ' шт · ' + H.pct(a.pct) + '</dd><dt>Частка від усього браку' + K.help('mgr.share') + '</dt><dd>' + H.pct(a.share) + '</dd>' +
+      return '<article class="mgr-card' + (a.senior ? ' mgr-card--senior' : '') + '"><div class="mgr-card__head"><span>' + who(a) + '</span></div><dl class="mgr-card__kv">' +
+        '<dt>Аудитів · днів з аудитами</dt><dd>' + H.num(a.audits) + ' · ' + H.num(a.days) + '</dd><dt>Перевірено</dt><dd>' + H.num(a.checked) + ' шт</dd>' +
+        '<dt>Днів з виконаною нормою вибірки' + K.help('mgr.normDays') + '</dt><dd>' + norm(a.norm) + '</dd>' +
+        (a.senior ? '<dt>Коригуючі дії локації' + K.help('mgr.seniorKd') + '</dt><dd>' + kd(a) + '</dd>' : '') +
         '<dt>Останній аудит</dt><dd>' + esc(last(a)) + '</dd></dl></article>';
     }).join('') + '</div>';
+  }
+  function sideBySide(groups) {
+    function row(label, key, f) { return '<tr><th scope="row">' + esc(label) + (key ? K.help(key) : '') + '</th>' + groups.map(function (g) { return '<td class="n">' + f(g) + '</td>'; }).join('') + '</tr>'; }
+    function kdv(g, f) { return g.kd ? f(g.kd) : '—'; }
+    return '<section class="card mgr-gap"><h2 class="card-title">Локації поруч' + K.help('mgr.side') + '</h2><div class="tbl-box"><table class="tbl mgr-tbl mgr-side"><thead><tr><th></th>' +
+      groups.map(function (g) { return '<th class="n">' + P.ic('location', 'ui-icon--sm') + ' ' + esc(g.location.name) + '</th>'; }).join('') + '</tr></thead><tbody>' +
+      row('Людей з аудитами', '', function (g) { return H.num(g.auditors.filter(function (a) { return a.audits; }).length) + ' з ' + H.num(g.auditors.length); }) +
+      row('Аудитів', 'term.audit', function (g) { return H.num(g.audits); }) +
+      row('Днів з аудитами', 'mgr.daysWithAudits', function (g) { return g.daysWithAudits + ' з ' + g.days; }) +
+      row('Перевірено, шт', 'term.checked', function (g) { return H.num(g.checked); }) +
+      row('Норма вибірки виконана', 'mgr.locNorm', function (g) { return norm(g.norm); }) +
+      row('Коригуючі дії: відкрито', 'kd.action', function (g) { return kdv(g, function (k) { return H.num(k.opened); }); }) +
+      row('Коригуючі дії: впроваджено', '', function (g) { return kdv(g, function (k) { return H.num(k.implemented); }); }) +
+      row('Днів до впровадження, у середньому', 'mgr.kd.days', function (g) { return kdv(g, function (k) { return k.daysAvg == null ? '—' : one(k.daysAvg); }); }) +
+      '</tbody></table></div></section>';
   }
 
   P.cab.tab({ id: 'auditors', label: 'Аудитори', ic: 'people', path: '/auditors', order: 30 });
@@ -42,31 +66,46 @@
     function load() {
       var my = ++req, box = ctx.el.querySelector('#mgr-al');
       if (box) box.classList.add('mgr-busy');
-      P.srv('mgrAuditors', { from: ctx.period.from, to: ctx.period.to, locationId: st.loc }).then(function (r) {
+      var p = { from: ctx.period.from, to: ctx.period.to };
+      if (st.locs.length) p.locationIds = st.locs;
+      P.srv('mgrAuditors', p).then(function (r) {
         if (!ctx.alive() || my !== req) return;
-        if (!r.ok && r.code === 'not_found' && st.loc) { st.loc = ''; load(); return; }
+        if (!r.ok && (r.code === 'not_found' || r.code === 'validation') && st.locs.length) { st.locs = []; load(); return; }
         if (!r.ok) { ctx.el.innerHTML = H.error(r); return; }
+        if (!st.locs.length) { st.locs = r.locations.length ? [r.locations[0].id] : []; if (st.locs.length) { load(); return; } }   // перший захід — перша локація
         data = r; frame(); list();
       });
     }
     function frame() {
-      var r = data, locs = [['', 'Усі локації']].concat(r.locations.map(function (l) { return [l.id, l.name]; }));
-      ctx.el.innerHTML = '<section class="mgr-page"><div><h2 class="h2">Аудитори · ' + r.auditors.length + '</h2><p class="h2-sub">' +
-        esc(r.location ? r.location.name : 'Усі локації') + ' · ' + esc(K.span(r.from, r.to)) + ' · ' + esc(K.asOf(r.asOf)) + ' · ' +
-        K.n(r.totalAudits, 'аудит', 'аудити', 'аудитів') + ' · знайдено ' + H.num(r.totalPieces) + ' шт браку' + K.help('mgr.found') + '</p></div>' +
-        '<div class="mgr-bar">' + K.search('mgr-a-q', st.q, 'Пошук за іменем') + K.select('mgr-a-loc', locs, st.loc, 'Локація') +
-        K.select('mgr-a-sort', SORTS, st.sort, 'Сортування') + '</div><div id="mgr-al" class="card"></div></section>';
+      var r = data;
+      ctx.el.innerHTML = '<section class="mgr-page"><div><h2 class="h2">Аудитори й старші аудитори</h2><p class="h2-sub">' + esc(K.span(r.from, r.to)) + ' · ' + esc(K.asOf(r.asOf)) +
+        ' · лише показники роботи — числа, без оцінок</p></div>' +
+        '<div class="card mgr-gap mgr-gap--sm">' + K.locBar('mgr-a', r.locations, st.locs, st.many) +
+        (st.many && st.locs.length < 2 ? '<p class="hint">Оберіть ще одну локацію вище — вони стануть поруч.</p>' : '') +
+        '<div class="mgr-bar">' + K.search('mgr-a-q', st.q, 'Пошук за іменем') + K.select('mgr-a-sort', SORTS, st.sort, 'Сортування') + '</div></div>' +
+        '<div id="mgr-al" class="mgr-page"></div></section>';
     }
     function list() {
       var box = ctx.el.querySelector('#mgr-al'), q = st.q.trim().toLowerCase();
       if (!box) return;
-      var shown = sorted(data.auditors.filter(function (a) { return !q || a.name.toLowerCase().indexOf(q) >= 0; }));
-      box.innerHTML = !data.auditors.length ? H.empty('Аудиторів немає', 'За цей період і локацію ніхто не записував аудитів.')
-        : !shown.length ? H.empty('Нікого не знайдено', 'За запитом «' + st.q.trim() + '» — 0 людей. Спробуйте коротший запит.')
-        : (q ? '<p class="hint">Знайдено ' + shown.length + ' з ' + data.auditors.length + '</p>' : '') + table(shown) + cards(shown);
+      var groups = data.groups;
+      if (!groups.length) { box.innerHTML = '<section class="card">' + H.empty('Локацій ще немає', 'Коли адміністратор додасть локацію, тут зʼявляться її люди.') + '</section>'; return; }
+      box.innerHTML = (groups.length > 1 ? sideBySide(groups) : '') + groups.map(function (g) {
+        var shown = sorted(g.auditors.filter(function (a) { return !q || a.name.toLowerCase().indexOf(q) >= 0; }));
+        return '<section class="card mgr-gap"><div><h2 class="card-title">' + P.ic('location', 'ui-icon--sm') + ' ' + esc(g.location.name) + ' · ' + g.auditors.length + '</h2>' +
+          '<p class="hint">' + K.n(g.audits, 'аудит', 'аудити', 'аудитів') + ' · днів з аудитами ' + g.daysWithAudits + ' з ' + g.days + ' · перевірено ' + H.num(g.checked) + ' шт' +
+          ' · норма вибірки виконана: ' + norm(g.norm) + K.help('mgr.locNorm') + '</p></div>' +
+          (!g.auditors.length ? H.empty('Аудиторів немає', 'За цей період у локації ніхто не записував аудитів.')
+            : !shown.length ? H.empty('Нікого не знайдено', 'За запитом «' + st.q.trim() + '» — 0 людей. Спробуйте коротший запит.')
+              : (q ? '<p class="hint">Знайдено ' + shown.length + ' з ' + g.auditors.length + '</p>' : '') + table(shown) + cards(shown)) + '</section>';
+      }).join('');
     }
     ctx.on('mgr-a-q', function (t) { st.q = t.value; list(); });
-    ctx.on('mgr-a-loc', function (t) { st.loc = t.value; load(); });
+    ctx.on('mgr-a-loc', function (t) { st.locs = K.pickLocs(st.locs, t.getAttribute('data-v'), st.many); load(); });
+    ctx.on('mgr-a-many', function () {
+      st.many = !st.many;
+      if (!st.many && st.locs.length > 1) { st.locs = st.locs.slice(0, 1); load(); } else { frame(); list(); }
+    });
     ctx.on('mgr-a-sort', function (t) { st.sort = t.value; list(); });
     load();
   } });

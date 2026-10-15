@@ -12,13 +12,15 @@
   var S = {
     LEVELS: ['fix', 'repair', 'scrap'],
     LEVEL_LABELS: { fix: 'неправильно зроблене', repair: 'пошкоджене', scrap: 'зламане' },
-    KD: { PERIOD_DAYS: 4, EPOCH: '2026-01-05', THRESHOLD: 5, MIN_SAMPLE: 60 },
+    KD: { CYCLE_DAYS: 7, REVIEW_DAY: 5, THRESHOLD: 5, EARLY_MIN: 500, PARETO: 70 },
+    WEEKDAYS: ['понеділок', 'вівторок', 'середа', 'четвер', 'пʼятниця', 'субота', 'неділя'],
     addDays: addDays,
     parseDay: parseDay,
-    periodOf: function (day) { return Math.floor((parseDay(day) - parseDay(S.KD.EPOCH)) / DAY / S.KD.PERIOD_DAYS); },
-    periodStart: function (n) { return addDays(S.KD.EPOCH, n * S.KD.PERIOD_DAYS); },
-    periodEnd: function (n) { return addDays(S.KD.EPOCH, n * S.KD.PERIOD_DAYS + S.KD.PERIOD_DAYS - 1); },
-    lastFullPeriod: function (today) { return S.periodOf(today) - 1; },
+    epoch: function (wd) { var base = '2026-01-01', dow = new Date(parseDay(base)).getUTCDay() || 7; return addDays(base, ((wd || S.KD.REVIEW_DAY) - dow + 7) % 7); },
+    periodOf: function (day, wd) { return Math.floor((parseDay(day) - parseDay(S.epoch(wd))) / DAY / S.KD.CYCLE_DAYS); },
+    periodStart: function (n, wd) { return addDays(S.epoch(wd), n * S.KD.CYCLE_DAYS); },
+    periodEnd: function (n, wd) { return addDays(S.epoch(wd), n * S.KD.CYCLE_DAYS + S.KD.CYCLE_DAYS - 1); },
+    lastFullPeriod: function (today, wd) { return S.periodOf(today, wd) - 1; },
     blur: function (rate, usual, n, made, limit) {
       if (!(n > 0) || rate == null) return null;
       var p = Math.min(Math.max((usual != null ? usual : rate) / 100, 0.005), 0.5), z = 1.645;

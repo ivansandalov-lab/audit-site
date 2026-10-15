@@ -1,0 +1,43 @@
+
+
+@page { size: A4 portrait; margin: 12mm 11mm; }
+
+@media print {
+  html, body { background: #fff !important; }
+  body { -webkit-print-color-adjust: exact; print-color-adjust: exact; font-size: 10.5pt; }
+
+  
+  .sr-demo, .hdr, .sr-tabsbar, .wrap.bar, .mgr-noprint, .hq, .ui-toasts, #overlay, .ctip, .upd { display: none !important; }
+  .page, .wrap, .content, #cab-main { max-width: none !important; width: auto !important; margin: 0 !important; padding: 0 !important; }
+
+  
+  .mgr-phone { display: none !important; }
+  .mgr-desk { display: block !important; }
+  .tbl-box { overflow: visible !important; border: 0 !important; }
+  .tbl { width: 100%; font-size: 9pt; }
+  .tbl th, .tbl td { padding: 4px 6px !important; white-space: normal !important; }
+  .tbl th { font-size: 8pt; }
+  .tbl tr { break-inside: avoid; }
+  .tbl thead { display: table-header-group; }
+
+  
+  .card { box-shadow: none !important; border: 1px solid #c8c8c8 !important; padding: 10px 12px !important; }
+  .mgr-page { gap: 10px !important; }
+  .mgr-avoid, .mgr-kdbig, .mgr-top10__d, .mgr-causes, .mgr-split__key { break-inside: avoid; }
+  .h2, .card-title, .mgr-top10__h { break-after: avoid; }
+  .row, .mgr-print-stack { display: block !important; }
+  .row > div { margin-bottom: 10px; }
+  .h2 { font-size: 15pt; }
+  .card-title { font-size: 12pt; }
+
+  
+  .kpis { grid-template-columns: repeat(4, minmax(0, 1fr)) !important; }
+  .kpi__val { font-size: 16pt !important; }
+  .mgr-kdbigs { grid-template-columns: repeat(4, minmax(0, 1fr)) !important; gap: 8px !important; }
+  .mgr-kdbig { padding: 6px 8px !important; }
+  .mgr-kdbig__v { font-size: 16pt !important; }
+  .mgr-top10 { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 8px !important; }
+  .mgr-top10__d { padding: 8px 10px !important; }
+  .mgr-top10__l { font-size: 9pt; gap: 3px; }
+  .mgr-busy { opacity: 1 !important; }
+}
