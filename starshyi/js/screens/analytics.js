@@ -2,7 +2,7 @@
   'use strict';
   var P = root.P, h = P.sr.h, esc = P.esc;
   var LV = ['fix', 'repair', 'scrap'];
-  var LV_NEXT = { fix: 'можна виправити', repair: 'у ремонт', scrap: 'не відремонтувати' };
+  var LV_NEXT = { fix: 'можна виправити одразу', repair: 'іде в ремонт', scrap: 'не ремонтується, виріб втрачено' };
   var LV_COLOR = { fix: 'var(--info)', repair: 'var(--warn)', scrap: 'var(--danger)' };
 
   var A = P.srAn = {
@@ -49,13 +49,13 @@
     }
   };
 
-  var STATE_WORD = { none: 'аудитів не було', done: 'норму добрано', nonorm: 'норма не задана' };
+  var STATE_WORD = { none: 'аудитів не було', done: 'норму виконано', nonorm: 'норма не задана' };
   var X = P.srAnParts = {
     LV: LV,
     ui: { unit: 'pcs', day: null, range: null, top: 10, oq: '', osort: null },
     pctOf: function (rejected, checked) { return checked > 0 ? Math.round(rejected / checked * 1000) / 10 : null; },
     brak: function (rejected, pct) { return h.num(rejected) + ' шт · ' + h.pct(pct); },
-    dn: function (n) { return n + ' дн.'; },
+    dn: function (n) { return n + ' ' + P.plural(n, 'день', 'дні', 'днів'); },
     hist: function (q) {
       q = Object.assign({}, q);
       if (q.d1 && q.d2 && q.d1 !== q.d2) { q.from = q.d1; q.to = q.d2; delete q.d1; delete q.d2; }
@@ -118,7 +118,7 @@
       P.srv('srAnalytics', { locationId: ctx.loc.id, from: ctx.period.from, to: ctx.period.to, departmentId: view.dep }).then(function (r) {
         if (!ctx.alive() || my !== req) return;
         if (!r.ok) {
-          ctx.el.innerHTML = r.code === 'not_found' && view.dep ? h.empty('Такого відділу в цій локації немає', 'Адреса веде на відділ, якого немає в «' + ctx.loc.name + '».') +
+          ctx.el.innerHTML = r.code === 'not_found' && view.dep ? h.empty('Такого відділу в цій локації немає', 'Посилання веде на відділ, якого немає в «' + ctx.loc.name + '».') +
             '<p style="text-align:center"><a class="btn btn--secondary btn--sm" href="#/analytics">Показати всі відділи</a></p>' : h.error(r);
           return;
         }

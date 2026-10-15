@@ -49,7 +49,7 @@
         '<section class="card"><div class="card-head" style="flex-wrap:wrap"><div style="flex:1;min-width:240px"><h2 class="card-title">Цей тиждень по відділах</h2><p class="hint">З ' + weekName(data.weekStart) + ', ' + esc(M.dateLong(data.week.from)) + ' · «зроблено» — до вчора включно · з усіх таблиць</p></div>' +
         '<div class="mg-actions"><span class="hint">Тиждень з</span><div class="seg seg--sm" role="radiogroup" aria-label="Тиждень починається">' + [['mon', 'понеділка'], ['sun', 'неділі']].map(function (o) {
           return '<button class="seg__btn' + (o[0] === data.weekStart ? ' seg__btn--on' : '') + '" type="button" aria-pressed="' + (o[0] === data.weekStart) + '" data-act="mg-week"' + da('v', o[0]) + '>' + o[1] + '</button>'; }).join('') + '</div></div></div>' +
-        (data.week.rows.length ? '<div class="tbl-box"><table class="tbl"><thead><tr><th>Відділ</th><th>Таблиця-джерело</th><th class="n">Зроблено вчора, шт</th><th class="n">Треба за тиждень, шт</th><th>Виконано тижня' + M.hq('sr.mg.weekDone') + '</th><th class="n">Норма вибірки на день' + M.hq('term.sample') + '</th></tr></thead><tbody>' +
+        (data.week.rows.length ? '<div class="tbl-box"><table class="tbl"><thead><tr><th>Відділ</th><th>Таблиця</th><th class="n">Зроблено вчора, шт</th><th class="n">Треба за тиждень, шт</th><th>Зроблено за тиждень, %' + M.hq('sr.mg.weekDone') + '</th><th class="n">Норма вибірки на день' + M.hq('term.sample') + '</th></tr></thead><tbody>' +
           data.week.rows.map(weekRow).join('') + '</tbody></table></div>' : H.empty('Увімкнених відділів немає', '')) +
         (data.warnings.length ? '<p class="mg-warnline">' + P.ic('warning', 'ui-icon--sm') + 'Кількості складено з кількох таблиць: ' + esc(overlapText(data.warnings)) + '</p>' : '') + '</section>' +
         '<div class="mg-head"><div><h2 class="card-title">Таблиці-джерела · ' + n + '</h2><p class="hint">У кожної — своя літера й колір; дата й замовлення задаються раз на таблицю.</p></div></div>' +
@@ -139,7 +139,7 @@
               var f = 'depts[' + k + '].', also = elsewhere(i, x.departmentId);
               return '<tr><td data-f="' + f + 'departmentId"><select class="input mg-wz__sel" data-row="' + k + '" data-k="departmentId" aria-label="Відділ">' +
                 data.departments.map(function (dp) { return (dp.id !== x.departmentId && d.depts.some(function (y) { return y.departmentId === dp.id; })) ? '' : '<option value="' + esc(dp.id) + '"' + (dp.id === x.departmentId ? ' selected' : '') + '>' + esc(dp.name) + (dp.active ? '' : ' (вимкнено)') + '</option>'; }).join('') + '</select>' +
-                (also.length ? '<span class="mg-wz__also">' + P.ic('warning', 'ui-icon--sm') + 'є ще в таблиці ' + esc(also.join(', ')) + ' — кількості складуться</span>' : '') + '</td>' +
+                (also.length ? '<span class="mg-wz__also">' + P.ic('warning', 'ui-icon--sm') + 'є ще в таблиці ' + esc(also.join(', ')) + ' — кількості з таблиць додадуться</span>' : '') + '</td>' +
                 '<td data-f="' + f + 'doneCol"><select class="input mg-wz__sel' + (x.doneCol ? '' : ' select--empty') + '" data-row="' + k + '" data-k="doneCol" aria-label="Скільки зроблено · ' + esc(depName(x.departmentId)) + '">' + colOptions(d, x.doneCol, '— оберіть —', taken) + '</select></td>' +
                 '<td data-f="' + f + 'planCol"><select class="input mg-wz__sel' + (x.planCol ? '' : ' select--empty') + '" data-row="' + k + '" data-k="planCol" aria-label="Скільки треба · ' + esc(depName(x.departmentId)) + '">' + colOptions(d, x.planCol, 'немає такої колонки', taken) + '</select></td>' +
                 '<td style="width:44px"><button class="icon-btn" type="button" data-act="mg-wz-del" data-row="' + k + '" aria-label="Прибрати ' + esc(depName(x.departmentId)) + '">' + P.ic('delete') + '</button></td></tr>';
@@ -171,7 +171,7 @@
         });
       }
 
-      layer = M.modal({ title: 'Таблиці виробітку', sub: esc(v.ctx.loc.name) + ' · кожна вкладка — окрема таблиця',
+      layer = M.modal({ title: 'Таблиці виробництва', sub: esc(v.ctx.loc.name) + ' · кожна вкладка — окрема таблиця',
         body: '<div class="mg-wz__tabs" role="tablist" data-mg-tabs></div><div class="mg-wz__pane" data-mg-pane></div>', foot: ' ',
         onMount: function (el) {
           var b = q(el, '.ov-body'); b.style.padding = '0'; b.style.gap = '0'; b.style.overflow = 'hidden';
@@ -208,7 +208,7 @@
               }
               layer.close();
               P.toast('ok', 'Збережено ' + M.cnt(r.saved.length, W.table) + ' · ' + r.saved.map(function (s) { return s.label; }).join(', '),
-                r.warnings.length ? 'Кількості складаються — відділ у кількох таблицях: ' + overlapText(r.warnings) + '.' : 'Оновлено о ' + P.fmt.time(r.updatedAt) + '.');
+                r.warnings.length ? 'Відділ є в кількох таблицях — їхні кількості додаються: ' + overlapText(r.warnings) + '.' : 'Оновлено о ' + P.fmt.time(r.updatedAt) + '.');
               if (v.ctx.alive()) load();
             });
           }

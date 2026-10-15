@@ -133,7 +133,7 @@
     }
 
     function handle(fn, payload) {
-      if (typeof fn !== 'string') return C.fail('not_found', 'Невідома функція.');
+      if (typeof fn !== 'string') return C.fail('not_found', 'Цієї дії немає. Оновіть сторінку.');
       if (failQueue[fn]) { delete failQueue[fn]; return C.fail('server', 'Демо: імітація збою сервера.'); }
       syncAdmin();
       if (meId && P.demoAccessOff && P.demoAccessOff(storage, meId)) dropSession();
@@ -142,7 +142,7 @@
       if (has(own, fn)) return own[fn](payload || {});
       var h = has(P.demoReadApi, fn) ? P.demoReadApi[fn] : has(P.demoSubmitApi, fn) ? P.demoSubmitApi[fn] : null;
       for (var i = 0; !h && i < P.demoApis.length; i++) if (has(P.demoApis[i], fn)) h = P.demoApis[i][fn];
-      if (!h) return C.fail('not_found', 'Невідома функція.');
+      if (!h) return C.fail('not_found', 'Цієї дії немає. Оновіть сторінку.');
       return h(payload || {}, me, env);
     }
 
@@ -151,11 +151,14 @@
         var res;
         failedKeys = Object.create(null);
         try { res = JSON.parse(JSON.stringify(handle(fn, payload))); }
-        catch (e) { res = C.fail('server', String((e && e.message) || e)); }
+        catch (e) {   // людині — проста фраза; технічна причина — лише в console
+          if (root.console) root.console.error(e);
+          res = C.fail('server', 'Щось пішло не так. Оновіть сторінку й спробуйте ще раз.');
+        }
         if (Object.keys(failedKeys).length) {
           failedKeys = Object.create(null);
           try { load(); } catch (e) { /* лишаємо як є */ }
-          res = C.fail('quota', 'Памʼять браузера заповнена — зміни не збережено. Звільніть місце: «Скинути тестові дані» в меню профілю.');
+          res = C.fail('quota', 'Місце для тестових даних у браузері закінчилось — зміни не збережено. Звільніть місце: меню профілю → «Скинути тестові дані».');
         }
         var ms = lat[1] > 0 ? lat[0] + Math.random() * (lat[1] - lat[0]) : 0;
         if (ms <= 0) return Promise.resolve(res);

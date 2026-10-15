@@ -3,7 +3,7 @@
   var P = root.P, H = P.sr.h, esc = P.esc, K = P.srKd;
   var help = function (k) { return P.help ? P.help.btn(k) : ''; };
 
-  var STATES = [['new', 'Понад норму, не почато'], ['check', 'Тиждень результату'], ['hold', 'Під наглядом'], ['helped', 'Закрито'], ['not_helped', 'Рецидив'], ['not_needed', 'Не потрібно'], ['all', 'Усі']];
+  var STATES = [['new', 'Понад норму, не почато'], ['check', 'Впроваджено'], ['hold', 'Під наглядом'], ['helped', 'Закрито: тримається'], ['not_helped', 'Рецидив'], ['not_needed', 'Дія не потрібна'], ['all', 'Усі']];
   P.sr.screen('/kd/list', { tab: 'kd', title: 'Коригуючі дії — список', period: false, render: function (ctx) {
     var q = ctx.query, shown = 15, data = null;
     K.bindActions(ctx, function (t) { return K.finder(data ? data.items : [])(t); });
@@ -24,8 +24,8 @@
     function steps(a) {
       if (a.status === 'new') return '<span class="hint">відкрито ' + H.dayShort(a.openedAt) + (a.early ? ' · ранній тумблер' : '') + ' · плану немає</span>';
       if (a.status === 'not_needed') return '<span class="hint">«' + esc(a.notNeededReason) + '»</span>';
-      return '<span class="kd-flow">відкрито ' + H.dayShort(a.openedAt) + ' → впроваджено ' + H.dayShort(a.implementedAt) + ' → результат ' + esc(K.rangeShort(a.result.start, a.result.end)) +
-        (a.hold ? ' → утримання ' + esc(K.rangeShort(a.hold.start, a.hold.end)) : '') + '</span>';
+      return '<span class="kd-flow">відкрито ' + H.dayShort(a.openedAt) + ' → впроваджено ' + H.dayShort(a.implementedAt) + ' → 1-й тиждень після: ' + esc(K.rangeShort(a.result.start, a.result.end)) +
+        (a.hold ? ' → 2-й тиждень після: ' + esc(K.rangeShort(a.hold.start, a.hold.end)) : '') + '</span>';
     }
     function draw() {
       var r = data, T = r.threshold;
@@ -43,8 +43,8 @@
           '<td class="kd-hide-sm">' + steps(a) + '</td><td>' + K.stateBadge(a) + K.earlyBadge(a) + '</td></tr>';
       }).join('') + '</tbody></table></div>' + (r.items.length > shown ? '<button class="btn btn--secondary btn--sm" type="button" data-act="more" style="align-self:flex-start">Показати ще ' + Math.min(15, r.items.length - shown) + '</button>' : '');
       ctx.el.innerHTML = K.segNav('/kd/list') + filters + '<section class="card kd-narrow">' +
-        K.cap('Одна КД — відділ за тиждень. Брак, % відділу = брак, шт ÷ перевірено у відділі: тиждень КД → тиждень результату → тиждень утримання. Норма — ' + T +
-          '%. Останній завершений тиждень — ' + esc(K.range(r.review.start, r.review.end)) + '. Клік по рядку — картка КД.') + body + '</section>';
+        K.cap('Одна КД — відділ за тиждень. Брак, % відділу = брак, шт ÷ перевірено у відділі. Числа: тиждень КД → перший тиждень після впровадження → другий. Норма — ' + T +
+          '%. Останній завершений тиждень — ' + esc(K.range(r.review.start, r.review.end)) + '. Натисніть рядок — картка КД.') + body + '</section>';
     }
   } });
 })(window);

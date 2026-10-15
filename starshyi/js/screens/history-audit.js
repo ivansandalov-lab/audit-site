@@ -41,7 +41,7 @@
       return '<div class="entry ' + (d.otherDept ? 'entry--other' : 'entry--defect') + '" style="gap:4px"><div class="entry__head"><p class="entry__title">' + esc(d.defectTypeName) + '</p>' +
         (d.otherDept ? h.badge('брак іншого відділу', 'info') : '') + '<b style="font-variant-numeric:tabular-nums;margin-left:auto">' + d.qty + ' шт</b></div>' + h.lvl(d.level) +
         '<span class="hint hs-who">' + esc(d.productName) + ' · ' + (d.workerCode ? 'працівник: ' + esc(d.workerName) : 'працівника не вказано') + helperBadge(d.helper) + '</span>' +
-        (d.otherDept ? '<b style="font-size:14px;color:var(--info)">Зараховано відділу ' + esc(d.departmentName) + '</b>' : '') + '</div>';
+        (d.otherDept ? '<b style="font-size:14px;color:var(--info)">Рахується відділу ' + esc(d.departmentName) + ' (брак зробили там)</b>' : '') + '</div>';
     }).join('') : '<p class="hint">Браку немає</p>') + '</div>';
     var workers = '<div class="hs-block"><p class="group-label" style="padding:0">Перевірені працівники · ' + a.checkedWorkers.length + (helpers ? A.q('term.helper') : '') + '</p><div class="chips">' +
       a.checkedWorkers.map(function (w) { return '<span class="chip chip--plain hs-wchip">' + esc(w.name) + helperBadge(w.helper) + '</span>'; }).join('') + '</div></div>';
@@ -51,12 +51,12 @@
       shots.map(function (x, i) {
         return '<button class="hs-ph-btn" type="button" data-act="ph-open" data-i="' + i + '" aria-label="Фото ' + (i + 1) + ' · ' + esc(x.type) + ' — на весь екран">' +
           '<img src="' + esc(x.src) + '" alt="Фото браку · ' + esc(x.type) + '" loading="lazy"></button>';
-      }).join('') + '</div><p class="hs-ph-cap">Клік по фото — на весь екран.</p></div>' : '';
+      }).join('') + '</div><p class="hs-ph-cap">Натисніть фото — на весь екран.</p></div>' : '';
     ph += photos.length ? '<div class="hs-block"><p class="group-label" style="padding:0">Фото браку (без зображення) · ' + photos.length + '</p><div class="hs-photos">' +
       photos.map(function (d) { return '<div class="hs-photo" title="' + esc(d.photo.name || '') + '">' + h.ic('photo') + '<span>фото · ' + esc(d.defectTypeName) + '</span></div>'; }).join('') +
-      '</div><p class="hint">У згенерованих тестових аудитах замість фото — заглушки.</p></div>' : '';
-    var info = a.canEdit ? '<div class="banner">' + h.ic('info', 'icon') + '<div class="banner__body"><p class="banner__text"><b>Ви можете правити цей аудит будь-коли</b> — ви старший цієї локації. ' +
-      'Аудитор править свій аудит лише ' + (a.editWindowMin || 15) + ' хв після запису.</p></div></div>' : '';
+      '</div><p class="hint">У тестових аудитах замість фото — заглушки.</p></div>' : '';
+    var info = a.canEdit ? '<div class="banner">' + h.ic('info', 'icon') + '<div class="banner__body"><p class="banner__text"><b>Ви можете виправити цей аудит будь-коли</b> — ви старший цієї локації. ' +
+      'Аудитор може виправити свій аудит лише протягом ' + (a.editWindowMin || 15) + ' хв після запису.</p></div></div>' : '';
     return kpis + items + defects + workers + comment + ph + info;
   }
   function photosOf(a) {

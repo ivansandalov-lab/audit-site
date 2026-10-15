@@ -14,7 +14,7 @@
       return !q || o.no.toLowerCase().indexOf(q) >= 0 || (o.customer || '').toLowerCase().indexOf(q) >= 0 || o.products.some(function (p) { return p.toLowerCase().indexOf(q) >= 0; });
     });
     if (s && s.k !== 'no' && !r.departments.some(function (d) { return d.id === s.k; })) s = ui.osort = null;   // відділ з іншої локації — сортування знімаємо
-    if (!s) return list;                                                                                            // «як було»: останній аудит зверху
+    if (!s) return list;                                                                                            // «без сортування»: останній аудит зверху
     var sign = s.dir === 'asc' ? 1 : -1;
     return list.slice().sort(function (a, b) {
       if (s.k === 'no') return (a.no < b.no ? -1 : a.no > b.no ? 1 : 0) * sign;
@@ -25,7 +25,7 @@
   }
   function sortBtn(k, label) {
     var dir = ui.osort && ui.osort.k === k ? ui.osort.dir : '';
-    var word = dir === 'desc' ? 'від більшого до меншого' : dir === 'asc' ? 'від меншого до більшого' : 'як було';
+    var word = dir === 'desc' ? 'від більшого до меншого' : dir === 'asc' ? 'від меншого до більшого' : 'без сортування';
     return '<button class="an-osort' + (dir ? ' an-osort--on' : '') + '" type="button" data-act="an-osort" data-k="' + esc(k) + '" aria-label="' +
       esc(label + ' — сортування за ' + (k === 'no' ? 'номером замовлення' : 'кількістю перевірених виробів') + ': ' + word) + '">' + esc(label) +
       h.ic(dir === 'desc' ? 'arrow-down' : dir === 'asc' ? 'arrow-up' : 'sort', 'ui-icon--sm') + '</button>';
@@ -50,14 +50,14 @@
   }
   function draw(view) {
     var r = view.data, box = view.box('an-orders');
-    var head = '<div class="card-head"><div style="flex:1"><h2 class="card-title">Аналітика по замовленнях' + A.q('sr.an.orders') + '</h2><p class="hint">Замовлення з аудитами за ' + esc(A.span(r.from, r.to)) +
-      ' · числа — стан замовлення на зараз · % плану = перевірено у відділі ÷ план відділу на замовлення · «—» — аудитів замовлення у відділі не було · клік по рядку — вікно замовлення</p></div></div>';
+    var head = '<div class="card-head"><div style="flex:1"><h2 class="card-title">Аналітика по замовленнях' + A.q('sr.an.orders') + '</h2><p class="hint">Замовлення з аудитами за ' + esc(A.span(r.from, r.to)) + '. ' +
+      'Числа — стан замовлення на зараз. % плану = перевірено у відділі ÷ план відділу на замовлення. «—» — у відділі аудитів цього замовлення не було. Натисніть рядок — вікно замовлення.</p></div></div>';
     if (!r.orders.length) { box.innerHTML = head + h.empty('Аудитів по замовленнях за період не було', A.span(r.from, r.to)); return; }
     if (!view.box('an-oq')) {
       box.innerHTML = '<div id="an-ohead"></div><div class="an-obar"><div class="search an-osearch">' + h.ic('search', 'icon') +
         '<input class="input" id="an-oq" type="search" data-input="an-oq" value="' + esc(ui.oq) + '" placeholder="Номер замовлення, виріб або замовник" aria-label="Пошук замовлення: номер, виріб або замовник" autocomplete="off" spellcheck="false"></div>' +
         '<span class="an-ocount" id="an-ocount" aria-live="polite"></span>' +
-        '<span class="hint an-obar__note">Клік по назві колонки — сортування за «перевірено»: від більшого → від меншого → як було</span></div>' +
+        '<span class="hint an-obar__note">Натисніть назву колонки — сортування за «перевірено»: від більшого → від меншого → без сортування</span></div>' +
         '<div class="tbl-box" id="an-otbl"></div>';
     }
     view.box('an-ohead').innerHTML = head;
@@ -80,7 +80,7 @@
       var box = layer.el.querySelector('[data-an="opick"]'), v = data.views[dep];
       if (!box) return;
       var list = pin.day ? v.days.filter(function (d) { return d.day === pin.day; }) : pin.range ? v.days.filter(function (d) { return d.day >= pin.range[0] && d.day <= pin.range[1]; }) : [];
-      if (!list.length) { box.innerHTML = '<p class="hint an-pick__empty">Клік по стовпчику — числа дня тут; протягування — сума за кілька днів.</p>'; return; }
+      if (!list.length) { box.innerHTML = '<p class="hint an-pick__empty">Натисніть стовпчик — тут будуть числа дня. Проведіть по кількох — сума за ці дні.</p>'; return; }
       var s = X.sum(list), a = list[0].day, b = list[list.length - 1].day;
       var href = X.hist({ order: no, d1: a, d2: b, dep: dep === 'all' ? '' : dep });
       box.innerHTML = '<div class="an-pick"><div class="an-pick__title"><span class="hint">' + (pin.day ? 'Обраний день' : 'Обрані дні · ' + X.dn(s.days)) + '</span><b>' + esc(pin.day ? A.dcap(a) : A.span(a, b)) + '</b></div>' +
@@ -148,7 +148,7 @@
       }).join('') + '</div>' + (v.types.length > 8 ? '<p class="hint">Показано 8 з ' + v.types.length + ' видів браку.</p>' : '') + A.levels(v.levels) : '<p class="hint">Браку в цьому замовленні не знайдено.</p>') + '</div>';
     var w = v.worstDay;
     var chart = '<div class="col" style="display:flex;flex-direction:column;gap:10px"><div><h3 class="card-title">Брак по днях, шт</h3><p class="hint">' + esc(depName) + ' · ' +
-      esc(A.span(v.days[0].day, v.days[v.days.length - 1].day)) + ' · колір — рівень браку · наведіть на день — його числа</p></div>' +
+      esc(A.span(v.days[0].day, v.days[v.days.length - 1].day)) + ' · колір — рівень браку · наведіть або торкніться стовпчика — числа дня</p></div>' +
       X.legend(true, [['an-key__none', 'аудитів замовлення не було']]) + '<div data-chart="oday"></div>' +
       (w ? '<p class="hint">Найбільше за день — ' + h.num(w.rejected) + ' шт з ' + h.num(w.checked) + ' перевірених · ' + esc(A.span(w.day, w.day)) +
         (dep === 'all' ? ' · з них найбільше знайдено у відділі «' + esc(w.departmentName) + '»' : '') + '</p>' : '') + '<div data-an="opick"></div></div>';

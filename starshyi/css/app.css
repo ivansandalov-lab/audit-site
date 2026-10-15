@@ -307,3 +307,10 @@ mark.hl { padding: 0; border-radius: 2px; background: var(--brand-soft); color: 
 .blr--sm { padding-top: 18px; } .blr--sm .blr__track { height: 12px; }
 .kds--hold::before { background: var(--kd-hold); } .kds--hold { color: var(--ok); }
 .kdm--hold { background: var(--kd-hold); }
+
+
+.ba { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.ba__b { color: var(--text-2); }
+.ba__a { color: var(--brand-ink); font-weight: 700; }
+.ba__d { font-weight: 600; }
+.ba__d--down { color: var(--ok); } .ba__d--up { color: var(--danger); } .ba__d--zero { color: var(--text-3); }

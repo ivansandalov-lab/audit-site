@@ -31,7 +31,7 @@
   P.cab.screen('/mailing', { tab: 'mailing', title: 'Розсилки', render: function (ctx) {
     var data = null, open = !(P.mailProbe && P.mailProbe.has());
     ctx.el.innerHTML = '<div class="rz"><div class="rz" data-rz-list>' + H.loading() + '</div>' +
-      '<details class="rz-probe"' + (open ? ' open' : '') + '><summary class="rz-probe__sum">' + P.ic('settings', 'ui-icon--sm') + 'Тестовий канал і стан проби' + P.help.btn('admin.ml.probe') + '</summary>' +
+      '<details class="rz-probe"' + (open ? ' open' : '') + '><summary class="rz-probe__sum">' + P.ic('settings', 'ui-icon--sm') + 'Тестовий канал і пробна розсилка' + P.help.btn('admin.ml.probe') + '</summary>' +
       '<section id="cab-mail" aria-label="Розсилка в Slack"></section></details></div>';
     var list = ctx.el.querySelector('[data-rz-list]');
     P.mailPanel.mount(ctx.el.querySelector('#cab-mail'));
@@ -55,10 +55,10 @@
       list.innerHTML = '<div class="rz-head"><div><h2 class="h2">Розсилки · ' + data.items.length + P.help.btn('admin.ml.what') + '</h2>' +
         '<p class="h2-sub">Повідомлення в Slack для будь-яких локацій · станом на ' + esc(P.fmt.time(data.now)) + '</p></div>' +
         '<button class="btn btn--primary" type="button" data-act="rz-new">' + P.ic('add') + 'Нова розсилка</button></div>' +
-        '<p class="hint rz-note">' + P.ic('info', 'ui-icon--sm') + '<span>Тут налаштування на вигаданих даних. За цими правилами розсилки потім надсилатиме будильник Supabase; зараз у Slack іде лише «Надіслати пробне».</span></p>' +
+        '<p class="hint rz-note">' + P.ic('info', 'ui-icon--sm') + '<span>Тут налаштування на вигаданих даних. Потім за цими правилами розсилки надсилатиме будильник Supabase. Зараз у Slack іде лише «Надіслати пробне».</span></p>' +
         '<label class="field rz-filter"><span class="label">Локація' + P.help.btn('admin.ml.filter') + '</span><select class="input rz-sel" data-change="rz-filter">' +
-          [['all', 'Усі локації · ' + data.items.length]].concat(data.locations.map(function (l) {
-            return [l.id, l.name + ' · ' + data.items.filter(function (r) { return forLoc(r, l.id); }).length]; })).map(function (o) {
+          [['all', 'Усі локації · розсилок: ' + data.items.length]].concat(data.locations.map(function (l) {
+            return [l.id, l.name + ' · розсилок: ' + data.items.filter(function (r) { return forLoc(r, l.id); }).length]; })).map(function (o) {
             return '<option value="' + esc(o[0]) + '"' + (o[0] === filter ? ' selected' : '') + '>' + esc(o[1]) + '</option>'; }).join('') + '</select></label>' + body;
     }
     function edit(id, rule) { P.mlEditor.open({ data: data, id: id, rule: rule, onSaved: function () { if (ctx.alive()) load(); } }); }
@@ -95,7 +95,7 @@
           });
         },
         'rz-del': function () {
-          P.confirm({ title: 'Видалити розсилку?', text: '«' + r.title + '» зникне назавжди. Щоб лише призупинити — вимкніть її вмикачем.', okLabel: 'Видалити', danger: true })
+          P.confirm({ title: 'Видалити розсилку?', text: '«' + r.title + '» зникне назавжди. Щоб лише призупинити — вимкніть її перемикачем.', okLabel: 'Видалити', danger: true })
             .then(function (ok) {
               if (!ok) return;
               P.srv('mlRuleDelete', { id: r.id }).then(function (x) {

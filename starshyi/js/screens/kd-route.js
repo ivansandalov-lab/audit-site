@@ -5,7 +5,7 @@
 
   K.STATES = [
     { id: 'over', label: 'Понад норму, не почато', help: 'kd.state.over' },
-    { id: 'watch', label: 'Тиждень результату', help: 'kd.state.watch' },
+    { id: 'watch', label: 'Впроваджено', help: 'kd.state.watch' },
     { id: 'hold', label: 'Під наглядом', help: 'kd.state.hold' },
     { id: 'done', label: 'Закрито: тримається', help: 'kd.state.done' },
     { id: 'relapse', label: 'Рецидив', help: 'kd.state.relapse' },
@@ -33,8 +33,8 @@
   };
   K.loadBar = function (rate, T) {
     var w = rate == null ? 0 : Math.min(100, Math.round(rate / T * 100)), hot = rate != null && rate > T;
-    return '<span class="kd-load' + (hot ? ' kd-load--hot' : '') + '" title="' + esc((rate == null ? 'перевірок не було' : K.pct(rate)) + ' з норми ' + T + '%') + '">' +
-      '<span class="kd-load__bar"><i style="width:' + w + '%"></i></span><b>' + (rate == null ? '—' : K.pct(rate)) + '</b><span class="kd-load__of">з ' + T + '%</span></span>';
+    return '<span class="kd-load' + (hot ? ' kd-load--hot' : '') + '" title="' + esc((rate == null ? 'перевірок не було' : K.pct(rate)) + ' · норма ' + T + '%') + '">' +
+      '<span class="kd-load__bar"><i style="width:' + w + '%"></i></span><b>' + (rate == null ? '—' : K.pct(rate)) + '</b><span class="kd-load__of">· норма ' + T + '%</span></span>';
   };
 
   function stepDays(steps, i, today) {
@@ -46,7 +46,7 @@
     var last = steps.slice(-4);
     more = more != null ? more : steps.length - last.length;
     var title = last.map(function (s) { return stepLabel(s) + ' з ' + H.dayShort(s.day); }).join(' → ');
-    return '<button class="kd-route" type="button" data-act="kd-route"' + (data || '') + ' title="' + esc('Маршрут: ' + title + '. Клік — усі стани з датами') + '">' +
+    return '<button class="kd-route" type="button" data-act="kd-route"' + (data || '') + ' title="' + esc('Маршрут: ' + title + '. Натисніть — усі стани з датами') + '">' +
       (more > 0 ? '<span class="kd-route__more">+' + more + '</span>' : '') +
       last.map(function (s) { return H.kdMark(s.state, stepLabel(s) + ' з ' + H.dayShort(s.day)); }).join('<i class="kd-route__ln"></i>') + '</button>';
   };
@@ -55,7 +55,7 @@
     return '<ol class="kd-tape">' + steps.map(function (s, i) {
       var d = stepDays(steps, i, today), cur = i === steps.length - 1;
       var pct = s.rate == null ? 'перевірок не було' : K.pct(s.rate) + ' · ' + K.num(s.pieces) + ' шт з ' + K.num(s.checked);
-      var what = s.state === 'hold' || s.state === 'relapse' || s.state === 'done' ? 'тиждень спостереження ' : s.state === 'ok' ? 'тиждень ' : 'тиждень КД ';
+      var what = s.state === 'hold' || s.state === 'relapse' || s.state === 'done' ? 'тиждень після впровадження ' : s.state === 'ok' ? 'тиждень ' : 'тиждень КД ';
       return '<li class="kd-tape__i' + (cur ? ' kd-tape__i--now' : '') + '"><span class="kd-tape__d">' + (s.asOf ? 'станом на ' : '') + '<b>' + esc(H.dayShort(s.day)) + '</b></span>' +
         '<span class="kd-tape__s">' + H.kdState(s.state, s.state === 'ok' ? stepLabel(s) : '') + '</span>' +
         '<span class="kd-tape__t">' + (cur ? 'досі · ' : '') + K.plural(d, 'день', 'дні', 'днів') + '</span>' +
@@ -64,7 +64,7 @@
   };
   K.openRoute = function (o) {
     P.sr.modal({ title: 'Маршрут: ' + o.name, sub: esc(o.deptName) + ' · ' + K.plural(o.steps.length, 'стан', 'стани', 'станів') + ' · зверху — найновіший',
-      head: help('kd.route'), body: K.cap('Дата — день, з якого діяв стан. % виду браку — від перевірених у відділі за тиждень, якого стосується стан: для «понад норму» й «впроваджено» — тиждень КД, для «під наглядом», «закрито» й «рецидиву» — тиждень спостереження.') +
+      head: help('kd.route'), body: K.cap('Дата — день, з якого діяв стан. % виду браку — від перевірених у відділі: для «понад норму» й «впроваджено» — за тиждень КД, для решти станів — за тиждень після впровадження.') +
         K.routeTape(o.steps, o.today) });
   };
   K.openRouteOf = function (ctx, depId, typeId) {
@@ -78,9 +78,9 @@
   K.histEntry = function (a, typeId) {
     var it = a.items.filter(function (x) { return x.defectTypeId === typeId; })[0], dl = '';
     if (it) dl += '<dt>Цей вид браку</dt><dd>' + K.pct(it.before) + ' від перевірених · ' + K.num(it.pieces) + ' шт · ' + K.pct(it.share) + ' браку відділу' +
-      (it.after != null ? '<br><b>після: ' + K.pct(it.after) + '</b> (' + esc(K.change(it.before, it.after)) + ')' + (it.after2 != null ? ' → утримання ' + K.pct(it.after2) : '') : '') + '</dd>';
-    dl += '<dt>Брак, % відділу</dt><dd>' + esc(K.rates(a)) + (a.result ? ' · тиждень результату ' + esc(K.rangeShort(a.result.start, a.result.end)) : '') + '</dd>';
-    if (a.status === 'not_needed') dl += '<dt>Чому не потрібно</dt><dd>«' + esc(a.notNeededReason) + '»</dd>';
+      (it.after != null ? '<br><b>1-й тиждень після: ' + K.pct(it.after) + '</b> (' + esc(K.change(it.before, it.after)) + ')' + (it.after2 != null ? ' · 2-й тиждень після: ' + K.pct(it.after2) : '') : '') + '</dd>';
+    dl += '<dt>Брак, % відділу</dt><dd>' + esc(K.rates(a)) + (a.result ? ' · 1-й тиждень після впровадження: ' + esc(K.rangeShort(a.result.start, a.result.end)) : '') + '</dd>';
+    if (a.status === 'not_needed') dl += '<dt>Чому дія не потрібна</dt><dd>«' + esc(a.notNeededReason) + '»</dd>';
     else if (a.implementedAt) dl += '<dt>' + (a.causes.length > 1 ? 'Причини' : 'Причина') + '</dt><dd>' + esc(K.causeText(a)) + (a.causeNote ? ' — ' + esc(a.causeNote) : '') + '</dd>' +
       '<dt>Що зроблено</dt><dd>' + esc(a.plan) + '</dd>' + (a.whoName ? '<dt>Хто відповідає</dt><dd>' + esc(a.whoName) + '</dd>' : '') +
       '<dt>Впроваджено</dt><dd>' + H.dayShort(a.implementedAt) + ' · через ' + K.plural(a.daysToImplement, 'день', 'дні', 'днів') + ' після відкриття</dd>';

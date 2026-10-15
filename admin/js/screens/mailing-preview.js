@@ -14,7 +14,7 @@
 
     el.innerHTML = '<div class="rz-prev__head"><span class="label">Як виглядатиме в Slack' + P.help.btn('admin.ml.preview') + '</span><select class="input rz-sel" data-rz-ploc aria-label="Цифри якої локації показати"></select></div>' +
       '<div data-rz-pv>' + P.state.loading('Рахую цифри…') + '</div><p class="hint" data-rz-pvnote></p>' +
-      '<div class="rz-prev__send"><button class="btn btn--secondary" type="button" data-act="rz-test">' + P.ic('slack', 'ui-icon--sm') + 'Надіслати пробне в тестовий Slack</button>' +
+      '<div class="rz-prev__send"><button class="btn btn--secondary" type="button" data-act="rz-test">' + P.ic('slack', 'ui-icon--sm') + 'Надіслати пробне в тестовий канал</button>' +
       '<p class="hint" data-rz-sendnote></p></div>';
     var box = el.querySelector('[data-rz-pv]'), note = el.querySelector('[data-rz-pvnote]'), sel = el.querySelector('[data-rz-ploc]');
     sel.addEventListener('change', function () { cur = sel.value; run(); });
@@ -23,7 +23,7 @@
     function sendNote() {
       el.querySelector('[data-rz-sendnote]').textContent = P.mailProbe && P.mailProbe.has()
         ? 'Піде лише в тестовий канал, з позначкою «цифри вигадані». Не частіше разу на хвилину.'
-        : 'Щоб надіслати в Slack, введіть код розсилки внизу сторінки — блок «Тестовий канал і стан проби».';
+        : 'Щоб надіслати в Slack, введіть код розсилки внизу сторінки — блок «Тестовий канал і пробна розсилка».';
     }
     function setLocations(l) {
       var list = data.locations.filter(function (x) { return l === 'all' || !l.length || l.indexOf(x.id) >= 0; });
@@ -52,7 +52,7 @@
       draft = d;
       if (!P.mailProbe || !P.mailProbe.has()) {
         var probe = root.document.querySelector('.rz-probe'); if (probe) probe.open = true;
-        P.toast('info', 'Спершу введіть код розсилки', 'Внизу сторінки — блок «Тестовий канал і стан проби».');
+        P.toast('info', 'Спершу введіть код розсилки', 'Внизу сторінки — блок «Тестовий канал і пробна розсилка».');
         return;
       }
       if (!String(d.template).trim()) { showErrors({ code: 'validation', errors: [{ field: 'template', message: 'Напишіть текст повідомлення.' }] }); return; }

@@ -107,9 +107,9 @@
     }).sort(function (a, b) { return b.audits - a.audits || (a.name < b.name ? -1 : 1); });
     return { list: list2, total: total };
   }
-  function locNorm(env, list, locId, days) {
+  function locNorm(env, list, locId, days, tid) {
     var perDay = checkedByDay(list), o = { ok: 0, of: 0 };
-    depsIn(env, locId).filter(function (d) { return d.active !== false && normOf(env, d.id) != null; }).forEach(function (d) {
+    depsIn(env, locId).filter(function (d) { return d.active !== false && normOf(env, d.id) != null && (!tid || d.deptTypeId === tid); }).forEach(function (d) {
       var n = normOf(env, d.id);
       days.forEach(function (day) { o.of++; if ((perDay[day + '|' + d.id] || 0) >= n) o.ok++; });
     });
@@ -130,6 +130,15 @@
       if (inside(a.implementedAt)) o.implemented++;
     });
     return o;
+  }
+  function kdOfType(env, k, tid, from, to) {
+    function inside(v) { var d = v ? String(v).slice(0, 10) : ''; return d >= from && d <= to; }
+    var mine = (k.actions || []).filter(function (a) { var d = env.ix.dep[a.departmentId]; return d && d.deptTypeId === tid; });
+    var impl = mine.filter(function (a) { return inside(a.implementedAt); }), done = impl.filter(function (a) { return a.state !== 'watch'; });
+    var days = impl.map(function (a) { return a.daysToImplement; }).filter(function (v) { return v != null; });
+    return { opened: mine.filter(function (a) { return inside(a.openedAt); }).length, implemented: impl.length,
+      daysAvg: days.length ? Math.round(days.reduce(function (s, v) { return s + v; }, 0) / days.length * 10) / 10 : null,
+      belowAfter1: done.filter(function (a) { return !(a.after > k.threshold); }).length, notBelowAfter1: done.filter(function (a) { return a.after > k.threshold; }).length };
   }
 
   function reportsOf(env, userId) {
@@ -223,19 +232,22 @@
       if (!can(me)) return C.forbidden();
       var sel = locOf(p, env); if (sel.err) return sel.err;
       var many = locsOf(p, env); if (many.err) return many.err;
+      var tid = p.deptTypeId == null || p.deptTypeId === '' ? null : p.deptTypeId;
+      if (tid !== null && !has(env.ix.dt, tid)) return C.fail('validation', 'Такого відділу немає — оновіть сторінку.', [{ field: 'deptTypeId', message: 'Такого відділу немає — оновіть сторінку.' }]);
+      function ofType(list) { return !tid ? list : list.filter(function (a) { var d = env.ix.dep[a.departmentId]; return !!d && d.deptTypeId === tid; }); }
       var locId = sel.loc ? sel.loc.id : null, rg = range(p, env), span = daysOf(rg.from, rg.to);
-      var list = auditsIn(env, locId, rg.from, rg.to), flat = people(env, list, locId);
+      var list = ofType(auditsIn(env, locId, rg.from, rg.to)), flat = people(env, list, locId);
       var ids = many.ids || (locId ? [locId] : env.db.locations.map(function (l) { return l.id; }));
       var groups = ids.map(function (id) {
-        var la = auditsIn(env, id, rg.from, rg.to), pp = people(env, la, id), k = kdSum(env, id, rg.from, rg.to);
-        var kd = k && k.period ? { opened: k.period.opened, implemented: k.period.implemented, daysAvg: k.period.implementedDaysAvg,
+        var la = ofType(auditsIn(env, id, rg.from, rg.to)), pp = people(env, la, id), k = kdSum(env, id, rg.from, rg.to);
+        var kd = k && tid ? kdOfType(env, k, tid, rg.from, rg.to) : k && k.period ? { opened: k.period.opened, implemented: k.period.implemented, daysAvg: k.period.implementedDaysAvg,
           belowAfter1: k.period.results ? k.period.results.belowAfter1 : 0, notBelowAfter1: k.period.results ? k.period.results.notBelowAfter1 : 0 } : null;
         pp.list.forEach(function (a) { if (a.senior) a.kd = kd; });
         return { location: short(env.ix.loc[id]), audits: la.length, checked: la.reduce(function (s, a) { return s + C.checkedOf(a); }, 0),
-          daysWithAudits: dayCount(la), days: span.length, norm: locNorm(env, la, id, span), kd: kd, auditors: pp.list };
+          daysWithAudits: dayCount(la), days: span.length, norm: locNorm(env, la, id, span, tid), kd: kd, auditors: pp.list };
       });
-      return { ok: true, from: rg.from, to: rg.to, asOf: env.now().toISOString(), location: sel.loc ? short(sel.loc) : null,
-        locations: env.db.locations.map(short), totalAudits: list.length, totalPieces: flat.total, auditors: flat.list, groups: groups };
+      return { ok: true, from: rg.from, to: rg.to, asOf: env.now().toISOString(), location: sel.loc ? short(sel.loc) : null, deptTypeId: tid,
+        locations: env.db.locations.map(short), deptTypes: env.db.deptTypes.map(short), totalAudits: list.length, totalPieces: flat.total, auditors: flat.list, groups: groups };
     },
 
     mgrMonth: function (p, me, env) {
@@ -275,6 +287,9 @@
       return { ok: true, settings: reportsOf(env, me.id) };
     }
   };
+
+  P.demoMgr = { has: has, can: can, range: range, locOf: locOf, daysOf: daysOf, auditsIn: auditsIn, stats: stats, top: top,
+    dayCount: dayCount, normOf: normOf, kdSum: kdSum, short: short };
 
   P.demoApis.push(api);
   P.demoResetKeys.push(KEY);

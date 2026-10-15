@@ -3,7 +3,7 @@
   var P = root.P, H = P.sr.h, esc = P.esc, K = P.srKd;
   var help = function (k) { return P.help ? P.help.btn(k) : ''; };
 
-  P.sr.screen('/kd/stats', { tab: 'kd', title: 'Коригуючі дії — чи допомагають', period: false, render: function (ctx) {
+  P.sr.screen('/kd/stats', { tab: 'kd', title: 'Коригуючі дії — що після дій', period: false, render: function (ctx) {
     var q = ctx.query, data = null, req = 0;
     var st = { days: q.days === '90' ? 90 : 30, deps: (q.deps || '').split(',').filter(Boolean), open: q.open || '' };
     var ui = {};   // стан розгорнутих відділів: {depId: {find, sort, dir}}
@@ -55,28 +55,29 @@
       });
     }
     function pills() {
-      return '<span class="pills">' + [30, 90].map(function (n) { return '<button class="pill' + (n === st.days ? ' pill--on' : '') + '" type="button" data-act="days" data-v="' + n + '">' + n + ' дн.</button>'; }).join('') + '</span>';
+      return '<span class="pills">' + [30, 90].map(function (n) { return '<button class="pill' + (n === st.days ? ' pill--on' : '') + '" type="button" data-act="days" data-v="' + n + '">' + n + ' днів</button>'; }).join('') + '</span>';
     }
 
     function draw() {
       var r = data, k = r.kpi, T = r.threshold, span = r.byWeek.length ? K.spanOf(r.byWeek) : '';
       var kpi = function (n, label, key, mod) { return K.kpiH(n == null ? '—' : n, label, key, n ? mod : ''); };
       var kpis = '<div class="kpis kd-stats-kpis">' + kpi(k.opened, 'КД відкрито · з них раннім тумблером ' + k.earlyOpened, 'kd.stats.opened', 'danger') +
-        kpi(k.implemented, 'впроваджено' + (k.implementedDaysAvg != null ? ' · у середньому через ' + String(k.implementedDaysAvg).replace('.', ',') + ' дн. після відкриття' : ''), 'kd.stats.implemented') +
-        kpi(k.results.belowAfter1, 'тиждень результату не вище норми ' + T + '%', 'kd.stats.below', 'ok') + kpi(k.results.notBelowAfter1, 'тиждень результату понад норму', 'kd.state.relapse', 'danger') +
-        kpi(k.held.done, 'утримання не вище норми (закрито)', 'kd.state.done', 'ok') + kpi(k.held.relapse, 'утримання понад норму (рецидив)', 'kd.state.relapse', 'danger') +
+        kpi(k.implemented, 'впроваджено' + (k.implementedDaysAvg != null ? ' · у середньому через ' + String(k.implementedDaysAvg).replace('.', ',') + ' днів після відкриття' : ''), 'kd.stats.implemented') +
+        kpi(k.results.belowAfter1, '1-й тиждень після впровадження: не вище норми ' + T + '%', 'kd.stats.below', 'ok') + kpi(k.results.notBelowAfter1, '1-й тиждень після впровадження: понад норму (рецидив)', 'kd.state.relapse', 'danger') +
+        kpi(k.held.done, '2-й тиждень після впровадження: не вище норми (закрито)', 'kd.state.done', 'ok') + kpi(k.held.relapse, '2-й тиждень після впровадження: понад норму (рецидив)', 'kd.state.relapse', 'danger') +
         kpi(k.results.pending + k.held.pending, 'ще спостерігаємо', 'kd.stats.pending', 'info') + kpi(k.waiting, 'понад норму, не почато · зараз', 'kd.state.over', 'danger') + '</div>';
       var e = k.effect;
       var facts = '<section class="card kd-sfacts"><div class="kd-sfacts__i"><p class="kd-sec">Пункти КД: до → після' + help('kd.stats.effect') + '</p>' +
-        (e.items ? '<p class="kd-sfacts__big"><b>' + K.pct(e.avgBefore) + ' → ' + K.pct(e.avgAfter) + '</b> · ' + esc(K.delta(e.avgBefore, e.avgAfter)) + '</p><p class="hint">Середнє по ' +
-          K.plural(e.items, 'пункту', 'пунктах', 'пунктах') + ' КД, впроваджених за ' + st.days + ' днів, де тиждень результату вже завершився: % виду браку від перевірених у відділі.</p>'
-          : '<p class="hint">Пунктів із завершеним тижнем результату за ' + st.days + ' днів немає.</p>') + '</div>' +
+        (e.items ? '<p class="kd-sfacts__big">' + H.ba(e.avgBefore, e.avgAfter) + '</p><p class="hint">Середнє по ' +
+          K.plural(e.items, 'пункту', 'пунктах', 'пунктах') + ' КД, впроваджених за ' + st.days + ' днів. «До» — тиждень КД, «після» — перший тиждень після впровадження (лише ті, що вже закінчились). ' +
+          '% — частка виду браку від перевірених у відділі.</p>'
+          : '<p class="hint">За ' + st.days + ' днів немає пунктів, у яких перший тиждень після впровадження вже закінчився.</p>') + '</div>' +
         '<div class="kd-sfacts__i"><p class="kd-sec">Причини у впроваджених планах' + help('kd.stats.causes') + '</p>' +
         (k.causes.length ? '<div class="kd-chips">' + k.causes.map(function (c) { return '<span class="chip chip--plain">' + esc(c.label) + ' · ' + c.n + '</span>'; }).join('') + '</div>'
-          : '<p class="hint">Впроваджених планів за ' + st.days + ' днів немає.</p>') + '<p class="hint">«Не потрібно» за цей час: ' + k.notNeeded + '.</p></div></section>';
+          : '<p class="hint">Впроваджених планів за ' + st.days + ' днів немає.</p>') + '<p class="hint">«Дія не потрібна» за цей час: ' + k.notNeeded + '.</p></div></section>';
       ctx.el.innerHTML = K.segNav('/kd/stats', pills()) + depChips(r) + kpis + chartHtml(r, span) + facts +
         '<section class="card kd-sd-card"><div><h2 class="card-title">Відділи' + help('kd.stats.depts') + '</h2>' +
-        K.cap('КД за ' + st.days + ' днів (' + esc(span) + '). Клік по відділу — його види браку: % зараз, у скількох КД були пунктом, «до → після» в останній такій КД, маршрут станів.') + '</div>' +
+        K.cap('КД за ' + st.days + ' днів (' + esc(span) + '). Натисніть відділ — його види браку: % зараз, у скількох КД були пунктом, «до → після» в останній такій КД, маршрут станів.') + '</div>' +
         '<div data-kd-depts></div></section>';
       drawChart(); drawDepts();
     }
@@ -95,7 +96,7 @@
         return '<span class="kd-keyw">' + H.kdState(s.id) + help(s.help) + '</span>';
       }).join('') + '<span class="kd-keyw">' + H.kdState('relapse', 'рецидив (стан КД)') + '</span><span class="kd-keyw"><span class="kd-key kd-key--rel"><b>✕2</b>рецидив виміряно в цьому тижні</span>' + help('kd.state.relapse') + '</span></div>';
       return '<section class="card"><div><h2 class="card-title">КД по тижнях' + help('kd.stats.chart') + '</h2>' +
-        K.cap('Стовпчик — один тиждень розбору (' + esc(span) + '), дати — під ним; висота — скільки КД відкрито за цей тиждень; колір — стан кожної з них сьогодні. Наведіть — які саме відділи.') +
+        K.cap('Стовпчик — один тиждень розбору (' + esc(span) + '), дати — під ним; висота — скільки КД відкрито за цей тиждень; колір — стан кожної з них сьогодні. Наведіть або торкніться стовпчика — які саме відділи.') +
         '</div><div data-chart="kd-over"></div>' + keys + '</section>';
     }
     function drawChart() {

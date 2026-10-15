@@ -95,14 +95,14 @@
     function blurHtml(r) {
       var b = r.blur, T = r.threshold;
       if (!b) return '';
-      var V = { over: ['Точно понад норму', 'навіть з урахуванням випадковості брак, % вище ' + T + '%.'],
-        near: ['Близько до межі', 'справжній брак, % може бути і трохи нижче, і трохи вище ' + T + '%.'],
-        ok: ['Точно в нормі', 'навіть з урахуванням випадковості брак, % не вище ' + T + '%.'] }[b.verdict];
+      var V = { over: ['Уся смуга вище межі ' + T + '%', 'навіть найменше можливе значення понад норму.'],
+        near: ['Смуга перетинає межу ' + T + '%', 'справжній брак, % може бути і трохи нижче, і трохи вище норми.'],
+        ok: ['Уся смуга нижче межі ' + T + '%', 'навіть найбільше можливе значення не вище норми.'] }[b.verdict];
       return '<div class="kd-blur"><div class="kd-blur__head"><p class="kd-sec">Наскільки точне число' + help('kd.blur') + '</p>' +
         '<button class="btn btn--quiet btn--sm" type="button" data-act="kd-blur-how">' + P.ic('info', 'ui-icon--sm') + 'Як це читати</button></div>' +
         '<p class="kd-blur__verdict kd-blur__verdict--' + b.verdict + '"><b>' + V[0] + '</b> — ' + V[1] + '</p>' + H.blurBar(b, T) +
-        '<p class="hint">Перевірено ' + K.num(b.n) + ' шт за тиждень → число може «гуляти» на ±' + K.pct(b.margin).replace('%', '') + ' в. п.: справжній брак найімовірніше від ' +
-        K.pct(b.lo) + ' до ' + K.pct(b.hi) + ' (сіра смуга). Для смуги ±1 в. п. — ≈ ' + K.num(b.need1) + ' перевірених шт за тиждень.</p></div>';
+        '<p class="hint">Перевірено ' + K.num(b.n) + ' шт за тиждень. Тому число може «гуляти» на ±' + K.pct(b.margin).replace('%', '') + ' в. п. ' +
+        'Справжній брак найімовірніше від ' + K.pct(b.lo) + ' до ' + K.pct(b.hi) + ' (сіра смуга). Щоб смуга була ±1 в. п., треба перевірити ≈ ' + K.num(b.need1) + ' шт за тиждень.</p></div>';
     }
     function blurHow(T) {
       var ex = function (rate, m, v, title, text) {
@@ -112,11 +112,11 @@
       P.sr.modal({ title: 'Наскільки точне число браку', size: 'sm', body:
         '<p><b>Ми перевіряємо не всі вироби, а частину.</b> Як із супом: щоб дізнатися, чи пересолений казан, куштують ложку. ' +
         'Ложка буває трохи солоніша чи прісніша за весь суп — так і брак, % у перевірених штуках трохи «гуляє» навколо справжнього.</p>' +
-        '<p><b>Сіра смуга</b> — де справжній брак усього, що зробив відділ за тиждень, найімовірніше (9 разів з 10). <b>Крапка</b> — те, що намірили. ' +
-        '<b>Пунктир</b> — норма ' + T + '%. Що більше штук перевірили, то вужча смуга — як більше ложок.</p>' +
-        ex(8, 1.5, 'over', 'Точно понад норму', 'Уся смуга праворуч від межі — навіть найменше можливе значення вище норми.') +
-        ex(5.4, 1.6, 'near', 'Близько до межі', 'Смуга перетинає межу — справжній брак може бути і 4%, і 7%.') +
-        ex(2.5, 1.2, 'ok', 'Точно в нормі', 'Уся смуга ліворуч від межі — навіть найбільше можливе значення не вище норми.'),
+        '<p><b>Сіра смуга</b> — де справжній брак усього, що зробив відділ за тиждень, найімовірніше (9 разів з 10). <b>Крапка</b> — те, що виміряли. ' +
+        '<b>Пунктир</b> — межа ' + T + '% (норма). Що більше штук перевірили, то вужча смуга: так само, як суп точніше знаєш на смак, коли скуштував кілька ложок.</p>' +
+        ex(8, 1.5, 'over', 'Уся смуга вище межі ' + T + '%', 'Навіть найменше можливе значення понад норму.') +
+        ex(5.4, 1.6, 'near', 'Смуга перетинає межу ' + T + '%', 'Справжній брак може бути і 4%, і 7%.') +
+        ex(2.5, 1.2, 'ok', 'Уся смуга нижче межі ' + T + '%', 'Навіть найбільше можливе значення не вище норми.'),
         foot: '<span style="flex:1"></span><button class="btn btn--primary" type="button" data-ov-close>Зрозуміло</button>' });
     }
     function chartHtml(r) {
@@ -130,8 +130,9 @@
       if (!a) {
         if (r.cover) body = '<p class="kd-text">Окремої КД за цей тиждень немає: відділ уже мав КД за ' + esc(K.week(r.cover.periodStart, r.cover.periodEnd)) + ' (' + esc(P.sr.KD_STATES[r.cover.state].label) + ').</p>' +
           '<button class="btn btn--secondary btn--sm" type="button" data-act="open"' + K.ref(r.cover) + '>Картка тієї КД</button>';
-        else if (p.current) body = '<p class="kd-text">Тиждень триває: перевірено ' + K.num(p.checked) + ' шт, брак ' + K.pct(p.rate) + '. КД відкриється в день розбору (' + esc(K.wd(r.review.readyOn)) +
-          '), якщо брак, % тижня буде понад ' + T + '%, або раніше — ранній тумблер: від ' + K.num(r.rules.early) + ' перевірених шт і понад ' + T + '%.</p>';
+        else if (p.current) body = '<p class="kd-text">Тиждень триває: перевірено ' + K.num(p.checked) + ' шт, брак ' + K.pct(p.rate) + '. ' +
+          'Якщо брак, % тижня буде понад ' + T + '%, КД відкриється ' + esc(K.wd(r.review.readyOn)) + ' (день розбору). ' +
+          'Раніше — якщо вже перевірено від ' + K.num(r.rules.early) + ' шт і брак понад ' + T + '% (ранній тумблер).</p>';
         else body = '<p class="kd-text">Брак, % відділу за тиждень — ' + K.pct(p.rate) + ' (норма ' + T + '%). КД за цей тиждень не відкривалась.</p>';
         return '<section class="card col"><h3 class="card-title">КД за цей тиждень' + help('kd.action') + '</h3>' + body + '</section>';
       }
@@ -153,7 +154,7 @@
       var acts = r.actions;
       var groups = K.STATES.map(function (s) { return { s: s, list: acts.filter(function (a) { return a.state === s.id; }) }; }).filter(function (g) { return g.list.length; });
       return '<section class="card"><div><h3 class="card-title">Усі КД відділу · ' + acts.length + help('kd.states') + '</h3>' +
-        K.cap('За весь час, згруповано за станом на сьогодні. Числа — брак, % відділу: тиждень КД → тиждень результату → тиждень утримання. Клік по рядку — картка КД.') + '</div>' +
+        K.cap('За весь час, згруповано за станом на сьогодні. Числа — брак, % відділу: тиждень КД → перший тиждень після впровадження → другий. Натисніть рядок — картка КД.') + '</div>' +
         (acts.length ? groups.map(function (g) {
           return '<div class="kd-grp" data-kd-more><p class="kd-grp__t">' + H.kdMark(g.s.id, g.s.label) + esc(g.s.label) + ' · ' + g.list.length + help(g.s.help) + '</p><div class="list">' +
             g.list.map(function (a, i) { return actRow(a, i >= ACT_SHOW); }).join('') + '</div>' + K.moreBtn(g.list.length, ACT_SHOW, 'Показати всі') + '</div>';
@@ -163,7 +164,7 @@
       var p = r.period, withDefect = r.types.filter(function (x) { return x.pieces > 0; }).length;
       return '<section class="card kd-types"><div class="kd-types__head"><div class="kd-types__title"><h3 class="card-title">Види браку відділу · тиждень ' + esc(K.range(p.start, p.end)) + '</h3>' +
         K.cap('У переліку ' + K.plural(r.types.length, 'вид браку', 'види браку', 'видів браку') + ' із довідника відділу; у цьому тижні з браком — ' + withDefect + '. ' +
-          '«Парето» — види браку, що разом дають ' + r.rules.pareto + '% браку відділу за тиждень. % = шт виду браку ÷ ' + K.num(p.checked) + ' перевірених у відділі. Клік по рядку — усе про вид.') + '</div>' +
+          '«Парето» — види браку, що разом дають ' + r.rules.pareto + '% браку відділу за тиждень. % = шт виду браку ÷ ' + K.num(p.checked) + ' перевірених у відділі. Натисніть рядок — усе про цей вид браку.') + '</div>' +
         '<div class="kd-types__tools"><div class="seg seg--sm" role="group" aria-label="Сортування">' + SORTS.map(function (s) {
           return '<button class="seg__btn" type="button" data-act="kd-sort" data-v="' + s[0] + '">' + s[1] + '</button>'; }).join('') + '</div>' +
         '<label class="kd-find">' + P.ic('search', 'ui-icon--sm') + '<input class="input" type="search" data-input="kd-find" value="' + esc(st.find) + '" placeholder="Назва виду браку" aria-label="Пошук виду браку за назвою"></label></div></div>' +
@@ -204,7 +205,7 @@
       if (!el) return;
       markSeg('kd-unit', st.unit);
       ctx.el.querySelector('[data-kd-chartcap]').innerHTML = K.cap('Відділ «' + esc(r.dept.name) + '», тижні ' + esc(K.spanOf(r.series)) + '. Стовпчик — один тиждень розбору (7 днів, починається в ' + esc(K.wdAcc(r.rules.reviewWeekday)) + '), дати — під ним; висота — ' +
-        (st.unit === 'pcs' ? 'брак відділу, шт' : 'брак відділу, % від перевірених у відділі; риска — норма ' + r.threshold + '%') + '; кольори — рівні браку. Наведіть — числа тижня; клік — зафіксувати.');
+        (st.unit === 'pcs' ? 'брак відділу, шт' : 'брак відділу, % від перевірених у відділі; риска — норма ' + r.threshold + '%') + '; кольори — рівні браку. Наведіть або торкніться стовпчика — числа тижня; натисніть — закріпити.');
       pin.innerHTML = '';
       K.deptChart(el, r.series, { unit: st.unit, sel: r.period.n, T: r.threshold, height: 280,
         label: 'Брак відділу «' + r.dept.name + '» по тижнях, ' + (st.unit === 'pcs' ? 'шт' : '%'),

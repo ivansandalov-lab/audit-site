@@ -13,8 +13,8 @@
     var hasAfter = a.result != null, hasHold = a.hold != null;
     var res = a.result, ho = a.hold;
     var th = '<tr><th>Вид браку' + help('term.defectType') + '</th><th class="n">частка браку' + help('kd.pareto') + '</th>' +
-      '<th class="n">до, %' + help('kd.beforeAfter') + '</th>' + (hasAfter ? '<th class="n">після, %<span class="sub">' + esc(K.rangeShort(res.start, res.end)) + (res.pending ? ' · триває' : '') + '</span></th>' : '') +
-      (hasHold ? '<th class="n">утримання, %<span class="sub">' + esc(K.rangeShort(ho.start, ho.end)) + (ho.pending ? ' · триває' : '') + '</span></th>' : '') + '</tr>';
+      '<th class="n">до, %' + help('kd.beforeAfter') + '</th>' + (hasAfter ? '<th class="n">після, %<span class="sub">1-й тиждень · ' + esc(K.rangeShort(res.start, res.end)) + (res.pending ? ' · триває' : '') + '</span></th>' : '') +
+      (hasHold ? '<th class="n">після, %<span class="sub">2-й тиждень · ' + esc(K.rangeShort(ho.start, ho.end)) + (ho.pending ? ' · триває' : '') + '</span></th>' : '') + '</tr>';
     var rows = a.items.map(function (it) {
       return '<tr><td><b>' + esc(it.name) + '</b><span class="sub">' + H.lvl(it.level) + '</span></td>' +
         '<td class="n">' + K.pct(it.share) + '<span class="sub">' + K.num(it.pieces) + ' шт · разом ' + K.pct(it.cumShare) + '</span></td><td class="n"><b>' + K.pct(it.before) + '</b></td>' +
@@ -44,13 +44,13 @@
     if (a.status === 'not_needed') return '<div class="kd-steps">' + html + step(2, 'done', 'Дія не потрібна · ' + esc(H.dayShort(a.notNeededAt)), '«' + esc(a.notNeededReason) + '»') + '</div>';
     if (!a.implementedAt) return '<div class="kd-steps">' + html + step(2, 'now', 'Впроваджений план — ще не записано',
       a.overWeeks >= 2 ? 'Понад норму ' + K.plural(a.overWeeks, 'тиждень', 'тижні', 'тижнів') + ' поспіль.' : '') +
-      step(3, 'wait', 'Тиждень результату', 'Перший тиждень розбору, що почнеться в день впровадження чи пізніше.') + '</div>';
+      step(3, 'wait', 'Перший тиждень після впровадження', 'Перший повний тиждень, що почнеться в день впровадження або пізніше.') + '</div>';
     html += step(2, 'done', 'Впроваджено ' + esc(K.wd(a.implementedAt)), 'Через ' + K.plural(a.daysToImplement, 'день', 'дні', 'днів') + ' після відкриття.');
     var r = a.result, h = a.hold;
-    html += step(3, r.pending ? 'now' : 'done', 'Тиждень результату ' + esc(K.range(r.start, r.end)), wk(r, 'Тиждень результату'));
+    html += step(3, r.pending ? 'now' : 'done', 'Перший тиждень після впровадження · ' + esc(K.range(r.start, r.end)), wk(r, 'Перший тиждень після впровадження'));
     if (a.relapseStage === 1) return '<div class="kd-steps">' + html + '</div>';
-    html += h ? step(4, h.pending ? 'now' : 'done', 'Тиждень утримання ' + esc(K.range(h.start, h.end)), wk(h, 'Тиждень утримання'))
-      : step(4, 'wait', 'Тиждень утримання', 'Наступний тиждень після тижня результату.');
+    html += h ? step(4, h.pending ? 'now' : 'done', 'Другий тиждень після впровадження · ' + esc(K.range(h.start, h.end)), wk(h, 'Другий тиждень після впровадження'))
+      : step(4, 'wait', 'Другий тиждень після впровадження', 'Наступний тиждень після першого.');
     return '<div class="kd-steps">' + html + '</div>';
   };
   function chartBlock(a, T) {
@@ -60,8 +60,8 @@
   }
   function mountChart(el, a, T) {
     var sel = {}; sel[a.period] = 'тиждень КД';
-    if (a.result && !a.result.future) sel[a.result.n] = 'тиждень результату';
-    if (a.hold && !a.hold.future) sel[a.hold.n] = 'тиждень утримання';
+    if (a.result && !a.result.future) sel[a.result.n] = '1-й тиждень після впровадження';
+    if (a.hold && !a.hold.future) sel[a.hold.n] = '2-й тиждень після впровадження';
     K.deptChart(el.querySelector('[data-chart="kd-item"]'), a.series, { sel: sel, T: T, height: 150, label: 'Брак відділу «' + a.departmentName + '» по тижнях, %' });
   }
   function whoBlock(a) {
@@ -90,10 +90,11 @@
           return '<option value="' + esc(u.id) + '"' + (sel ? ' selected' : '') + '>' + esc(u.name) + (u.me ? ' (я)' : ' · ' + u.roleLabel.toLowerCase()) + '</option>'; }).join('') +
         '</select>' + K.errSlot('who') + '</label>' +
         '<label class="field"><span class="label">Дата впровадження' + help('kd.implDay') + '</span><input class="input" type="date" data-f="day" min="' + esc(a.openedAt) + '" max="' + esc(r.today) + '" value="' +
-          esc(edit ? a.implementedAt : r.today) + '"' + (lockDay ? ' disabled' : '') + '>' + (lockDay ? '<span class="hint">Тиждень результату вже виміряно — дату не змінити.</span>' : '') + K.errSlot('day') + '</label></div>' +
+          esc(edit ? a.implementedAt : r.today) + '"' + (lockDay ? ' disabled' : '') + '>' + (lockDay ? '<span class="hint">Перший тиждень після впровадження вже закінчився — дату не змінити.</span>' : '') + K.errSlot('day') + '</label></div>' +
         '<div class="banner" style="align-items:center">' + P.ic('info') + '<div class="banner__body"><p class="banner__title"><span class="num-badge" style="width:24px;height:24px;margin-right:6px">3</span>Далі — два тижні спостереження</p>' +
-        '<p class="banner__text">Тиждень результату — перший тиждень розбору, що почнеться в день впровадження чи пізніше. Брак, % відділу до ' + T + '% включно → «під наглядом», ' +
-        'понад ' + T + '% → рецидив ✕. Наступний тиждень: до ' + T + '% → «закрито: тримається», понад → рецидив ✕.</p></div></div></div>';
+        '<p class="banner__text">Перший тиждень після впровадження — перший повний тиждень, що почнеться в день впровадження або пізніше.<br>' +
+        'Брак, % відділу за нього до ' + T + '% включно → «під наглядом»; понад ' + T + '% → рецидив ✕.<br>' +
+        'Другий тиждень після впровадження: до ' + T + '% включно → «закрито: тримається»; понад ' + T + '% → рецидив ✕.</p></div></div></div>';
       var m = P.sr.modal({
         title: (edit ? 'Змінити план · ' : 'Впроваджений план · ') + a.departmentName,
         sub: esc(K.week(a.periodStart, a.periodEnd)) + ' · брак ' + K.pct(a.rate) + ' (' + of(a.rejected, a.checked) + ') · ' + K.plural(a.items.length, 'пункт', 'пункти', 'пунктів'),
@@ -120,7 +121,7 @@
               m.close();
               var x = res.action;
               K.done(ctx, 'ok', (edit ? 'План змінено · ' : 'Впроваджений план записано · ') + x.departmentName + ' · ' + K.week(x.periodStart, x.periodEnd),
-                'Впроваджено ' + H.dayShort(x.implementedAt) + (x.result ? ' · тиждень результату ' + K.rangeShort(x.result.start, x.result.end) : '') + (x.whoName ? ' · ' + x.whoName : ''));
+                'Впроваджено ' + H.dayShort(x.implementedAt) + (x.result ? ' · 1-й тиждень після: ' + K.rangeShort(x.result.start, x.result.end) : '') + (x.whoName ? ' · ' + x.whoName : ''));
             });
           }
         },
@@ -139,10 +140,10 @@
 
   K.openNotNeeded = function (ctx, r0, a) {
     var editing = a && a.status === 'not_needed';
-    var m = P.sr.modal({ size: 'sm', title: (editing ? 'Змінити причину · ' : 'Не потрібно · ') + (a ? a.departmentName : ''),
+    var m = P.sr.modal({ size: 'sm', title: (editing ? 'Змінити причину · ' : 'Дія не потрібна · ') + (a ? a.departmentName : ''),
       sub: a ? esc(K.week(a.periodStart, a.periodEnd)) + ' · брак ' + esc(K.pct(a.rate)) : '',
       body: '<p class="kd-text">' + (editing ? 'Причину видно в картці КД та в списку КД.'
-        : 'КД отримає стан «дія не потрібна» з цією причиною. Якщо наступного тижня брак, % відділу знову буде понад норму, відкриється нова КД.') + '</p>' +
+        : 'КД отримає стан «дія не потрібна», поруч — ця причина. Якщо наступного тижня брак, % відділу знову буде понад норму, відкриється нова КД.') + '</p>' +
         '<label class="field"><span class="label">Чому дія не потрібна</span><textarea class="textarea" data-f="reason" maxlength="300" style="min-height:80px" placeholder="Наприклад: разовий збій машини — полагодили того ж дня.">' + esc(editing ? a.notNeededReason : '') + '</textarea>' + K.errSlot('reason') + '</label>',
       foot: '<button class="btn btn--quiet" type="button" data-ov-close>Скасувати</button><button class="btn btn--primary" type="button" data-act="ok" style="margin-left:auto">' + (editing ? 'Зберегти причину' : 'Позначити «не потрібно»') + '</button>',
       on: { ok: function (t) {
@@ -152,7 +153,7 @@
           if (!res.ok) { if (!K.showErrors(m.el, res)) P.toast('danger', 'Не вдалося зберегти', res.error); return; }
           m.close();
           var x = res.action;
-          K.done(ctx, 'ok', (editing ? 'Причину змінено · ' : 'Позначено «не потрібно» · ') + x.departmentName + ' · ' + K.week(x.periodStart, x.periodEnd), '«' + x.notNeededReason + '»');
+          K.done(ctx, 'ok', (editing ? 'Причину змінено · ' : 'Позначено «дія не потрібна» · ') + x.departmentName + ' · ' + K.week(x.periodStart, x.periodEnd), '«' + x.notNeededReason + '»');
         });
       } } });
   };
@@ -165,7 +166,7 @@
       if (a.after != null) {
         var st = P.sr.kdStateOf(a.status);
         body += '<div class="kd-res kd-res--' + (a.relapseStage ? 'relapse' : 'ok') + '"><span class="kd-res__state">' + H.kdState(st) + '</span>' +
-          '<b class="kd-res__nums">' + esc(K.rates(a)) + '</b><span class="kd-res__thr">брак, % відділу: тиждень КД → тиждень результату' + (a.after2 != null ? ' → тиждень утримання' : '') + ' · норма ' + T + '%</span></div>';
+          '<b class="kd-res__nums">' + esc(K.rates(a)) + '</b><span class="kd-res__thr">брак, % відділу: тиждень КД → 1-й тиждень після впровадження' + (a.after2 != null ? ' → 2-й тиждень після' : '') + ' · норма ' + T + '%</span></div>';
       } else body += K.formula(a, T);
       body += '<div class="facts"><p class="group-label" style="padding:0">Хід КД' + help('kd.steps') + '</p>' + K.obsSteps(a, T) + '</div>';
       body += '<div class="facts"><p class="group-label" style="padding:0">Пункти КД · до → після' + help('kd.beforeAfter') + '</p>' + K.itemsTable(a) + '</div>';

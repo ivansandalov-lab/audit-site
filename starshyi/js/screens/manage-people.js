@@ -3,7 +3,7 @@
   var P = root.P, H = P.sr.h, esc = P.esc, M = P.srMg;
   var q = M.q, qa = M.qa, da = M.da;
 
-  M.section('team', 'Працівники', function (v) {
+  M.section('team', 'Аудитори', function (v) {
     var data = null;
     function load() { v.get('srMgTeam', function (r) { data = r; draw(); }); }
     function find(id) { return data.items.filter(function (x) { return x.id === id; })[0]; }
@@ -16,23 +16,23 @@
         '<td>' + M.pen('mg-edit', da('id', u.id), 'Редагувати ' + u.name) + '</td></tr>';
     }
     function draw() {
-      v.col.innerHTML = M.head('Працівники', 'Аудитори · ' + data.location.name + ' · вхід через Google робочою поштою', M.btnNew('Новий працівник')) +
-        '<section class="card">' + (data.items.length ? '<div class="tbl-box"><table class="tbl"><thead><tr><th>Працівник</th><th>Робоча пошта</th><th>Останній аудит</th><th>Вхід діє' + M.hq('sr.mg.login') + '</th><th>Доступ' + M.hq('sr.mg.access') + '</th><th><span class="mg-vh">Дії</span></th></tr></thead><tbody>' +
+      v.col.innerHTML = M.head('Аудитори', data.location.name + ' · вхід через Google робочою поштою', M.btnNew('Новий аудитор')) +
+        '<section class="card">' + (data.items.length ? '<div class="tbl-box"><table class="tbl"><thead><tr><th>Аудитор</th><th>Робоча пошта</th><th>Останній аудит</th><th>Вхід діє' + M.hq('sr.mg.login') + '</th><th>Доступ' + M.hq('sr.mg.access') + '</th><th><span class="mg-vh">Дії</span></th></tr></thead><tbody>' +
           data.items.map(row).join('') + '</tbody></table></div>'
           : H.empty('Аудиторів ще немає', '')) +
         '<p class="hint">Вимкнений доступ: вхід закрито, аудити людини лишаються в історії.</p></section>';
     }
     function openEdit(u) {
       var st = { active: u ? u.active : true };
-      M.modal({ size: 'sm', title: u ? 'Редагувати працівника' : 'Новий працівник', sub: u ? esc(u.name) : '',
+      M.modal({ size: 'sm', title: u ? 'Редагувати аудитора' : 'Новий аудитор', sub: u ? esc(u.name) : '',
         body: '<div class="mg-form">' +
           M.field('name', 'Імʼя та перша літера прізвища', M.input('name', u ? u.name : '', ' autocomplete="off" maxlength="60" placeholder="Петро Л."')) +
           M.field('email', 'Робоча Google-пошта', M.input('email', '', ' type="email" autocomplete="off" maxlength="120" placeholder="' + (u ? esc(u.email) : 'petro.l@example.com') + '"'),
             u ? 'Зараз: ' + u.email + '. Порожнє поле — пошта без змін.' : '') +
-          '<div class="pair">' + M.locked('Роль', 'Працівник (аудитор)') + M.locked('Локація', v.ctx.loc.name) + '</div>' +
+          '<div class="pair">' + M.locked('Роль', 'Аудитор') + M.locked('Локація', v.ctx.loc.name) + '</div>' +
           (u ? '<div class="field"><span class="label">Доступ' + M.hq('sr.mg.access') + '</span>' + M.seg('active', [[true, 'Увімкнено'], [false, 'Вимкнено']], st.active) + '</div>' : '') +
           '<p class="hint">Вхід — через Google, раз на тиждень. Старших і керівників додає адмін.</p></div>',
-        foot: M.cancelBtn() + '<button class="btn btn--primary" type="button" data-act="mg-save">' + P.ic(u ? 'save' : 'add') + (u ? 'Зберегти' : 'Додати працівника') + '</button>',
+        foot: M.cancelBtn() + '<button class="btn btn--primary" type="button" data-act="mg-save">' + P.ic(u ? 'save' : 'add') + (u ? 'Зберегти' : 'Додати аудитора') + '</button>',
         onMount: function (el) { M.enterSubmits(el, 'mg-save'); },
         on: {
           'mg-seg': function (t, e, layer) { st.active = t.getAttribute('data-v') === 'true'; qa(layer.el, '[data-k="active"]').forEach(function (b) { b.classList.toggle('seg__btn--on', b === t); }); },
@@ -44,7 +44,7 @@
               t.disabled = false;
               if (!r.ok) { M.showErrors(layer.el, r); return; }
               layer.close();
-              P.toast('ok', (r.created ? 'Працівника додано · ' : 'Зміни збережено · ') + r.name, r.active ? '' : 'Доступ вимкнено.');
+              P.toast('ok', (r.created ? 'Аудитора додано · ' : 'Зміни збережено · ') + r.name, r.active ? '' : 'Доступ вимкнено.');
               if (v.ctx.alive()) load();
             });
           }
@@ -112,7 +112,7 @@
         '<input class="input" data-input="mg-q" value="' + esc(st.q) + '" placeholder="Працівник, напр. q5" aria-label="Пошук працівника за назвою" style="padding-left:46px"></div>' +
         '<span class="pills mg-pills">' + pills.map(function (o) {
           return '<button class="pill' + (st.dep === o[0] ? ' pill--on' : '') + (o[0] === NEW ? ' mg-pill-new' : '') + '" type="button" aria-pressed="' + (st.dep === o[0]) + '" data-act="mg-dep"' + da('id', o[0]) + '>' + esc(o[1]) + '</button>'; }).join('') + '</span></div>' +
-        '<div class="tbl-box"><table class="tbl"><thead><tr><th>Працівник</th><th>Відділ</th><th class="n">Аудитів за 30 дн' + M.hq('sr.mg.audits30') + '</th><th>У формі аудиту' + M.hq('sr.mg.inForm') + '</th><th><span class="mg-vh">Дії</span></th></tr></thead><tbody data-mg-body>' + tbody() + '</tbody></table></div>' +
+        '<div class="tbl-box"><table class="tbl"><thead><tr><th>Працівник</th><th>Відділ</th><th class="n">Аудитів за 30 днів' + M.hq('sr.mg.audits30') + '</th><th>У формі аудиту' + M.hq('sr.mg.inForm') + '</th><th><span class="mg-vh">Дії</span></th></tr></thead><tbody data-mg-body>' + tbody() + '</tbody></table></div>' +
         '<p class="hint" data-mg-hint>' + countHint() + '</p></section>';
     }
     function redrawRows() { var b = q(v.col, '[data-mg-body]'); if (b) b.innerHTML = tbody(); var h = q(v.col, '[data-mg-hint]'); if (h) h.textContent = countHint(); }

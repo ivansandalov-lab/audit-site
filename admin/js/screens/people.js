@@ -26,7 +26,7 @@
       var locs = u.allLocations ? 'усі локації' : u.locationIds.map(locName).join(', ');
       return '<div class="adm-person' + (u.active ? '' : ' adm-person--off') + '"><span class="avatar" aria-hidden="true">' + esc(P.initials(u.name)) + '</span>' +
         '<div class="adm-person__main"><div class="adm-person__name"><b>' + esc(u.name) + '</b>' + H.badge(u.roleLabel, u.role === 'admin' ? 'brand' : '') +
-          (u.isMe ? H.badge('це ви', 'info') : '') + (u.active ? '' : H.badge('доступ вимкнено', '')) + (u.seniorOff && u.active ? H.badge('вимкнув старший', 'warn') : '') + '</div>' +
+          (u.isMe ? H.badge('це ви', 'info') : '') + (u.active ? '' : H.badge('доступ вимкнено', '')) + (u.seniorOff && u.active ? H.badge('доступ вимкнув старший', 'warn') : '') + '</div>' +
         '<span class="adm-person__meta">' + esc(u.email) + ' · ' + esc(locs) + (u.lastAuditAt ? ' · останній аудит ' + esc(A.ago(u.lastAuditAt)) : '') + '</span></div>' +
         '<div class="adm-person__acts">' + (u.isMe ? '<span class="adm-dim adm-lockic" title="Свій доступ змінює інший адміністратор">' + P.ic('lock', 'ui-icon--sm') + '</span>'
           : A.sw(u.active, 'pp-access', da('id', u.id), (u.active ? 'Доступ увімкнено' : 'Доступ вимкнено') + ' · ' + u.name)) +

@@ -39,7 +39,7 @@
           }).join('') + '</ol>') + '</div>';
       }).join('') + '</div></section>';
   }
-  function monthLabel(m, i) { return K.month(m.month) + (i === 0 ? ' (по сьогодні)' : '') + ' · ' + K.n(m.audits, 'аудит', 'аудити', 'аудитів'); }
+  function monthLabel(m, i) { return K.month(m.month) + (i === 0 ? ' (ще триває)' : '') + ' · ' + K.n(m.audits, 'аудит', 'аудити', 'аудитів'); }
 
   P.cab.tab({ id: 'month', label: 'Звіт за місяць', ic: 'table', path: '/month', order: 40 });
   P.cab.screen('/month', { tab: 'month', title: 'Звіт за місяць', render: function (ctx) {
@@ -66,13 +66,14 @@
         K.seg('mgr-m-loc', r.locations.map(function (x) { return [x.id, x.name]; }), l.id, 'Локація') + '</div>' +
         '<div class="mgr-bar">' + K.select('mgr-m-month', opts, r.month, 'Місяць') +
         '<button class="btn btn--primary" type="button" data-act="mgr-m-pdf">' + P.ic('export', 'ui-icon--sm') + 'Завантажити PDF</button>' + K.help('mgr.pdf') +
-        '<button class="btn btn--secondary" type="button" data-act="mgr-m-csv">' + P.ic('import', 'ui-icon--sm') + 'Для Excel (CSV)</button>' +
+        '<button class="btn btn--secondary" type="button" data-act="mgr-m-csv">' + P.ic('import', 'ui-icon--sm') + 'Файл для Excel</button>' +
         '<button class="btn btn--secondary" type="button" data-act="mgr-m-copy">' + P.ic('table', 'ui-icon--sm') + 'Скопіювати таблицю</button>' + K.help('mgr.export') + '</div>' +
         '<p class="hint">PDF: відкриється вікно друку — оберіть у ньому «Зберегти як PDF».</p></div>' +
         '<div id="mgr-mb" class="mgr-page">' + (l.audits || l.rejected ? totalsCard(l) + deptsCard(l, r.criticalPct) + topCard(l)
           : '<section class="card">' + H.empty('За ' + K.month(r.month) + ' аудитів у локації немає', 'Оберіть інший місяць чи локацію вище.') + '</section>') +
-        '<div><h2 class="h2">Коригуючі дії · ' + esc(scope) + K.help('kd.action') + '</h2><p class="h2-sub">Відкриваються, коли брак, % відділу за тиждень понад норму (або раніше — раннім тумблером)' +
-        (r.kd ? ' ' + H.pct(r.kd.threshold) : '') + K.help('kd.threshold') + '</p></div>' + P.mgrKd.month(r.kd, scope + ' · ' + K.span(r.from, r.to)) + '</div></section>';
+        '<div><h2 class="h2">Коригуючі дії · ' + esc(scope) + K.help('kd.action') + '</h2><p class="h2-sub">Відкриваються, коли брак, % відділу за тиждень понад норму' +
+        (r.kd ? ' ' + H.pct(r.kd.threshold) : '') + K.help('kd.threshold') + ', або ще посеред тижня — раннім тумблером</p></div>' + P.mgrKd.month(r.kd, scope + ' · ' + K.span(r.from, r.to)) + '</div>' +
+        '<div class="mgr-rep" aria-hidden="true">' + P.mgrReport.html(r) + '</div></section>';
     }
     ctx.on('mgr-m-month', function (t) { st.month = t.value; load(); });
     ctx.on('mgr-m-loc', function (t) { st.loc = t.getAttribute('data-v'); load(); });
@@ -85,14 +86,14 @@
     });
     ctx.on('mgr-m-csv', function () {
       var name = 'audit-zvit-' + data.location.id.toLowerCase() + '-' + data.month + '.csv';
-      try { K.download(name, K.csv(K.monthRows(data))); P.toast('ok', 'Файл завантажено · ' + name, 'Відкривається в Excel: роздільник «;», кома в дробах.'); }
-      catch (e) { P.toast('danger', 'Не вдалося завантажити файл', String((e && e.message) || e)); }
+      try { K.download(name, K.csv(K.monthRows(data))); P.toast('ok', 'Файл завантажено · ' + name, 'Відкрийте його в Excel — числа одразу стануть по колонках.'); }
+      catch (e) { if (root.console) root.console.error(e); P.toast('danger', 'Не вдалося завантажити файл', 'Спробуйте ще раз або скопіюйте таблицю.'); }
     });
     ctx.on('mgr-m-copy', function () {
       var rows = K.monthRows(data);
       K.copy(K.tsv(rows)).then(function (ok) {
         if (ok) P.toast('ok', 'Таблицю скопійовано · ' + (rows.length - 1) + ' рядків', 'Вставте в Excel чи презентацію: Ctrl+V.');
-        else P.toast('warn', 'Не вдалося скопіювати', 'Браузер не дав доступу до буфера обміну. Можна завантажити CSV.');
+        else P.toast('warn', 'Не вдалося скопіювати', 'Браузер не дозволив копіювання. Завантажте файл для Excel — кнопка поруч.');
       });
     });
     load();

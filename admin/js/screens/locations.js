@@ -98,8 +98,8 @@
       '<div class="dtile__nums"><div><b>' + H.num(t.audits) + '</b><span>' + plural(t.audits, ['аудит', 'аудити', 'аудитів']) + ' сьогодні</span></div>' +
         '<div>' + (t.audits ? '<b>' + H.num(t.rejected) + ' шт</b> · ' + H.pct(t.pct) : '<b>—</b>') + '<span>брак, шт · брак, %' + help('admin.loc.today') + '</span></div></div>' +
       '<div class="cab-loc__btns">' +
-        '<button class="btn btn--secondary btn--sm" type="button" data-act="open-as" data-role="senior_auditor"' + da('loc', l.id) + '>' + P.ic('chart', 'ui-icon--sm') + 'Як старший</button>' +
-        '<button class="btn btn--secondary btn--sm" type="button" data-act="open-as" data-role="auditor"' + da('loc', l.id) + '>' + P.ic('audit', 'ui-icon--sm') + 'Як працівник</button>' + help('admin.loc.openAs') + '</div>' +
+        '<button class="btn btn--secondary btn--sm" type="button" data-act="open-as" data-role="senior_auditor"' + da('loc', l.id) + '>' + P.ic('chart', 'ui-icon--sm') + 'Відкрити як старший</button>' +
+        '<button class="btn btn--secondary btn--sm" type="button" data-act="open-as" data-role="auditor"' + da('loc', l.id) + '>' + P.ic('audit', 'ui-icon--sm') + 'Відкрити як працівник</button>' + help('admin.loc.openAs') + '</div>' +
       '</article>';
   }
 

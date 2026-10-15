@@ -1,7 +1,7 @@
 (function (root) {
   'use strict';
   var P = root.P, h = P.sr.h, esc = P.esc, A = P.srAn, X = P.srAnParts;
-  var LEVEL_MEANS = { fix: 'виріб можна виправити', repair: 'виріб іде в ремонт', scrap: 'виріб не відремонтувати' };
+  var LEVEL_MEANS = { fix: 'можна виправити одразу', repair: 'іде в ремонт', scrap: 'не ремонтується, виріб втрачено' };
   var STEP = 15;
 
   P.sr.screen('/analytics/defect/:id', { tab: 'analytics', title: 'Вид браку', render: function (ctx) {
@@ -12,7 +12,7 @@
       var box = ctx.el.querySelector('#an-dpick'), r = data;
       if (!box) return;
       var list = pin.day ? r.days.filter(function (d) { return d.day === pin.day; }) : pin.range ? r.days.filter(function (d) { return d.day >= pin.range[0] && d.day <= pin.range[1]; }) : [];
-      if (!list.length) { box.innerHTML = '<p class="hint an-pick__empty">Клік по стовпчику — числа дня тут і кнопка в історію; протягування — сума за кілька днів.</p>'; return; }
+      if (!list.length) { box.innerHTML = '<p class="hint an-pick__empty">Натисніть стовпчик — тут будуть числа дня і кнопка в історію. Проведіть по кількох — сума за ці дні.</p>'; return; }
       var a = list[0].day, b = list[list.length - 1].day, pcs = 0, audits = 0, checked = 0, withIt = 0;
       list.forEach(function (d) { pcs += d.pieces; audits += d.audits; checked += d.checked; if (d.pieces) withIt++; });
       var facts = [['цього браку', h.num(pcs) + ' шт'], ['аудитів у локації', h.num(audits)], ['перевірено в локації', h.num(checked) + ' шт']];
@@ -46,7 +46,7 @@
         '<div class="facts"><p class="group-label" style="padding:0">У яких відділах, шт</p>' + r.depts.map(function (d) {
           return '<div class="lvl-row an-lvl" style="grid-template-columns:110px minmax(0,1fr) 64px"><span>' + esc(d.name) + '</span><div class="hbar__track"><i style="width:' + Math.round(d.pieces / dmax * 100) + '%"></i></div><span class="lvl-row__n"><b style="color:var(--text)">' + h.num(d.pieces) + ' шт</b></span></div>';
         }).join('') + '</div>' +
-        '<div class="facts"><p class="group-label" style="padding:0">У кого цей брак, шт · клік — картка працівника' + A.q('sr.an.defWorkers') + '</p><div>' + wTop.map(function (w) {
+        '<div class="facts"><p class="group-label" style="padding:0">У кого цей брак, шт · натисніть — картка працівника' + A.q('sr.an.defWorkers') + '</p><div>' + wTop.map(function (w) {
           var sub = w.helperPieces ? '<span class="badge an-help">допомога</span> ' + (w.helperPieces === w.pieces ? 'усі штуки' : h.num(w.helperPieces) + ' шт із ' + h.num(w.pieces)) + ' — в іншому відділі' : '';
           return A.hbar({ name: w.name, sub: sub, share: w.pieces / wmax, n: w.pieces, cols: cols, act: w.code ? 'an-worker' : '', attrs: ' data-code="' + esc(w.code) + '"' });
         }).join('') + '</div>' + (rest.length ? '<p class="hint">Ще ' + A.n(rest.length, 'людина', 'людини', 'людей') + ' — ' + h.num(rest.reduce(function (s, w) { return s + w.pieces; }, 0)) + ' шт.</p>' : '') + '</div></div>';
@@ -54,7 +54,7 @@
         esc(r.products.map(function (p) { return p.name + ' — ' + p.pieces; }).join(' · ')) + '</p></div>';
       var rows = r.rows.slice(0, shown), left = r.rows.length - rows.length;
       var table = '<section class="card"><div class="card-head"><div style="flex:1"><h2 class="card-title">Записи: ' + esc(t.name.toLowerCase()) + '</h2><p class="hint">Нові зверху · показано ' + rows.length + ' з ' +
-        A.n(r.rows.length, 'запису', 'записів', 'записів') + ' · клік — увесь аудит</p></div></div><div class="tbl-box"><table class="tbl"><thead><tr><th>Дата</th><th>Відділ</th><th>Виріб</th><th>Працівник</th><th class="n">Брак, шт</th></tr></thead><tbody>' +
+        A.n(r.rows.length, 'запису', 'записів', 'записів') + ' · натисніть рядок — увесь аудит</p></div></div><div class="tbl-box"><table class="tbl"><thead><tr><th>Дата</th><th>Відділ</th><th>Виріб</th><th>Працівник</th><th class="n">Брак, шт</th></tr></thead><tbody>' +
         rows.map(function (x) {
           return '<tr data-act="an-aud" data-id="' + esc(x.auditId) + '"><td>' + esc(A.dshort(x.day)) + '</td><td>' + esc(x.departmentName) + (x.otherDept ? '<span class="sub">знайдено в іншому відділі</span>' : '') + '</td>' +
             '<td>' + esc(x.productName) + (x.orderNo ? '<span class="sub">' + esc(x.orderNo) + '</span>' : '') + '</td>' +
@@ -63,7 +63,7 @@
         }).join('') + '</tbody></table></div>' +
         (left > 0 ? '<button class="btn btn--secondary btn--sm" type="button" data-act="an-more" style="align-self:flex-start">Показати ще ' + Math.min(left, STEP) + ' з ' + left + '</button>' : '') + '</section>';
       ctx.el.innerHTML = '<section class="card">' + head + '<div class="row"><div class="col--wide" style="display:flex;flex-direction:column;gap:12px">' +
-        '<div><h3 class="card-title">' + esc(t.name) + ' по днях, шт</h3><p class="hint">' + esc(A.span(r.from, r.to)) + ' · уся локація · наведіть на день — його числа · клік — зафіксувати · протягніть — кілька днів</p></div>' +
+        '<div><h3 class="card-title">' + esc(t.name) + ' по днях, шт</h3><p class="hint">' + esc(A.span(r.from, r.to)) + ' · уся локація · наведіть або торкніться стовпчика — числа дня · натисніть — закріпити · проведіть по кількох — сума за ці дні</p></div>' +
         '<div class="legend">' + h.lvl(t.level, P.sr.LEVELS[t.level] + ' — цей вид браку, шт') + '<span class="an-key"><i class="an-key__none"></i>аудитів не було</span></div>' +
         '<div data-chart="defect"></div><div id="an-dpick"></div>' + facts + products + '</div>' + side + '</div></section>' + table;
       chart = P.srChart.mount(ctx.el.querySelector('[data-chart="defect"]'), {

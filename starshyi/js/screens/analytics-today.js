@@ -23,7 +23,7 @@
     var r = view.data, all = r.todayAll, box = view.box('an-tiles');
     if (!box) return;
     var allToday = '<span class="an-tile__today"><span class="an-tile__lbl">Сьогодні</span><span class="an-st">' + A.n(all.audits, AUD[0], AUD[1], AUD[2]) + '</span></span>' +
-      '<span class="an-segs" role="img" aria-label="Відділів: норму добрано — ' + all.done + ', не добрано — ' + all.part + ', аудитів не було — ' + all.none + '">' +
+      '<span class="an-segs" role="img" aria-label="Відділів: норму виконано — ' + all.done + ', ще не виконано — ' + all.part + ', аудитів не було — ' + all.none + '">' +
       r.todayDepts.map(function (d) { return X.scale(d, 'sm'); }).join('') + '</span>' +
       '<span class="an-tile__nums">' + (all.audits ? '<b>' + h.num(all.checked) + '</b> шт · брак <b>' + h.num(all.rejected) + ' шт</b> · ' + h.pct(all.pct) : 'аудитів сьогодні не було') + '</span>';
     box.innerHTML = tile('', !view.dep, tileTop('Усі відділи', !view.dep, all.period), allToday, 'Усі відділи: брак по днях, шт') +
@@ -43,12 +43,12 @@
     if (key) key.innerHTML = '<div class="legend an-switch__key"><span>Плитка перемикає всю сторінку на відділ' + A.q('sr.an.tiles') + '</span>' +
       '<span class="an-key"><i class="an-scale an-scale--none an-scale--key"></i>сьогодні аудитів не було</span>' +
       '<span class="an-key"><span class="an-scale an-scale--part an-scale--key"><i class="an-scale__fill" style="width:55%"></i><i class="an-scale__miss" style="width:45%"></i></span>бракує до норми дня</span>' +
-      '<span class="an-key"><span class="an-scale an-scale--done an-scale--key"><i class="an-scale__fill" style="width:100%"></i></span>норму дня добрано</span>' +
+      '<span class="an-key"><span class="an-scale an-scale--done an-scale--key"><i class="an-scale__fill" style="width:100%"></i></span>норму дня виконано</span>' +
       ['fix', 'repair', 'scrap'].map(function (k) { return h.lvl(k); }).join('') +
       '<span>стовпчики — брак по днях, шт · ' + (n === 1 ? 'останній день' : 'останні ' + X.dn(n)) + ' періоду</span></div>';
   }
 
-  var TITLE = { none: 'Аудитів сьогодні не було', part: 'Вибірку не добрано', done: 'Вибірку добрано', nonorm: 'Норма дня не задана' };
+  var TITLE = { none: 'Аудитів сьогодні не було', part: 'Норму дня ще не виконано', done: 'Норму дня виконано', nonorm: 'Норма дня не задана' };
   function hero(d) {
     var t = d.target, over = d.state === 'done' && d.checked > t;
     var big = d.state === 'none' ? '<b class="an-hero__n an-hero__n--mute">0</b><span>шт перевірено' + (t != null ? ' · норма дня ' + h.num(t) + ' шт' : '') + '</span>'
@@ -76,14 +76,14 @@
       A.kpi(h.num(d.rejected), 'брак відділу, шт', 'sr.an.deptRejected') +
       A.kpi(h.pct(d.pct), d.pct == null ? 'брак, % · перевіреного у відділі немає' : 'брак, % = ' + h.num(d.rejected) + ' шт ÷ ' + h.num(d.checked) + ' перевірених', 'term.rate') +
       '<div class="kpi an-kpi-lv"><span class="kpi__label" style="margin:0">рівні браку дня, шт' + A.q('term.levels') + '</span>' + (lv ? h.legend(d.levels) + h.stack(d.levels, 10) : '<span class="hint">браку немає</span>') + '</div></div>';
-    var audits = '<div class="col an-list"><h3 class="an-h3">Аудити дня · ' + t.audits.length + '</h3>' + (t.audits.length ? '<p class="hint">Нові зверху · клік — увесь аудит збоку</p><div class="list">' +
+    var audits = '<div class="col an-list"><h3 class="an-h3">Аудити дня · ' + t.audits.length + '</h3>' + (t.audits.length ? '<p class="hint">Нові зверху · натисніть — увесь аудит збоку</p><div class="list">' +
       t.audits.map(function (a) {
         return '<button class="row-item an-arow" type="button" data-act="an-aud" data-id="' + esc(a.id) + '"><b class="an-arow__t">' + P.fmt.time(a.createdAt) + '</b>' +
           '<span class="row-item__main"><span class="row-item__title">' + esc(a.auditorName) + '</span><span class="row-item__meta">' + esc(a.products.join(', ') + (a.orders.length ? ' · ' + a.orders.join(', ') : '')) + '</span></span>' +
           '<span class="an-arow__n"><b>' + h.num(a.checked) + ' шт</b><span class="sub">брак ' + X.brak(a.rejected, a.pct) + '</span>' +
           (a.foreign ? '<span class="sub">з них ' + h.num(a.foreign) + ' шт — іншого відділу</span>' : '') + '</span></button>';
       }).join('') + '</div>' : '<p class="hint">У відділі аудитів сьогодні не було.</p>') + '</div>';
-    var types = '<div class="col an-list"><h3 class="an-h3">Види браку дня · ' + h.num(d.rejected) + ' шт</h3>' + (t.types.length ? '<p class="hint">Брак цього відділу · рівень · у кого · клік — екран виду браку</p><div class="list">' +
+    var types = '<div class="col an-list"><h3 class="an-h3">Види браку дня · ' + h.num(d.rejected) + ' шт</h3>' + (t.types.length ? '<p class="hint">Брак цього відділу · рівень · у кого · натисніть — екран виду браку</p><div class="list">' +
       t.types.map(function (x) {
         return '<a class="row-item" href="#/analytics/defect/' + encodeURIComponent(x.id) + '?dep=' + encodeURIComponent(dep.id) + '"><span class="row-item__main"><span class="row-item__title">' + esc(x.name) + '</span>' +
           '<span class="row-item__meta an-who">' + h.lvl(x.level) + '<span>' + who(x.workers) + '</span></span></span><b class="an-arow__n">' + h.num(x.pieces) + ' шт</b></a>';
@@ -100,9 +100,9 @@
   function todayAll(view) {
     var r = view.data, a = r.todayAll;
     var head = '<div class="card-head an-today__head"><div style="flex:1;min-width:220px"><h2 class="card-title">Сьогодні · усі відділи' + A.q('sr.an.today') + '</h2>' +
-      '<p class="hint">' + esc(A.dcap(r.today)) + ' · станом на ' + P.fmt.time(r.asOf) + ' · шкала — перевірено проти норми дня · клік по відділу — його сторінка</p></div>' +
+      '<p class="hint">' + esc(A.dcap(r.today)) + ' · станом на ' + P.fmt.time(r.asOf) + ' · шкала — перевірено проти норми дня · натисніть відділ — його сторінка</p></div>' +
       '<p class="an-today__sum"><span class="an-today__line">' + (a.audits ? '<b>' + A.n(a.audits, AUD[0], AUD[1], AUD[2]) + '</b> · перевірено <b>' + h.num(a.checked) + ' шт</b> · брак <b>' + X.brak(a.rejected, a.pct) + '</b>' : '<b>Аудитів сьогодні не було</b>') + '</span>' +
-      '<span>відділів: добрано ' + a.done + ' · не добрано ' + a.part + ' · без аудитів ' + a.none + '</span></p></div>';
+      '<span>відділів: норму виконано — ' + a.done + ' · ще не виконано — ' + a.part + ' · без аудитів — ' + a.none + '</span></p></div>';
     return head + '<div class="an-drows">' + r.todayDepts.map(function (d) {
       var when = d.lastTodayAt ? 'останній аудит о ' + P.fmt.time(d.lastTodayAt) : d.lastDay ? 'останній аудит ' + A.ago(d.lastDay) : 'аудитів ще не було';
       return '<button class="an-drow" type="button" data-act="an-dep" data-id="' + esc(d.id) + '"><b class="an-drow__name">' + esc(d.name) + '</b>' + X.scale(d, 'md') +

@@ -30,9 +30,9 @@
           H.kpi(H.num(c.audits), A.plural(c.audits, ['аудит', 'аудити', 'аудитів']) + ' у тестових даних') + '</div>' +
         '<div class="adm-status">' +
           '<section class="card"><h3 class="adm-card-t">' + P.ic('info', 'ui-icon--sm') + 'Сторінка й дані</h3><dl class="kv">' +
-            '<dt>Збірка сторінки' + A.help('admin.status.build') + '</dt><dd>' + (b ? esc(b.text) + (b.raw !== b.text ? ' <span class="adm-dim">(' + esc(b.raw) + ')</span>' : '') : '<span class="adm-dim">немає номера — сторінку відкрито без збірки</span>') + '</dd>' +
+            '<dt>Версія сторінки' + A.help('admin.status.build') + '</dt><dd>' + (b ? esc(b.text) + (b.raw !== b.text ? ' <span class="adm-dim">(' + esc(b.raw) + ')</span>' : '') : '<span class="adm-dim">номера версії немає</span>') + '</dd>' +
             '<dt>Тестові дані в памʼяті браузера' + A.help('admin.status.storage') + '</dt><dd>' + (sz ? '≈ ' + H.num(sz.kb) + ' КБ · ' + sz.n + ' ' + A.plural(sz.n, ['запис', 'записи', 'записів']) : '<span class="adm-dim">браузер не дає прочитати</span>') + '</dd>' +
-            '<dt>Дані на день' + A.help('admin.status.day') + '</dt><dd>' + esc(H.dayLong(r.day)) + '</dd></dl></section>' +
+            '<dt>«Сьогодні» в тестових даних' + A.help('admin.status.day') + '</dt><dd>' + esc(H.dayLong(r.day)) + '</dd></dl></section>' +
           '<section class="card"><h3 class="adm-card-t">' + P.ic('notification', 'ui-icon--sm') + 'Розсилки</h3>' +
             '<p class="hint">Стан розсилки в Slack, черга й останні надсилання — у вкладці «Розсилки».</p>' +
             '<div><a class="btn btn--secondary btn--sm" href="#/mailing">' + P.ic('arrow-right', 'ui-icon--sm') + 'Відкрити «Розсилки»</a></div></section>' +

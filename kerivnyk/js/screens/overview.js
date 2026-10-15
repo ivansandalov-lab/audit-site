@@ -49,7 +49,7 @@
 
   function daysCard(r, scope) {
     var head = '<div><h2 class="card-title">Брак за днями, % від перевіреного' + K.help('mgr.daysChart') + '</h2><p class="hint">' + esc(scope) + ' · ' + esc(K.span(r.from, r.to)) +
-      ' · колір — рівень браку · наведіть на день — його числа · протягніть — кілька днів</p></div>';
+      ' · колір — рівень браку · наведіть на день або торкніться — його числа · протягніть мишею — сума кількох днів</p></div>';
     if (!r.totals.audits) return head + H.empty('Аудитів за період не було', scope + ' · ' + K.span(r.from, r.to));
     return head + '<div class="legend">' + K.LV.map(function (k) { return H.lvl(k); }).join('') +
       '<span class="mgr-key"><i class="mgr-key__dash"></i>критичний рівень — ' + r.criticalPct + '%' + K.help('term.critical') + '</span>' +
@@ -77,7 +77,7 @@
   function compareCard(r, scope) {
     var t = r.totals, p = r.prev, n = t.days;
     function row(label, prev, cur) { return '<div class="mgr-cmp__r"><span>' + label + '</span><span>' + K.was(prev, cur) + '</span></div>'; }
-    return '<div><h2 class="card-title">Порівняння з попередніми ' + K.dn(n) + K.help('mgr.was') + '</h2><p class="hint">' + esc(scope) + ' · було — ' + esc(K.span(p.from, p.to)) +
+    return '<div><h2 class="card-title">Порівняння з попереднім періодом (' + K.dn(n) + ')' + K.help('mgr.was') + '</h2><p class="hint">' + esc(scope) + ' · було — ' + esc(K.span(p.from, p.to)) +
       ' · стало — ' + esc(K.span(r.from, r.to)) + '</p></div><div class="mgr-cmp">' +
       row('Брак, %', H.pct(p.pct), H.pct(t.pct)) + row('Брак, шт', H.num(p.rejected), H.num(t.rejected)) +
       row('Перевірено, шт', H.num(p.checked), H.num(t.checked)) + row('Аудитів', H.num(p.audits), H.num(t.audits)) +

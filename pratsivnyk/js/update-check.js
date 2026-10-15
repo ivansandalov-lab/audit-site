@@ -45,9 +45,9 @@
     box.innerHTML = '<div class="upd__box"><div class="upd__ic">' + ICON + '</div>' +
       '<h1 class="upd__title" id="upd-title">Вийшло оновлення</h1>' +
       '<p class="upd__text" id="upd-text">Щоб працювати далі, оновіть додаток.' +
-      (formOpen() ? ' Незаписаний аудит збережеться як чернетка — після оновлення продовжите з того ж місця.' : '') + '</p>' +
+      (formOpen() ? ' Аудит, який ви не дописали, збережеться як чернетка — після оновлення продовжите з того ж місця.' : '') + '</p>' +
       '<button class="upd__btn" type="button">' + 'Оновити</button>' +
-      (again ? '<p class="upd__note">Оновлення ще не дійшло до цього пристрою. Натисніть «Оновити» ще раз за хвилину.</p>' : '') + '</div>';
+      (again ? '<p class="upd__note">Нова версія ще не завантажилась на цей пристрій. Натисніть «Оновити» ще раз за хвилину.</p>' : '') + '</div>';
     doc.body.appendChild(box);
     var btn = box.querySelector('.upd__btn');
     btn.onclick = function () {

@@ -3,9 +3,9 @@
   var P = root.P, esc = P.esc;
   var DAYS = [[1, 'пн'], [2, 'вт'], [3, 'ср'], [4, 'чт'], [5, 'пт'], [6, 'сб'], [0, 'нд']];
   var WEEKDAYS = [[1, 'понеділок'], [2, 'вівторок'], [3, 'середа'], [4, 'четвер'], [5, 'пʼятниця'], [6, 'субота'], [0, 'неділя']];
-  var KINDS = [['every', 'Кожні N хв'], ['daily', 'Щодня'], ['weekly', 'Щотижня'], ['event', 'Подія']];
+  var KINDS = [['every', 'Кожні … хв'], ['daily', 'Щодня'], ['weekly', 'Щотижня'], ['event', 'Подія']];
   var EVENTS = [['audit', 'Новий аудит'], ['over', 'Брак понад поріг'], ['kd', 'Новий розбір коригуючих дій']];
-  var CONDS = [['always', 'Завжди'], ['audits', 'Лише якщо були аудити'], ['over', 'Лише якщо брак, % понад X']];
+  var CONDS = [['always', 'Завжди'], ['audits', 'Лише якщо були аудити'], ['over', 'Лише якщо брак, % понад поріг']];
   var PH_HELP = { 'Сьогодні': 'admin.ml.ph.today', 'Відділи': 'admin.ml.ph.depts', 'Коригуючі дії': 'admin.ml.ph.kd', 'Посилання': 'admin.ml.ph.links' };
 
   function da(k, v) { return ' data-' + k + '="' + esc(v) + '"'; }
@@ -69,7 +69,7 @@
       var picked = {}; d.to.forEach(function (t) { if (t.type === 'user') picked[t.id] = 1; });
       return field('to', 'Кому', '<div class="chips">' + (chips || '<span class="hint">Ще нікого — додайте канал або людину.</span>') + '</div>' +
         '<div class="rz-addrow"><input class="input" data-rz-chan placeholder="#канал" aria-label="Канал Slack" maxlength="81">' +
-        '<button class="btn btn--secondary" type="button" data-act="rz-to-chan">' + P.ic('add', 'ui-icon--sm') + 'Канал</button></div>' +
+        '<button class="btn btn--secondary" type="button" data-act="rz-to-chan">' + P.ic('add', 'ui-icon--sm') + 'Додати канал</button></div>' +
         '<select class="input" data-rz-user aria-label="Додати людину"><option value="">+ Людина особисто…</option>' + data.users.filter(function (u) { return !picked[u.id]; }).map(function (u) {
           return '<option value="' + esc(u.id) + '">' + esc(u.name + ' · ' + u.roleLabel + ' · ' + u.locations.join(', ')) + '</option>'; }).join('') + '</select>', help('admin.ml.to'));
     }

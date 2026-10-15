@@ -120,11 +120,11 @@
       '<div data-chart="days"></div><div id="hs-sel" class="hs-sel"></div></div>';
     var tmax = an.types.length ? an.types[0].pieces : 1, pickedType = df && an.types.some(function (t) { return t.name === df.name; });
     var types = '<div class="col hs-typescol"><div><h3 class="card-title hs-h3">Види браку у вибірці' + A.q('sr.hs.types') + '</h3>' +
-      '<p class="hint">' + h.num(an.allRejected) + ' шт · ' + A.n(an.types.length, 'вид', 'види', 'видів') + ' браку · клік по виду — числа й графік лише для нього, ще клік — зняти</p></div>' +
+      '<p class="hint">' + h.num(an.allRejected) + ' шт · ' + A.n(an.types.length, 'вид', 'види', 'видів') + ' браку · натисніть вид — числа й графік лише для нього, ще раз — зняти</p></div>' +
       (an.types.length ? A.levels(an.allLevels) + '<div class="hs-types' + (pickedType ? ' hs-types--picked' : '') + '"' + (an.types.length > TOP ? ' tabindex="0"' : '') + ' role="group" aria-label="Види браку у вибірці, від найчастішого">' +
         an.types.map(function (t, i) {
           var on = !!df && t.name === df.name;
-          return A.hbar({ rank: i + 1, name: t.name, sub: (t.otherDepts.length ? 'зараховано: ' + esc(t.otherDepts.join(', ')) + ' · ' : '') + h.lvl(t.level), share: t.pieces / tmax, n: t.pieces,
+          return A.hbar({ rank: i + 1, name: t.name, sub: (t.otherDepts.length ? 'рахується відділу: ' + esc(t.otherDepts.join(', ')) + ' · ' : '') + h.lvl(t.level), share: t.pieces / tmax, n: t.pieces,
             cols: '20px minmax(0, 1fr) minmax(0, 0.55fr) 36px', act: 'hs-defect', attrs: ' data-v="' + esc(t.name) + '" aria-pressed="' + on + '"' });
         }).join('') + '</div>' +
         (an.types.length > TOP ? '<p class="hint">Видно ' + TOP + ' найчастіших — ще ' + (an.types.length - TOP) + ' гортаються в цьому списку.</p>' : '')
@@ -156,7 +156,7 @@
       '<th class="n">Перевірено, шт</th>' + (df ? '<th class="n">Цей вид браку, шт</th><th class="n">Увесь брак, шт' + A.q('sr.hs.rowRejected') + '</th>' : '<th class="n">Брак, шт' + A.q('sr.hs.rowRejected') + '</th>') +
       '<th style="text-align:center">Фото, коментар' + A.q('sr.hs.icons') + '</th></tr></thead><tbody>' + rows + '</tbody></table></div>' +
       '<div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">' + (left > 0 ? '<button class="btn btn--secondary" type="button" data-act="hs-more">' + h.ic('chevron-down') + 'Показати ще ' + Math.min(left, STEP) + '</button>' : '') +
-      '<p class="hint">Клік по рядку — аудит збоку: перевірка, брак, фото, правка й видалення.</p></div></section>';
+      '<p class="hint">Натисніть рядок — аудит збоку: перевірка, брак, фото, виправлення й видалення.</p></div></section>';
   }
   function results(r) {
     var counts = '<div class="hs-counts"><span><b style="font-variant-numeric:tabular-nums">' + h.num(r.total) + '</b> ' +
@@ -240,7 +240,7 @@
         html = '<p class="hs-sel__t"><b>' + esc(A.dcap(pin)) + '</b> · ' + esc(dayFacts(s, df)) + '</p>' +
           (s.matched ? '<button class="btn btn--primary btn--sm" type="button" data-act="hs-showday">Показати аудити цього дня</button>' : '') +
           '<button class="btn btn--quiet btn--sm" type="button" data-act="hs-unpin">Зняти</button>';
-      } else html = '<p class="hint">Наведіть на стовпчик — числа дня · клік — зафіксувати день · протягніть мишею — обрати кілька днів</p>';
+      } else html = '<p class="hint">Наведіть або торкніться стовпчика — числа дня · натисніть — закріпити · проведіть по кількох — ці дні стануть фільтром «Дні»</p>';
       el.className = 'hs-sel' + (hf.d1 || pin ? ' hs-sel--on' : '');
       el.innerHTML = html;
     }

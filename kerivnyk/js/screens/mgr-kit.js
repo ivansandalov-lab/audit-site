@@ -11,7 +11,7 @@
   var K = P.mgr = {
     LV: LV,
     n: function (n, one, few, many) { return h().num(n) + ' ' + P.plural(n, one, few, many); },
-    dn: function (n) { return n + ' дн.'; },
+    dn: function (n) { return n + ' ' + P.plural(n, 'день', 'дні', 'днів'); },
     day: function (d) { return +d.slice(8, 10) + ' ' + MONTHS_GEN[+d.slice(5, 7) - 1]; },
     span: function (from, to) { return from === to ? K.day(from) : K.day(from) + ' — ' + K.day(to); },
     dcap: function (d) { var s = h().dayLong(d); return s.charAt(0).toUpperCase() + s.slice(1); },

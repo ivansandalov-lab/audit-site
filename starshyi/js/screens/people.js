@@ -45,7 +45,7 @@
         : (dep ? 'У відділі ' + dep.name + ' виробничих працівників немає.' : 'Виробничих працівників немає.') + ' Додають їх у «Керуванні».',
         q || dep ? '<button class="btn btn--secondary btn--sm" type="button" data-act="pp-clear">Показати всіх</button>' : '');
     return '<section class="card"><div class="card-head" style="flex-wrap:wrap"><div style="flex:1;min-width:240px"><h2 class="card-title">Виробничі працівники · ' + list.length + '</h2>' +
-      '<p class="hint">' + days + ' дн. · спершу ті, в кого найбільше браку в штуках · клік по рядку — картка працівника</p></div>' + h.legend() + '</div>' + body + '</section>';
+      '<p class="hint">' + A.n(days, 'день', 'дні', 'днів') + ' · спершу ті, в кого найбільше браку в штуках · натисніть рядок — картка працівника</p></div>' + h.legend() + '</div>' + body + '</section>';
   }
 
   function openWorker(ctx, code) {
@@ -62,7 +62,7 @@
         if (!r.ok) { layer.body(h.error(r)); return; }
         var w = r.worker;
         layer.el.querySelector('.modal__title').textContent = w.name + ' · ' + w.departmentName;
-        var sub = layer.el.querySelector('.modal__head .hint'); if (sub) sub.textContent = 'Виробничий працівник · ' + (A.diff(r.from, r.to) + 1) + ' дн., ' + h.dayShort(r.from) + ' — ' + h.dayShort(r.to);
+        var sub = layer.el.querySelector('.modal__head .hint'); if (sub) sub.textContent = 'Виробничий працівник · ' + A.n(A.diff(r.from, r.to) + 1, 'день', 'дні', 'днів') + ', ' + h.dayShort(r.from) + ' — ' + h.dayShort(r.to);
         layer.body(workerBody(r, ctx.loc.name) + '<div class="pp-block" data-pp-kd>' + kdHead(w.departmentName, r) + h.loading() + '</div>');
         chart = mountWeeks(layer.el.querySelector('[data-chart="pp-weeks"]'), r);
         loadKd();
@@ -99,7 +99,7 @@
       return '<a class="pp-kd-item" data-ov-close href="#/kd/dept/' + encodeURIComponent(a.departmentId) + '?p=' + a.period + '&t=' + encodeURIComponent(a.defectTypeId) + '">' +
         '<span class="pp-kd-item__head"><b>КД · ' + esc(K.week(a.periodStart, a.periodEnd)) + '</b>' + K.stateBadge(a) + '</span>' +
         '<span class="hint">Пункти КД (жирним — види браку працівника): ' + pts + '</span>' +
-        '<span class="hint">Його види браку, % від перевірених у відділі' + (a.result ? ' (тиждень КД → тиждень результату)' : ' (тиждень КД)') + ': ' + ba + '</span>' +
+        '<span class="hint">Його види браку, % від перевірених у відділі' + (a.result ? ' (тиждень КД → перший тиждень після впровадження)' : ' (тиждень КД)') + ': ' + ba + '</span>' +
         '<span class="hint">Брак, % усього відділу: ' + esc(K.rates(a)) + '</span>' +
         (a.implementedAt ? '<span class="hint">Впроваджений план · що зроблено (' + h.dayShort(a.implementedAt) + '): ' + esc(a.plan) + '</span>'
           : a.status === 'not_needed' ? '<span class="hint">Дія не потрібна: «' + esc(a.notNeededReason) + '»</span>' : '<span class="hint">Впроваджений план ще не записано.</span>') + '</a>';
@@ -113,15 +113,15 @@
       height: 150, label: 'Брак працівника по тижнях, %', line: { v: crit, label: crit + '%' }, xLabels: r.weeks.length > 8,
       tip: function (it) {
         var x = it.w, over = x.rate > crit;
-        return P.srChart.tipDay({ title: 'Тиждень ' + spanShort(x.from, x.to), none: x.audits ? null : 'Аудитів з виробами працівника не було',
+        return P.srChart.tipDay({ title: 'Тиждень ' + spanShort(x.from, x.to), none: x.audits ? null : 'Аудитів, де перевіряли роботу працівника, не було',
           audits: x.audits, checked: x.checked, rejected: x.pieces, pct: x.rate, over: over, rows: over ? [['Понад ' + crit + '%', 'так', 'danger']] : [] });
       } });
   }
   function workerBody(r, locName) {
-    if (!r.audits) return P.state.empty('info', 'Аудитів з виробами працівника немає', 'Період: ' + A.span(r.from, r.to));
+    if (!r.audits) return P.state.empty('info', 'Аудитів, де перевіряли роботу працівника, немає', 'Період: ' + A.span(r.from, r.to));
     var crit = r.criticalPct, over = r.rate != null && r.rate > crit;
     var kpis = '<div class="kpis pp-kpis">' +
-      A.kpi(h.num(r.audits), 'аудитів з виробами працівника · з браком ' + r.withDefects + (r.helperAudits ? ' · допомога іншому відділу: ' + r.helperAudits : ''), 'sr.pp.audits') +
+      A.kpi(h.num(r.audits), 'аудитів, де перевіряли роботу працівника · з браком ' + r.withDefects + (r.helperAudits ? ' · допомога іншому відділу: ' + r.helperAudits : ''), 'sr.pp.audits') +
       A.kpi(h.num(r.checked), 'перевірено, шт · частка від вибірки цих аудитів', 'sr.pp.checked') +
       A.kpi(h.num(r.pieces), 'брак, шт', 'sr.pp.pieces', r.pieces ? 'danger' : '') +
       A.kpi(h.pct(r.rate), r.rate == null ? 'брак, % = брак, шт ÷ перевірено, шт' : 'брак, % · ' + h.num(r.pieces) + ' шт з ' + h.num(r.checked) + ' перевірених' + (over ? ' · понад ' + crit + '%' : ''), 'sr.pp.rate', over ? 'danger' : '') + '</div>';
@@ -183,8 +183,8 @@
   }
   function auditorsCard(r) {
     var q = pf.aq.trim().toLowerCase(), list = r.auditors.filter(function (a) { return !q || a.name.toLowerCase().indexOf(q) >= 0; });
-    var head = '<div class="card-head"><div style="flex:1"><h2 class="card-title">Аудитори · ' + list.length + '</h2><p class="hint">' + (A.diff(r.from, r.to) + 1) + ' дн. · ' +
-      A.n(r.totalAudits, 'аудит', 'аудити', 'аудитів') + ' · спершу ті, в кого найбільше аудитів · клік по рядку — розгорнути</p></div></div>';
+    var head = '<div class="card-head"><div style="flex:1"><h2 class="card-title">Аудитори · ' + list.length + '</h2><p class="hint">' + A.n(A.diff(r.from, r.to) + 1, 'день', 'дні', 'днів') + ' · ' +
+      A.n(r.totalAudits, 'аудит', 'аудити', 'аудитів') + ' · спершу ті, в кого найбільше аудитів · натисніть рядок — розгорнути</p></div></div>';
     if (!list.length) return '<section class="card">' + head + P.state.empty('search', 'Нікого не знайдено', 'Пошук «' + pf.aq.trim() + '»') + '</section>';
     return '<section class="card">' + head + '<div class="tbl-box"><table class="tbl"><thead><tr><th>Аудитор</th><th class="n">Аудитів</th><th class="n">На робочий день' + A.q('sr.pp.perDay') + '</th>' +
       '<th class="n">За аудит, шт' + A.q('sr.pp.perAudit') + '</th><th class="n">Брак, %' + A.q('sr.pp.audRate') + '</th><th class="n">Аудити без браку' + A.q('sr.pp.clean') + '</th><th>Останній аудит</th></tr></thead><tbody>' +

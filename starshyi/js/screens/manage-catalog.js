@@ -44,7 +44,7 @@
           (list.length ? '<div class="tbl-box"><table class="tbl"><thead><tr><th>' + M.ck(allOn, 'mg-sel-all', '', 'Позначити всі') + '</th><th>Виріб</th><th class="n">В аудитах цеху' + M.hq('sr.mg.inAudits') + '</th><th><span class="mg-vh">Дії</span></th></tr></thead><tbody>' +
             list.map(prodRow).join('') + '</tbody></table></div>' : H.empty('Виробів ще немає', '')) +
           (ids.length ? selBar(ids.length, W.prod) : '') +
-          '<p class="hint">Довідник виробів спільний для всіх цехів.</p>') + '</section></div>';
+          '<p class="hint">Список виробів спільний для всіх цехів.</p>') + '</section></div>';
     }
 
     function saveDept(p) { return v.call('srMgDeptSave', p); }
@@ -79,8 +79,8 @@
         body: '<div class="mg-form">' + M.field('name', 'Назва відділу', M.input('name', '', ' autocomplete="off" maxlength="40" placeholder="Пошив · лінія 2"')) +
           '<label class="field" data-f="deptTypeId"><span class="label">Тип відділу</span><select class="input" name="deptTypeId">' +
           data.deptTypes.map(function (t) { return '<option value="' + esc(t.id) + '"' + (dep() && t.id === dep().deptTypeId ? ' selected' : '') + '>' + esc(t.name) + '</option>'; }).join('') + '</select>' +
-          '<span class="hint">Від типу — вироби й види браку відділу.</span></label>' +
-          M.field('sampleTarget', 'Норма вибірки на день, шт', M.input('sampleTarget', 120, ' type="number" min="1" max="10000" step="1" inputmode="numeric"'), '', 'term.sample') + '</div>',
+          '<span class="hint">Від типу залежить, які вироби й види браку будуть у формі аудиту цього відділу.</span></label>' +
+          M.field('sampleTarget', 'Норма вибірки — скільки штук перевірити за день', M.input('sampleTarget', 120, ' type="number" min="1" max="10000" step="1" inputmode="numeric"'), '', 'term.sample') + '</div>',
         foot: M.cancelBtn() + '<button class="btn btn--primary" type="button" data-act="mg-save">' + P.ic('add') + 'Додати відділ</button>',
         onMount: function (el) { M.enterSubmits(el, 'mg-save'); },
         on: { 'mg-save': function (t, e, layer) {
@@ -102,7 +102,7 @@
         body: '<div class="mg-form">' + M.field('name', 'Назва виробу', M.input('name', x ? x.name : '', ' autocomplete="off" maxlength="80" placeholder="Худі базове"')) +
           M.locked('Тип відділу', d.deptTypeName) +
           (x ? '<div class="field"><span class="label">У формі аудиту' + M.hq('sr.mg.inForm') + '</span>' + M.seg('active', [[true, 'Показується'], [false, 'Приховано']], st2.active) + '</div>' : '') +
-          '<p class="hint">Довідник виробів спільний для всіх цехів.</p></div>',
+          '<p class="hint">Список виробів спільний для всіх цехів.</p></div>',
         foot: M.cancelBtn() + '<button class="btn btn--primary" type="button" data-act="mg-save">' + P.ic(x ? 'save' : 'add') + (x ? 'Зберегти' : 'Додати виріб') + '</button>',
         onMount: function (el) { M.enterSubmits(el, 'mg-save'); },
         on: {
@@ -188,9 +188,9 @@
     }
     function bar() { var n = selIds().length; return n ? selBar(n, W.kind) : ''; }
     function draw() {
-      v.col.innerHTML = M.head('Види браку', 'У кожного виду — рівень. Довідник спільний для всіх цехів.',
+      v.col.innerHTML = M.head('Види браку', 'У кожного виду — рівень. Список спільний для всіх цехів.',
         '<div class="mg-actions"><button class="btn btn--secondary" type="button" data-act="mg-merge">' + P.ic('merge') + 'Обʼєднати…</button>' + M.btnNew('Новий вид браку') + '</div>') +
-        '<div class="kpis mg-kpis3" role="group" aria-label="Фільтр за рівнем браку">' + [['fix', 'Неправильно зроблене', 'можна виправити одразу — переробити'], ['repair', 'Пошкоджене', 'піде в ремонт'], ['scrap', 'Зламане', 'не відремонтувати — втрачено']].map(function (k) {
+        '<div class="kpis mg-kpis3" role="group" aria-label="Фільтр за рівнем браку">' + [['fix', 'Неправильно зроблене', 'можна виправити одразу'], ['repair', 'Пошкоджене', 'іде в ремонт'], ['scrap', 'Зламане', 'не ремонтується, виріб втрачено']].map(function (k) {
           var on = st.lvl === k[0], n = levelCount(k[0]);
           return '<button class="kpi mg-lvl' + (on ? ' mg-lvl--on' : '') + '" type="button" data-act="mg-lvl"' + da('v', k[0]) + ' aria-pressed="' + on + '">' +
             '<span class="mg-lvl__top"><span class="lvl lvl--' + k[0] + '" style="font-size:16px">' + esc(k[1]) + '</span>' + (on ? H.badge('обрано', 'brand') : '') + '</span>' +
@@ -210,9 +210,9 @@
         body: '<div class="mg-form">' + M.field('name', 'Назва виду браку', M.input('name', x ? x.name : '', ' autocomplete="off" maxlength="80" placeholder="Розрив шва"')) +
           (x ? M.locked('Відділ', x.departments) : '<label class="field" data-f="deptTypeId"><span class="label">Відділ</span><select class="input" name="deptTypeId">' +
             types.map(function (t) { return '<option value="' + esc(t.id) + '"' + (t.id === defType ? ' selected' : '') + '>' + esc(t.name) + '</option>'; }).join('') + '</select></label>') +
-          '<div class="field"><span class="label">Рівень' + M.hq('term.levels') + '</span>' + M.seg('level', M.levelOpts(), st2.level) + '<span class="hint">Неправильно зроблене — переробити одразу · пошкоджене — у ремонт · зламане — втрачено.</span></div>' +
+          '<div class="field"><span class="label">Рівень' + M.hq('term.levels') + '</span>' + M.seg('level', M.levelOpts(), st2.level) + '<span class="hint">Неправильно зроблене — можна виправити одразу · пошкоджене — іде в ремонт · зламане — не ремонтується, виріб втрачено.</span></div>' +
           (x ? '<div class="field"><span class="label">У формі аудиту' + M.hq('sr.mg.inForm') + '</span>' + M.seg('active', [[true, 'Показується'], [false, 'Приховано']], st2.active) + '</div>' : '') +
-          '<p class="hint">Довідник видів браку спільний для всіх цехів.</p></div>',
+          '<p class="hint">Список видів браку спільний для всіх цехів.</p></div>',
         foot: M.cancelBtn() + '<button class="btn btn--primary" type="button" data-act="mg-save">' + P.ic(x ? 'save' : 'add') + (x ? 'Зберегти' : 'Додати вид браку') + '</button>',
         onMount: function (el) { M.enterSubmits(el, 'mg-save'); },
         on: {

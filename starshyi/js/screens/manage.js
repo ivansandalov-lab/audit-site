@@ -3,7 +3,7 @@
   var P = root.P, H = P.sr.h, esc = P.esc;
 
   var SECTIONS = [
-    { id: 'team', label: 'Працівники', count: 'team' },
+    { id: 'team', label: 'Аудитори', count: 'team' },
     { id: 'workers', label: 'Виробничі працівники', count: 'workers' },
     { id: 'products', label: 'Відділи й вироби' },
     { id: 'defects', label: 'Види браку', count: 'defects' },
@@ -150,5 +150,5 @@
   P.srMg = { section: section, plural: plural, cnt: cnt, inAudits: inAudits, W: W, today: today, daysBetween: daysBetween, dateLong: dateLong, ago: ago, added: added,
     da: da, q: q, qa: qa, hq: hq, sw: sw, ck: ck, pen: pen, more: more, rowMenu: rowMenu, head: head, btnNew: btnNew, banner: banner, field: field, input: input,
     locked: locked, seg: seg, levelOpts: levelOpts, val: val, modal: modal, cancelBtn: cancelBtn, showErrors: showErrors, failToast: failToast,
-    enterSubmits: enterSubmits, ask: ask, LV_SHORT: { fix: 'неправильно', repair: 'пошкоджене', scrap: 'зламане' } };
+    enterSubmits: enterSubmits, ask: ask, LV_SHORT: { fix: 'неправильно зроблене', repair: 'пошкоджене', scrap: 'зламане' } };
 })(window);

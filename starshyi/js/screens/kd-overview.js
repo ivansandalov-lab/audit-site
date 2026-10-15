@@ -15,7 +15,7 @@
         '<p class="kd-text">' + K.plural(s.depts, 'відділ', 'відділи', 'відділів') + ' · ' + K.plural(s.audits, 'аудит', 'аудити', 'аудитів') + ' · перевірено ' + K.num(s.checked) +
         ' шт · брак ' + K.num(s.rejected) + ' шт (' + K.pct(s.rate) + ') · відділів понад норму ' + T + '%: ' + s.over + '</p>' +
         '<p class="hint">Тиждень, що триває, — ' + esc(K.range(rv.nextStart, rv.nextEnd)) + ' · його розбір — ' + esc(K.wd(rv.readyOn)) + ' зранку.</p></div>' +
-        '<div class="kpis kd-sum__kpis">' + kpi(c.over, 'понад норму, не почато', 'kd.state.over', 'danger') + kpi(c.watch, 'тиждень результату', 'kd.state.watch', 'info') +
+        '<div class="kpis kd-sum__kpis">' + kpi(c.over, 'понад норму, не почато', 'kd.state.over', 'danger') + kpi(c.watch, 'впроваджено · йде тиждень після впровадження', 'kd.state.watch', 'info') +
         kpi(c.hold, 'під наглядом', 'kd.state.hold', 'ok') + kpi(c.done, 'закрито: тримається · за 30 днів', 'kd.state.done', 'ok') +
         kpi(c.relapse, 'рецидив · за 30 днів', 'kd.state.relapse', 'danger') + kpi(c.skip, 'дія не потрібна · за 30 днів', 'kd.state.skip') + '</div></section>';
       if (!r.depts.length) { ctx.el.innerHTML = html + H.empty('Відділів у цій локації немає', 'Відділи додаються в розділі «Керування».'); return; }
@@ -23,7 +23,7 @@
       r.depts.forEach(function (d) { d.series.forEach(function (x) { if (x.rate > max) max = x.rate; }); });
       max = Math.ceil(max);
       html += '<div class="kd-boxes-head"><h3 class="card-title">Відділи' + help('kd.overview.depts') + '</h3>' +
-        K.cap('На кожному боксі — графік «брак відділу, % від перевірених» за 7 останніх завершених тижнів (' + esc(K.spanOf(r.depts[0].series)) + '); дати — під стовпчиками; шкала спільна: 0–' + max + '%. Наведіть на стовпчик — числа тижня.') +
+        K.cap('На кожному боксі — графік «брак відділу, % від перевірених» за 7 останніх завершених тижнів (' + esc(K.spanOf(r.depts[0].series)) + '); дати — під стовпчиками; шкала спільна: 0–' + max + '%. Наведіть або торкніться стовпчика — числа тижня.') +
         K.chartKeys('dept', T) + '</div>' +
         '<div class="kd-boxes">' + r.depts.map(function (d, i) { return box(d, i, r); }).join('') + '</div>' +
         '<a class="btn btn--secondary" href="#/kd/list" style="align-self:flex-start">' + P.ic('list') + 'Усі КД списком · ' + r.actionsTotal + '</a>';

@@ -24,7 +24,7 @@
       '<span class="hint">—</span>' +
       '<label class="date">' + P.ic('calendar', 'ui-icon--sm') + '<input type="date" data-period="to" value="' + period.to + '" max="' + today() + '" style="border:0;background:transparent;font:inherit;color:inherit"></label>' +
       '<span class="pills">' + [7, 30, 90].map(function (n) {
-        return '<button class="pill' + (period.preset === n ? ' pill--on' : '') + '" type="button" data-act="cab-preset" data-n="' + n + '">' + n + ' дн.</button>'; }).join('') + '</span></div>';
+        return '<button class="pill' + (period.preset === n ? ' pill--on' : '') + '" type="button" data-act="cab-preset" data-n="' + n + '">' + n + ' днів</button>'; }).join('') + '</span></div>';
   }
 
   function strip() { return '<div class="sr-demo" role="note">' + P.ic('info', 'ui-icon--sm') + 'Тестова версія · усі імена й цифри вигадані · дані живуть лише в цьому браузері</div>'; }
@@ -33,7 +33,7 @@
     return strip() +
       '<header class="wrap hdr"><div class="hdr__titles"><h1 class="hdr__title">' + esc(TITLE) + '</h1>' +
       '<p class="hdr__sub">Усі локації · ' + esc(S.h.dayLong(today())) + '</p></div>' +
-      '<div class="hdr__tools"><button class="tool" type="button" data-act="cab-refresh" title="Перечитати дані" aria-label="Оновлено о ' + hhmm + ' — перечитати"><span class="sr-hide-phone">Оновлено о ' + hhmm + '</span>' + P.ic('refresh', 'ui-icon--sm') + '</button>' +
+      '<div class="hdr__tools"><button class="tool" type="button" data-act="cab-refresh" title="Оновити дані" aria-label="Оновлено о ' + hhmm + ' — оновити дані"><span class="sr-hide-phone">Оновлено о ' + hhmm + '</span>' + P.ic('refresh', 'ui-icon--sm') + '</button>' +
       '<button class="who" type="button" data-act="cab-profile" aria-label="Мій профіль"><span class="avatar">' + esc(P.initials(me.name)) + '</span><span class="sr-hide-phone">' + esc(me.name) + '</span></button></div></header>' +
       '<div class="sr-tabsbar"><nav class="wrap tabs" aria-label="Розділи">' + tabs.map(function (t) {
         return '<a class="tab' + (t.id === tab ? ' tab--on' : '') + '" href="#' + t.path + '">' + P.ic(t.ic) + esc(t.label) + '</a>'; }).join('') + '</nav></div>' +
@@ -71,7 +71,7 @@
     if (!me || !e.key || e.key.indexOf('audit-demo:demo:') !== 0 || e.key.indexOf('audit-demo:demo:me') === 0 || e.key.indexOf('audit-demo:demo:loggedAt') === 0) return;
     clearTimeout(pending);
     pending = setTimeout(function () {
-      if (S.openCount()) { P.toast('info', 'Зʼявились нові дані', 'Натисніть «Оновлено», щоб побачити.'); return; }
+      if (S.openCount()) { P.toast('info', 'Зʼявились нові дані', 'Натисніть «Оновлено о …» вгорі, щоб їх побачити.'); return; }
       reloadData().then(function () { P.toast('info', 'Нові дані', 'Кабінет оновився сам — наприклад, хтось записав аудит.'); });
     }, 600);
   });
@@ -96,7 +96,7 @@
       menuItem('pf-out', 'logout', 'Вийти', ''),
       on: {
         th: function (t, e, layer) { var v = t.getAttribute('data-v'); doc.documentElement.setAttribute('data-theme', v); P.store.set('theme:sr', v); layer.close(); },
-        'pf-reset': function (t, e, layer) { layer.close(); P.confirm({ title: 'Скинути тестові дані?', text: 'Записані аудити, коригуючі дії й правки довідників у цьому браузері зникнуть.', okLabel: 'Скинути', danger: true })
+        'pf-reset': function (t, e, layer) { layer.close(); P.confirm({ title: 'Скинути тестові дані?', text: 'Записані аудити, коригуючі дії й зміни в налаштуваннях у цьому браузері зникнуть.', okLabel: 'Скинути', danger: true })
           .then(function (ok) { if (!ok) return; P.srv('demoReset', {}).then(function () { P.toast('ok', 'Тестові дані скинуто'); boot(); }); }); },
         'pf-out': function (t, e, layer) { layer.close(); P.srv('authLogout', {}).then(function () { me = null; boot(); }); }
       } });
@@ -107,7 +107,7 @@
     app.innerHTML = strip() + '<main class="wrap" style="max-width:520px;padding-top:72px;display:flex;flex-direction:column;gap:14px;text-align:center;align-items:center">' +
       '<div class="hero__logo">' + P.ic('audit') + '</div><h1 class="hero__title">Аудит якості</h1><p class="hero__lead">' + esc(TITLE) + '</p>' +
       (note ? '<div class="banner banner--warn" style="text-align:left">' + P.ic('warning') + '<div class="banner__body"><p class="banner__text">' + esc(note) + '</p></div></div>' : '') +
-      '<p class="hint">Тестова версія: вхід без пароля. У справжній — Google-пошта зі списку дозволених.</p>' +
+      '<p class="hint">Тестова версія: вхід без пароля. У справжньому додатку вхід — через Google-пошту зі списку дозволених.</p>' +
       users.map(function (u) { return '<button class="btn btn--primary btn--block" type="button" data-login="' + esc(u.id) + '">' + P.ic('login') + 'Увійти як ' + esc(u.name) + ' · ' + esc(u.roleLabel) + '</button>'; }).join('') +
       '</main>';
   }
@@ -138,7 +138,7 @@
       }
       var act = t.getAttribute('data-act');
       if (act === 'cab-profile') { e.preventDefault(); openProfile(t); return; }
-      if (act === 'cab-refresh') { e.preventDefault(); reloadData().then(function () { P.toast('ok', 'Дані перечитано'); }); return; }
+      if (act === 'cab-refresh') { e.preventDefault(); reloadData().then(function () { P.toast('ok', 'Дані оновлено'); }); return; }
       if (act === 'cab-preset') { var n = +t.getAttribute('data-n'); setPeriod({ from: addDays(today(), -(n - 1)), to: today(), preset: n }); return; }
       if (act === 'retry') { render(); return; }
       if (cur && cur.handlers[act]) { e.preventDefault(); cur.handlers[act](t, e); }

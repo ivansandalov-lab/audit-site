@@ -70,8 +70,8 @@
 
   function report(res) {
     if (!P.toast || !res) return;
-    if (res.sent) P.toast('ok', 'Надіслано аудитів: ' + res.sent, 'Записані без звʼязку аудити дійшли.' + (res.photosDropped ? ' Без фото: ' + res.photosDropped + ' — памʼять браузера заповнена.' : ''));
-    if (res.failed) P.toast('warn', 'Не прийнято аудитів: ' + res.failed, 'Причина — на головній.');
+    if (res.sent) P.toast('ok', 'Надіслано: ' + res.sent + ' ' + P.plural(res.sent, 'аудит', 'аудити', 'аудитів'), 'Записані без звʼязку аудити дійшли.' + (res.photosDropped ? ' Без фото: ' + res.photosDropped + ' — памʼять телефона заповнена.' : ''));
+    if (res.failed) P.toast('warn', 'Не прийнято: ' + res.failed + ' ' + P.plural(res.failed, 'аудит', 'аудити', 'аудитів'), 'Причина — на головній.');
   }
   Q.auto = function () {
     var me = P.S && P.S.me;

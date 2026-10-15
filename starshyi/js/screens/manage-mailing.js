@@ -4,7 +4,7 @@
   var q = M.q, da = M.da;
 
   var INCLUDE_LABELS = { checked: 'Перевірено й брак', levels: 'Рівні браку', norms: 'Норма вибірки по відділах', noAudits: 'Відділи без аудитів',
-    worst: 'Відділ з найбільшим % браку', topDefects: 'Топ видів браку', kd: 'Коригуючі дії розбору', auditors: 'Аудитори дня', orders: 'Замовлення дня',
+    worst: 'Відділ з найбільшим % браку', topDefects: 'Найчастіші види браку', kd: 'Коригуючі дії розбору', auditors: 'Аудитори дня', orders: 'Замовлення дня',
     compare: 'Порівняння з учора', link: 'Посилання на кабінет' };
   var MAIL_LEVELS = [['all', 'Усе'], ['defects', 'Тільки з браком'], ['over5', 'Тільки понад 5%']];
   var DAYS = [[1, 'пн'], [2, 'вт'], [3, 'ср'], [4, 'чт'], [5, 'пт'], [6, 'сб'], [0, 'нд']];
@@ -19,16 +19,16 @@
         M.sw(m.on, 'mg-mail-on', da('id', m.id), (m.on ? 'Увімкнено' : 'Вимкнено') + ' · ' + m.title) +
         (m.id === 'daily' ? M.pen('mg-mail-edit', da('id', m.id), 'Редагувати денний звіт') : '') + '</div>' +
         '<dl class="kv"><dt>Кому</dt><dd>' + esc(m.to) + '</dd><dt>Коли</dt><dd>' + esc(m.when) + (off ? ' · вимкнено' : '') + '</dd>' +
-        (m.hasLevel ? '<dt>Що' + M.hq('sr.mg.mailWhat') + '</dt><dd><span class="pills mg-pills">' + MAIL_LEVELS.map(function (l) {
+        (m.hasLevel ? '<dt>Які аудити' + M.hq('sr.mg.mailWhat') + '</dt><dd><span class="pills mg-pills">' + MAIL_LEVELS.map(function (l) {
           return '<button class="pill' + (m.level === l[0] ? ' pill--on' : '') + '" type="button" aria-pressed="' + (m.level === l[0]) + '" data-act="mg-mail-lvl"' + da('id', m.id) + da('v', l[0]) + '>' + esc(l[1]) + '</button>'; }).join('') + '</span></dd>' : '') +
-        (m.id === 'daily' ? '<dt>Що</dt><dd>' + esc(m.what) + '</dd>' : '') + '</dl>' +
+        (m.id === 'daily' ? '<dt>Що в звіті</dt><dd>' + esc(m.what) + '</dd>' : '') + '</dl>' +
         (m.id === 'daily' ? '<div class="mg-actions"><button class="btn btn--secondary btn--sm" type="button" data-act="mg-mail-send">' + P.ic('notification', 'ui-icon--sm') + 'Надіслати зараз</button>' +
           '<span class="hint">Востаннє — ' + esc(M.ago(data.lastSent)) + '</span></div>' : '') + '</div>';
     }
     function draw() {
       v.col.innerHTML = M.head('Розсилки', 'Повідомлення в Slack · ' + data.location.name + ' · ' + (real()
         ? 'денний звіт («Надіслати зараз», «Надіслати пробне») справді йде в тестовий канал Slack'
-        : 'у тестовій версії нікуди не надсилаються (у Slack — після коду розсилки в кабінеті адміна)')) +
+        : 'у тестовій версії повідомлення нікуди не йдуть. У Slack — коли в кабінеті адміна введено код розсилки')) +
         '<section class="card">' + data.items.map(entry).join('') + '</section>';
     }
     function real() { return !!(P.mailProbe && P.mailProbe.has()); }
@@ -37,7 +37,7 @@
     }
     function realToast(r, what) {
       if (r.ok && r.sent) P.toast('ok', what + ' — у Slack' + (r.channelName ? ' · #' + r.channelName : ''), 'Тестовий канал. У справжній роботі — ' + data.daily.to.join(', ') + '.');
-      else if (r.ok) P.toast('warn', what + ' — у черзі', (r.warning ? r.warning + ' ' : '') + 'Надішлеться автоматично — натискати ще раз не треба.');
+      else if (r.ok) P.toast('warn', what + ' — чекає відправки', (r.warning ? r.warning + ' ' : '') + 'Піде автоматично — натискати ще раз не треба.');
       else P.toast('danger', what + ' не надіслано', r.error);
     }
     function previewHtml(d) {
@@ -48,8 +48,8 @@
       if (inc.norms) li('Норма вибірки: виконана в ' + p.normsOk + ' ' + M.plural(p.normsOk, ['відділі', 'відділах', 'відділах']) + ' з ' + p.depts);
       if (inc.noAudits) li('Без аудитів сьогодні: ' + esc(p.noAudits.join(', ') || 'таких немає'));
       if (inc.worst) li('Найбільший % браку: ' + (p.worst ? esc(p.worst.name) + ' — ' + H.pct(p.worst.pct) : '—'));
-      if (inc.topDefects) li('Топ браку: ' + (p.topDefects.length ? p.topDefects.map(function (x) { return esc(x.name) + ' ' + H.num(x.qty); }).join(' · ') : 'браку не знайдено'));
-      if (inc.kd) li(p.kd ? 'Коригуючі дії: ' + p.kd.new + ' ' + M.plural(p.kd.new, ['нова', 'нові', 'нових']) + ' з розбору, ' + p.kd.review + ' на перевірці' : 'Коригуючі дії: зведення з вкладки «Коригуючі дії»');
+      if (inc.topDefects) li('Найчастіші види браку: ' + (p.topDefects.length ? p.topDefects.map(function (x) { return esc(x.name) + ' ' + H.num(x.qty); }).join(' · ') : 'браку не знайдено'));
+      if (inc.kd) li(p.kd ? 'Коригуючі дії: ' + p.kd.new + ' ' + M.plural(p.kd.new, ['нова', 'нові', 'нових']) + ' з розбору, ' + p.kd.review + ' впроваджено (йде тиждень після впровадження)' : 'Коригуючі дії: підсумок з вкладки «Коригуючі дії»');
       if (inc.auditors) li('Аудитори: ' + (p.auditors.length ? p.auditors.map(function (x) { return esc(x.name) + ' ' + x.n; }).join(' · ') : 'ще нікого'));
       if (inc.orders) li('Замовлення: ' + esc(p.orders.join(', ') || '—'));
       if (inc.compare) li('Порівняно з учора: брак ' + H.pct(p.pct) + ' (учора ' + H.pct(p.yesterdayPct) + ')');
@@ -108,7 +108,7 @@
             v.call('srMgMailingSend', { id: 'daily', test: true }).then(function (r) {
               t.disabled = false;
               if (!r.ok) { M.failToast(r); return; }
-              P.toast('ok', 'Пробне повідомлення відправлено', 'У тестовій версії — нікуди.');
+              P.toast('info', 'Пробне повідомлення не надіслано', 'Це тестова версія. У Slack — коли в кабінеті адміна введено код розсилки.');
             });
           },
           'mg-d-save': function (t) {
@@ -156,7 +156,7 @@
         if (!v.ctx.alive()) return;
         t.disabled = false;
         if (!r.ok) { M.failToast(r); return; }
-        P.toast('ok', 'Денний звіт відправлено о ' + P.fmt.time(r.sentAt), 'У тестовій версії — нікуди.'); load();
+        P.toast('info', 'Денний звіт складено о ' + P.fmt.time(r.sentAt), 'Це тестова версія — звіт нікуди не пішов. У Slack — коли в кабінеті адміна введено код розсилки.'); load();
       });
     });
     load();

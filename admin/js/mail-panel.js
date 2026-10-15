@@ -3,7 +3,7 @@
   var P = root.P, doc = root.document, esc = P.esc;
   var DAYS = [[1, 'пн'], [2, 'вт'], [3, 'ср'], [4, 'чт'], [5, 'пт'], [6, 'сб'], [0, 'нд']];
   var SOURCE = { 'rule:probe': 'За розкладом', test: 'Пробне з кабінету адміна', daily: 'Денний звіт · надіслати зараз', 'daily-test': 'Денний звіт · пробне', preview: 'Пробне з конструктора розсилок' };
-  var STATUS = { pending: ['warn', 'у черзі'], sending: ['info', 'надсилається'], sent: ['ok', 'надіслано'], failed: ['danger', 'не надіслано'], expired: ['', 'застаріло'] };
+  var STATUS = { pending: ['warn', 'у черзі'], sending: ['info', 'надсилається'], sent: ['ok', 'надіслано'], failed: ['danger', 'не надіслано'], expired: ['', 'час минув'] };
   var el = null, data = null, editChannel = false, editRule = null, busy = false, timer = null, gen = 0;
 
   function badge(kind, text) { return '<span class="badge' + (kind ? ' badge--' + kind : '') + '">' + esc(text) + '</span>'; }
@@ -23,13 +23,13 @@
       '<button class="btn btn--primary" type="submit">' + P.ic('login', 'ui-icon--sm') + 'Відкрити</button></form>' + err(message) + '</section>';
   }
   function head() {
-    return '<div><h2 class="h2">Розсилка в Slack · проба</h2><p class="h2-sub">Повідомлення справді йдуть у Slack — лише в один тестовий канал. ' +
+    return '<div><h2 class="h2">Пробна розсилка в Slack</h2><p class="h2-sub">Повідомлення справді йдуть у Slack — лише в один тестовий канал. ' +
       'Решта тестового сайту — на вигаданих даних.</p></div>';
   }
 
   function load(quiet) {
     var my = ++gen;
-    if (!quiet) el.innerHTML = head() + '<section class="card">' + P.state.loading('Питаю Supabase…') + '</section>';
+    if (!quiet) el.innerHTML = head() + '<section class="card">' + P.state.loading('Перевіряю стан розсилки…') + '</section>';
     return P.mailProbe.call('status').then(function (r) {
       if (my !== gen || !el) return;
       if (!r.ok) {
@@ -50,7 +50,7 @@
     if (!hb || !hb.lastRunAt) beat = badge('warn', 'ще не спрацьовував') + ' <span class="hint cab-mail__inl">перший запуск — протягом хвилини після встановлення</span>';
     else {
       var m = minsAgo(hb.lastRunAt);
-      beat = (m <= 2 ? badge('ok', 'працює') : badge('danger', 'мовчить ' + m + ' хв')) +
+      beat = (m <= 2 ? badge('ok', 'працює') : badge('danger', 'не запускався ' + m + ' хв')) +
         ' <span class="cab-mail__inl">востаннє ' + esc(when(hb.lastRunAt)) + ' · запусків: ' + P.fmt.num(hb.runs) + '</span>';
     }
     var token = data.hasToken ? badge('ok', 'додано') : badge('danger', 'не додано') + ' <span class="hint cab-mail__inl">секрет SLACK_BOT_TOKEN у Supabase</span>';
@@ -59,7 +59,7 @@
       channel = '<div class="cab-mail__col"><form class="cab-mail__row" data-mail-form="channel"><input class="input" name="channelId" value="' + esc(s.channelId || '') + '" placeholder="ID каналу" aria-label="ID каналу Slack" autocomplete="off" maxlength="20">' +
         '<button class="btn btn--primary btn--sm" type="submit">' + P.ic('save', 'ui-icon--sm') + 'Зберегти</button>' +
         (s.channelId ? '<button class="btn btn--quiet btn--sm" type="button" data-mail-act="channel-cancel">Скасувати</button>' : '') + '</form>' +
-        '<span class="hint">ID — у Slack: назва каналу → внизу вкладки About. Бота спершу запросіть у канал: /invite і назва бота.</span><div data-mail-err="channelId"></div></div>';
+        '<span class="hint">Де взяти ID: у Slack натисніть назву каналу — ID внизу вкладки About. Спершу запросіть бота в канал: напишіть /invite і назву бота.</span><div data-mail-err="channelId"></div></div>';
     } else {
       channel = '<span class="cab-mail__chan"><b>#' + esc(s.channelName || '?') + '</b> <span class="hint cab-mail__inl">' + esc(s.channelId) + '</span>' +
         '<button class="icon-btn" type="button" data-mail-act="channel-edit" aria-label="Змінити канал" title="Змінити канал">' + P.ic('edit') + '</button></span>';
@@ -79,7 +79,7 @@
 
   function rulesCard() {
     return '<section class="card cab-mail"><div class="card-head"><h3 class="card-title">За розкладом' + hb('admin.probe.rule') + '</h3></div>' +
-      '<p class="hint">Підстановки в тексті: ' + data.options.placeholders.map(function (x) { return '{' + esc(x) + '}'; }).join(' ') + ' — київські день, дата й час надсилання.</p>' +
+      '<p class="hint">Вставки в тексті: ' + data.options.placeholders.map(function (x) { return '{' + esc(x) + '}'; }).join(' ') + ' — день, дата й час надсилання за Києвом.</p>' +
       data.rules.map(function (r) { return editRule === r.id ? ruleForm(r) : ruleView(r); }).join('') + '</section>';
   }
   function ruleView(r) {
@@ -95,7 +95,7 @@
     return '<form class="entry cab-mail__form" data-mail-form="rule" data-id="' + esc(r.id) + '">' +
       '<div class="entry__head"><h4 class="entry__title" style="font-size:17px">' + esc(r.title) + '</h4></div>' +
       '<div class="seg" role="radiogroup" data-f="kind">' +
-        '<button class="seg__btn' + (every ? ' seg__btn--on' : '') + '" type="button" aria-pressed="' + every + '" data-mail-act="kind" data-v="every">Кожні N хвилин</button>' +
+        '<button class="seg__btn' + (every ? ' seg__btn--on' : '') + '" type="button" aria-pressed="' + every + '" data-mail-act="kind" data-v="every">Кожні … хвилин</button>' +
         '<button class="seg__btn' + (every ? '' : ' seg__btn--on') + '" type="button" aria-pressed="' + !every + '" data-mail-act="kind" data-v="at">Щодня о…</button></div>' +
       '<input type="hidden" name="kind" value="' + (every ? 'every' : 'at') + '">' +
       '<div class="cab-mail__grid"' + (every ? '' : ' hidden') + ' data-kind="every">' +

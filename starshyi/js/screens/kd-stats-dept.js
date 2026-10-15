@@ -22,8 +22,8 @@
     var n = function (v, label, state) {
       return '<span class="kd-dr__n' + (v ? '' : ' kd-dr__n--zero') + '" data-l="' + esc(label) + '">' + (state && v ? H.kdMark(state, label) : '') + '<b>' + v + '</b></span>';
     };
-    var eff = e ? '<b>' + esc(signed(e.pp) + ' в. п.' + (e.rel ? ' · ' + signed(e.rel) + '%' : '')) + '</b><span>' + esc('середнє по ' + K.plural(e.n, 'пункту', 'пунктах', 'пунктах') + ' з результатом') + '</span>'
-      : '<span>пунктів із результатом немає</span>';
+    var eff = e ? '<b>' + esc(signed(e.pp) + ' в. п.' + (e.rel ? ' · ' + signed(e.rel) + '%' : '')) + '</b><span>' + esc('середнє по ' + K.plural(e.n, 'пункту', 'пунктах', 'пунктах') + ' · 1-й тиждень після впровадження') + '</span>'
+      : '<span>ще немає пунктів, де 1-й тиждень після впровадження закінчився</span>';
     return '<div class="kd-dr' + (open ? ' kd-dr--open' : '') + '"><button class="kd-dr__btn" type="button" data-act="kd-open-dept" data-id="' + esc(d.id) + '" aria-expanded="' + open + '">' +
       '<span class="kd-dr__name">' + esc(d.name) + '<span class="kd-dr__sub">останній тиждень: ' + K.pct(d.weekRate) + '</span></span>' + n(d.total, 'КД усього') + n(c.over, 'Понад норму, не почато', 'over') +
       n(c.watch + c.hold, 'Спостерігаємо', 'hold') + n(c.relapse, 'Рецидиви', 'relapse') + '<span class="kd-dr__eff" data-l="Пункти після дії">' + eff + '</span>' +
@@ -73,7 +73,7 @@
     el.innerHTML = '<div class="kd-sd__tools"><label class="kd-find">' + P.ic('search', 'ui-icon--sm') + '<input class="input" type="search" data-input="kd-sd-find" value="' + esc(u.find) +
       '" placeholder="Назва виду браку" aria-label="Пошук виду браку за назвою"></label>' + sortBtn(u, 'name', 'За назвою') +
       K.cap('«Зараз» — % виду браку від перевірених у відділі за останній завершений тиждень (' + esc(K.rangeShort(rv.start, rv.end)) + ') і його частка браку відділу. «У КД» — у скількох КД за ' + r.days +
-        ' днів вид був пунктом. «До → після» — % виду браку в тижні КД і в тижні результату останньої такої КД.') + '</div>' +
+        ' днів вид був пунктом. «До → після» — % виду браку в останній такій КД: за тиждень КД і за перший тиждень після впровадження.') + '</div>' +
       '<div class="kd-sd__scroll"><div class="kd-sr kd-sr--head"><span>Вид браку' + help('term.defectType') + '</span>' +
       '<span>' + sortBtn(u, 'rate', 'Зараз, %') + help('kd.stats.now') + '</span><span>' + sortBtn(u, 'acts', 'У КД') + help('kd.stats.acts') + '</span>' +
       '<span class="kd-sr__bahead">' + sortBtn(u, 'before', 'До') + sortBtn(u, 'after', 'Після') + sortBtn(u, 'diff', 'Різниця') + help('kd.beforeAfter') + '</span>' +

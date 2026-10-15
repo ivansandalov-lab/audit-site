@@ -25,14 +25,14 @@
   K.weekNote = function (p, lastN) { return p.current ? 'триває · день ' + p.daysDone + ' з ' + p.days : p.n === lastN ? 'останній завершений' : ''; };
 
   K.segNav = function (on, extra) {
-    return '<div class="kd-top"><div class="seg" style="flex:none">' + [['/kd', 'По відділах'], ['/kd/list', 'Список КД'], ['/kd/stats', 'Чи допомагають']].map(function (x) {
+    return '<div class="kd-top"><div class="seg" style="flex:none">' + [['/kd', 'По відділах'], ['/kd/list', 'Список КД'], ['/kd/stats', 'Що після дій']].map(function (x) {
       return '<a class="seg__btn' + (x[0] === on ? ' seg__btn--on' : '') + '" href="#' + x[0] + '" style="text-decoration:none">' + x[1] + '</a>';
     }).join('') + '</div>' + (extra || '') + '</div>';
   };
   K.ruleLine = function (R) {
     var q = function (k) { return P.help ? P.help.btn(k) : ''; };
-    return '<p class="hint kd-rule">Розбір — щотижня в ' + esc(K.wdAcc(R.reviewWeekday)) + ' зранку, за 7 днів перед ним' + q('kd.review') + '. КД відділу — брак, % відділу за тиждень понад норму ' +
-      R.threshold + '%' + q('kd.threshold') + '. Ранній тумблер — від ' + K.num(R.early) + ' шт у тижні, що триває' + q('kd.minSample') + '. Пункти — види браку, що разом дають ' + R.pareto + '% браку' + q('kd.pareto') + '.</p>';
+    return '<p class="hint kd-rule">Розбір — щотижня в ' + esc(K.wdAcc(R.reviewWeekday)) + ' зранку: підсумок 7 попередніх днів' + q('kd.review') + '. Коригуюча дія (КД) відділу відкривається, коли брак, % відділу за тиждень понад норму ' +
+      R.threshold + '%' + q('kd.threshold') + '. Ранній тумблер — КД посеред тижня, якщо вже перевірено від ' + K.num(R.early) + ' шт' + q('kd.minSample') + '. Пункти — види браку, що разом дають ' + R.pareto + '% браку' + q('kd.pareto') + '.</p>';
   };
   K.cap = function (html) { return '<p class="kd-cap">' + html + '</p>'; };
   K.stateBadge = function (a) {
@@ -55,9 +55,9 @@
       (a.earlyBelow ? ' · тиждень завершився: ' + K.pct(a.weekRate) + ', не вище норми' : '') + ' · плану немає';
     if (a.status === 'not_needed') return per + ' · «' + a.notNeededReason + '»';
     var impl = per + ' · впроваджено ' + H.dayShort(a.implementedAt);
-    if (a.status === 'check') return impl + ' · тиждень результату ' + K.rangeShort(r.start, r.end);
-    if (a.status === 'hold') return impl + ' · під наглядом з ' + H.dayShort(a.holdSince) + ' · тиждень утримання ' + K.rangeShort(h.start, h.end);
-    return impl + ' · результат ' + K.rangeShort(r.start, r.end) + (h ? ' · утримання ' + K.rangeShort(h.start, h.end) : '');
+    if (a.status === 'check') return impl + ' · 1-й тиждень після: ' + K.rangeShort(r.start, r.end);
+    if (a.status === 'hold') return impl + ' · під наглядом з ' + H.dayShort(a.holdSince) + ' · 2-й тиждень після: ' + K.rangeShort(h.start, h.end);
+    return impl + ' · 1-й тиждень після: ' + K.rangeShort(r.start, r.end) + (h ? ' · 2-й тиждень після: ' + K.rangeShort(h.start, h.end) : '');
   };
   K.CAUSE_LABELS = { skill: 'Не знав / не вміє', discipline: 'Знав, але не зробив', tool: 'Інструмент чи оснастка', material: 'Матеріал', organization: 'Організація роботи', other: 'Інше' };
   K.causeText = function (a) {

@@ -60,16 +60,16 @@
       if (st.state === 'load') return '<div class="mg-mrg__fact">' + flow + '<span class="hint">Рахуємо…</span></div>';
       if (st.state === 'error') return '<div class="mg-mrg__fact">' + flow + '<span class="mg-mrg__err">' + esc(st.error) + '</span><button class="btn btn--secondary btn--sm" type="button" data-act="mg-again">Спробувати ще раз</button></div>';
       var r = st.pv, gone = r.items.filter(function (x) { return x.id !== st.dst; }).map(function (x) { return '«' + x.name + '»'; }).join(', ');
-      var moved = isP ? M.cnt(r.moving.audits, M.W.audit) + ' і ' + M.cnt(r.moving.orders, M.W.order) + ' усіх цехів перейдуть'
-        : M.cnt(r.moving.records, M.W.rec) + ' браку у ' + M.inAudits(r.moving.audits) + ' усіх цехів ' + M.plural(r.moving.records, ['перейде', 'перейдуть', 'перейдуть']);
+      var moved = isP ? 'На «' + esc(keep) + '» перейдуть ' + M.cnt(r.moving.audits, M.W.audit) + ' і ' + M.cnt(r.moving.orders, M.W.order) + ' — з усіх цехів.'
+        : 'На «' + esc(keep) + '» ' + M.plural(r.moving.records, ['перейде', 'перейдуть', 'перейдуть']) + ' ' + M.cnt(r.moving.records, M.W.rec) + ' браку у ' + M.inAudits(r.moving.audits) + ' — з усіх цехів.';
       var after = isP ? 'у ' + M.inAudits(r.after.audits) : M.cnt(r.after.records, M.W.rec) + ' у ' + M.inAudits(r.after.audits);
-      return '<div class="mg-mrg__fact">' + flow + '<span>' + moved + ' на «' + esc(keep) + '»</span></div>' +
+      return '<div class="mg-mrg__fact">' + flow + '<span>' + moved + '</span></div>' +
         '<p class="hint">Після обʼєднання «' + esc(keep) + '» — ' + after + '. Зі списків ' + (st.src.length > 1 ? 'зникнуть' : 'зникне') + ': ' + esc(gone) + '.</p>' +
         (isP ? '' : r.levelsDiffer
           ? '<div class="field"><span class="label">Рівень після обʼєднання — в обраних він різний</span><div class="seg seg--sm" role="radiogroup" aria-label="Рівень">' + ['fix', 'repair', 'scrap'].map(function (k) {
             return '<button class="seg__btn' + (k === st.level ? ' seg__btn--on' : '') + '" type="button" aria-pressed="' + (k === st.level) + '" data-act="mg-mlevel"' + da('v', k) + '>' + (k === st.level ? H.lvl(k) : esc(P.sr.LEVELS[k])) + '</button>'; }).join('') + '</div></div>'
           : '<p class="hint">Рівень: ' + H.lvl(r.keepLevel) + ' — в усіх обраних однаковий.</p>') +
-        '<p class="hint">Довідник спільний для всіх цехів. У тестовій версії обʼєднання скасовує лише «Скинути тестові дані».</p>';
+        '<p class="hint">Список спільний для всіх цехів. Скасувати обʼєднання в тестовій версії можна лише кнопкою «Скинути тестові дані» в меню профілю.</p>';
     }
     function paint() {
       ['src', 'dst'].forEach(function (side) {

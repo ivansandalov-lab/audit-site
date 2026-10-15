@@ -13,7 +13,7 @@
       return P.srv('auditGet', { id: ctx.params.id }).then(function (r) {
         if (!r.ok) return r.code === 'not_found' ? P.state.empty('search', 'Аудит не знайдено', 'Можливо, посилання неправильне.') : P.state.error('Не вдалося відкрити аудит', r.error);
         var a = r.audit, left = a.canEdit && a.editableUntil ? Math.max(0, Math.ceil((Date.parse(a.editableUntil) - Date.now()) / 60000)) : 0;
-        if (ctx.alive()) P.shell.setTitle({ title: f.time(a.createdAt) + ' · ' + a.departmentName, sub: a.id });
+        if (ctx.alive()) P.shell.setTitle({ title: f.time(a.createdAt) + ' · ' + a.departmentName, sub: (a.locationId !== ctx.loc ? a.locationName + ' · ' : '') + a.id });
         var items = '<table class="detail-table"><thead><tr><th>Виріб' + P.help.btn('w.view.items') + '</th><th class="num">Перевірено, шт</th><th class="num">Брак, шт</th></tr></thead><tbody>' +
           a.items.map(function (i) {
             return '<tr><td>' + esc(i.productName) + (i.orderNo ? '<span class="detail-sub">' + esc(i.orderNo) + '</span>' : '') + '</td>' +
@@ -23,7 +23,7 @@
         var defects = a.defects.length ? '<div class="mini-list">' + a.defects.map(function (d) {
           var ph = (d.photos || []).filter(P.AF.isPhoto), from = shots.length;
           shots = shots.concat(ph);
-          var who = d.workerCode ? (d.workerName || d.workerCode) + (d.helper ? ' · допомога' : '') : 'винний невідомий';
+          var who = d.workerCode ? (d.workerName || d.workerCode) + (d.helper ? ' · допомога' : '') : 'Невідомий працівник';
           return '<div class="mini-item">' + P.ic('defect') + '<span class="mini-item__main"><span class="mini-item__title">' + esc(d.defectTypeName) + ' — ' + f.num(d.qty) + ' шт</span>' +
             '<span class="mini-item__meta">' + esc([d.productName, who].filter(Boolean).join(' · ')) + '</span>' +
             (d.otherDept ? '<span class="ui-badge ui-badge--info">брак відділу «' + esc(d.departmentName) + '»</span>' + P.help.btn('term.otherDept') : '') +

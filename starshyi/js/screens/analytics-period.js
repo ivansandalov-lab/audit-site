@@ -40,7 +40,7 @@
       box.innerHTML = pickRow('Обрані дні · ' + esc(view.scope()), A.span(ui.range[0], ui.range[1]), s, ['днів з аудитами', s.daysWithAudits + ' з ' + s.days],
         X.hist({ d1: ui.range[0], d2: ui.range[1], dep: depId }), 'Відкрити ці дні в історії');
     } else {
-      box.innerHTML = '<p class="hint an-pick__empty">День не обрано. Клік по стовпчику — числа дня тут і кнопка «Аудити дня»; протягування — сума за кілька днів. Фільтри сторінки від цього не міняються.</p>';
+      box.innerHTML = '<p class="hint an-pick__empty">День не обрано. Натисніть стовпчик — тут будуть числа дня і кнопка «Аудити дня». Проведіть по кількох — сума за ці дні. Фільтри сторінки від цього не міняються.</p>';
     }
   }
   function daysCard(view) {
@@ -62,7 +62,7 @@
       : mode === 'pct' ? [['an-key__dash', line.label]] : [];
     box.innerHTML = '<div class="card-head" style="flex-wrap:wrap"><div style="flex:1;min-width:220px"><h2 class="card-title">' + title + A.q('sr.an.days') + '</h2>' +
       '<p class="hint">' + esc(view.scope()) + ' · ' + esc(A.span(r.from, r.to)) + (mode === 'chk' ? '' : ' · колір — рівень браку') +
-      ' · наведіть на день — його числа · клік — зафіксувати · протягніть — кілька днів</p></div>' +
+      ' · наведіть або торкніться стовпчика — числа дня · натисніть — закріпити · проведіть по кількох — сума за ці дні</p></div>' +
       '<span class="pills" role="group" aria-label="Що показує графік">' + MODES.map(function (m) {
         return '<button class="pill' + (mode === m[0] ? ' pill--on' : '') + '" type="button" data-act="an-unit" data-v="' + m[0] + '" aria-pressed="' + (mode === m[0]) + '">' + m[1] + '</button>'; }).join('') + '</span></div>' +
       X.legend(mode !== 'chk', keys.concat([['an-key__none', 'аудитів не було']])) + '<div data-chart="days"></div><div id="an-pick"></div>';
@@ -94,7 +94,7 @@
       LV.map(function (k) { return '<div class="an-cmp__r" role="row">' + h.lvl(k) + '<span>' + cellOf(t, k) + '</span><span>' + cellOf(L.prev, k) + '</span></div>'; }).join('') +
       '<div class="an-cmp__r an-cmp__r--sum" role="row"><span>усього браку</span><span><b>' + h.num(tot) + ' шт</b></span><span><b>' + h.num(pt) + ' шт</b></span></div></div>' +
       '<p class="hint">Попередні ' + X.dn(n) + ' — це ' + esc(A.span(L.prevFrom, L.prevTo)) + '.</p>';
-    var byDept = r.department ? '' : '<div class="an-bydept"><p class="group-label" style="padding:0">По відділах · клік — сторінка відділу</p>' + L.depts.map(function (d) {
+    var byDept = r.department ? '' : '<div class="an-bydept"><p class="group-label" style="padding:0">По відділах · натисніть — сторінка відділу</p>' + L.depts.map(function (d) {
       var s = A.total(d.levels);
       return '<button class="lvl-row an-lvl an-lvlbtn" type="button" data-act="an-dep" data-id="' + esc(d.id) + '"><span>' + esc(d.name) + '</span>' + h.stack(d.levels, 14) +
         '<span class="lvl-row__n">' + (s ? h.num(s) + ' шт · зламане ' + A.share(d.levels, 'scrap') + '%' : 'браку немає') + '</span></button>';
@@ -109,8 +109,8 @@
     var q = dep ? '?dep=' + encodeURIComponent(dep.id) : '';
     view.box('an-top').innerHTML = '<div class="card-head" style="flex-wrap:wrap"><div style="flex:1;min-width:220px"><h2 class="card-title">Що бракує найчастіше · ' + esc(view.scope()) + A.q('sr.an.top') + '</h2>' +
       '<p class="hint">' + esc(A.span(r.from, r.to)) + ' · ' + A.n(types.length, 'вид', 'види', 'видів') + ' браку · ' + h.num(r.top.pieces) + ' шт' +
-      (dep ? ' · брак, зарахований відділу «' + esc(dep.name) + '»' : '') + ' · біля виду — його рівень і частка від усіх цих штук · клік — екран виду браку</p></div>' +
-      '<span class="pills" role="group" aria-label="Скільки видів показати">' + [[10, 'Топ 10'], [30, 'Топ 30'], [0, 'Усі']].map(function (x) {
+      (dep ? ' · брак, що рахується відділу «' + esc(dep.name) + '»' : '') + ' · біля виду — його рівень і частка від усіх цих штук · натисніть — екран виду браку</p></div>' +
+      '<span class="pills" role="group" aria-label="Скільки видів показати">' + [[10, 'Перші 10'], [30, 'Перші 30'], [0, 'Усі']].map(function (x) {
         return '<button class="pill' + (ui.top === x[0] ? ' pill--on' : '') + '" type="button" data-act="an-top" data-n="' + x[0] + '" aria-pressed="' + (ui.top === x[0]) + '">' + x[1] + '</button>'; }).join('') + '</span></div>' +
       (types.length ? '<div class="an-toplist">' + shown.map(function (t, i) {
         return A.hbar({ rank: i + 1, name: t.name, sub: h.lvl(t.level) + '<span>' + h.pct(X.pctOf(t.pieces, r.top.pieces)) + ' від ' + h.num(r.top.pieces) + ' шт</span>' + (dep ? '' : '<span>' + esc(t.depts.join(', ')) + '</span>'),

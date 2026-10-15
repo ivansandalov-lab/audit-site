@@ -5,8 +5,8 @@
 
   S.KD_STATES = {
     ok: { label: 'у нормі', help: 'kd.state.ok' }, over: { label: 'понад норму, не почато', help: 'kd.state.over' },
-    work: { label: 'в роботі', help: 'kd.state.work' }, watch: { label: 'впроваджено · тиждень результату', help: 'kd.state.watch' },
-    hold: { label: 'під наглядом', help: 'kd.state.hold' },   // 15.10: після дії брак нижче норми, тиждень утримання
+    work: { label: 'в роботі', help: 'kd.state.work' }, watch: { label: 'впроваджено · йде тиждень після впровадження', help: 'kd.state.watch' },
+    hold: { label: 'під наглядом', help: 'kd.state.hold' },   // 15.10: перший тиждень після дії — брак не вище норми; дивимось другий
     done: { label: 'закрито: тримається', help: 'kd.state.done' }, relapse: { label: 'рецидив', help: 'kd.state.relapse' },
     skip: { label: 'дія не потрібна', help: 'kd.state.skip' }
   };
@@ -22,6 +22,15 @@
   S.h = {
     esc: esc, num: num, pct: pct,
     ic: function (n, cls) { return P.ic(n, cls); },
+    ba: function (before, after, noAfter) {
+      if (before == null && after == null) return '—';
+      if (after == null && noAfter) return '<span class="ba"><span class="ba__b">' + pct(before) + '</span></span>';
+      var out = '<span class="ba"><span class="ba__b">' + pct(before) + '</span> → ';
+      if (after == null) return out + '…</span>';
+      var d = before == null ? null : Math.round((after - before) * 10) / 10;
+      return out + '<b class="ba__a">' + pct(after) + '</b>' + (d == null ? '' : ' <span class="ba__d ba__d--' + (d < 0 ? 'down' : d > 0 ? 'up' : 'zero') + '">(' +
+        (d > 0 ? '+' : d < 0 ? '−' : '') + String(Math.abs(d)).replace('.', ',') + ' в. п.)</span>') + '</span>';
+    },
     lvl: function (level, text) { level = LV[level] ? level : 'fix'; return '<span class="lvl lvl--' + level + '">' + esc(text || LV[level]) + '</span>'; },
     badge: function (text, kind) { return '<span class="badge' + (kind ? ' badge--' + kind : '') + '">' + esc(text) + '</span>'; },
     kpi: function (val, label, mod) { return '<div class="kpi' + (mod ? ' kpi--' + mod : '') + '"><span class="kpi__val">' + esc(val) + '</span><span class="kpi__label">' + esc(label) + '</span></div>'; },
