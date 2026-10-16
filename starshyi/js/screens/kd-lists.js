@@ -3,7 +3,8 @@
   var P = root.P, H = P.sr.h, esc = P.esc, K = P.srKd;
   var help = function (k) { return P.help ? P.help.btn(k) : ''; };
 
-  var STATES = [['new', 'Понад норму, не почато'], ['check', 'Впроваджено'], ['hold', 'Під наглядом'], ['helped', 'Закрито: тримається'], ['not_helped', 'Рецидив'], ['not_needed', 'Дія не потрібна'], ['all', 'Усі']];
+  var STATES = [['pre', 'Відкрито достроково'], ['decide', 'Потрібне рішення'], ['new', 'Понад норму, не почато'], ['check', 'Впроваджено'], ['hold', 'Під наглядом'],
+    ['helped', 'Закрито: тримається'], ['held_types', 'Закрито: її види браку нижче, ніж до дії'], ['not_helped', 'Рецидив'], ['not_needed', 'Дія не потрібна'], ['all', 'Усі']];
   P.sr.screen('/kd/list', { tab: 'kd', title: 'Коригуючі дії — список', period: false, render: function (ctx) {
     var q = ctx.query, shown = 15, data = null;
     K.bindActions(ctx, function (t) { return K.finder(data ? data.items : [])(t); });
@@ -22,7 +23,9 @@
       });
     }
     function steps(a) {
-      if (a.status === 'new') return '<span class="hint">відкрито ' + H.dayShort(a.openedAt) + (a.early ? ' · ранній тумблер' : '') + ' · плану немає</span>';
+      if (a.status === 'pre') return '<span class="hint">відкрито ' + H.dayShort(a.openedAt) + ' · ранній тумблер · тиждень ще йде · плану немає</span>';
+      if (a.status === 'decide') return '<span class="hint">відкрито ' + H.dayShort(a.openedAt) + ' · ранній тумблер · тиждень завершився: ' + K.pct(a.weekRate) + ', не вище норми · потрібне рішення</span>';
+      if (K.isOpen(a)) return '<span class="hint">відкрито ' + H.dayShort(a.openedAt) + (a.early ? ' · ранній тумблер' : '') + ' · плану немає</span>';
       if (a.status === 'not_needed') return '<span class="hint">«' + esc(a.notNeededReason) + '»</span>';
       return '<span class="kd-flow">відкрито ' + H.dayShort(a.openedAt) + ' → впроваджено ' + H.dayShort(a.implementedAt) + ' → 1-й тиждень після: ' + esc(K.rangeShort(a.result.start, a.result.end)) +
         (a.hold ? ' → 2-й тиждень після: ' + esc(K.rangeShort(a.hold.start, a.hold.end)) : '') + '</span>';
@@ -30,7 +33,7 @@
     function draw() {
       var r = data, T = r.threshold;
       var filters = '<div class="kd-filters"><span class="pills">' + STATES.map(function (s) {
-        return '<button class="pill' + (r.state === s[0] ? ' pill--on' : '') + '" type="button" data-act="state" data-v="' + s[0] + '">' + s[1] + ' · ' + r.counts[s[0]] + '</button>'; }).join('') + '</span>' + help('kd.list.states') +
+        return '<button class="pill' + (r.state === s[0] ? ' pill--on' : '') + '" type="button" data-act="state" data-v="' + s[0] + '">' + s[1] + ' · ' + (r.counts[s[0]] || 0) + '</button>'; }).join('') + '</span>' + help('kd.list.states') +
         '<select class="input kd-select" data-change="dept" aria-label="Відділ"><option value="">Усі відділи</option>' + r.departments.map(function (d) {
           return '<option value="' + esc(d.id) + '"' + (q.dept === d.id ? ' selected' : '') + '>' + esc(d.name) + '</option>'; }).join('') + '</select></div>';
       var list = r.items.slice(0, shown), body;

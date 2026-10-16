@@ -2,7 +2,7 @@
   'use strict';
   var P = root.P = root.P || {}, C = P.demoCommon, S = P.demoSenior;
   P.demoApis = P.demoApis || [];
-  var KD_ORDER = ['over', 'work', 'watch', 'hold', 'done', 'relapse', 'skip'];
+  var KD_ORDER = ['pre', 'decide', 'over', 'work', 'watch', 'hold', 'done', 'part', 'relapse', 'skip'];
 
   function M() { return P.demoMgr; }
 

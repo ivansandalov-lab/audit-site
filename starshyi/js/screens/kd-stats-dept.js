@@ -14,7 +14,7 @@
   K.sdState = function (ui, id) { return ui[id] || (ui[id] = { find: '', sort: 'rate', dir: -1 }); };
 
   K.sdHead = function () {
-    return '<div class="kd-dl-head"><span>Відділ</span><span>КД усього' + help('kd.stats.total') + '</span><span>Понад норму, не почато' + help('kd.state.over') + '</span>' +
+    return '<div class="kd-dl-head"><span>Відділ</span><span>КД усього' + help('kd.stats.total') + '</span><span>Без плану' + help('kd.state.over') + '</span>' +
       '<span>Спостерігаємо' + help('kd.stats.pending') + '</span><span>Рецидиви' + help('kd.state.relapse') + '</span><span>Пункти після дії' + help('kd.stats.effect') + '</span><span></span></div>';
   };
   K.sdRow = function (d, open) {
@@ -25,7 +25,7 @@
     var eff = e ? '<b>' + esc(signed(e.pp) + ' в. п.' + (e.rel ? ' · ' + signed(e.rel) + '%' : '')) + '</b><span>' + esc('середнє по ' + K.plural(e.n, 'пункту', 'пунктах', 'пунктах') + ' · 1-й тиждень після впровадження') + '</span>'
       : '<span>ще немає пунктів, де 1-й тиждень після впровадження закінчився</span>';
     return '<div class="kd-dr' + (open ? ' kd-dr--open' : '') + '"><button class="kd-dr__btn" type="button" data-act="kd-open-dept" data-id="' + esc(d.id) + '" aria-expanded="' + open + '">' +
-      '<span class="kd-dr__name">' + esc(d.name) + '<span class="kd-dr__sub">останній тиждень: ' + K.pct(d.weekRate) + '</span></span>' + n(d.total, 'КД усього') + n(c.over, 'Понад норму, не почато', 'over') +
+      '<span class="kd-dr__name">' + esc(d.name) + '<span class="kd-dr__sub">останній тиждень: ' + K.pct(d.weekRate) + '</span></span>' + n(d.total, 'КД усього') + n((c.over || 0) + (c.pre || 0) + (c.decide || 0), 'Без плану (понад норму, не почато · відкрито достроково · потрібне рішення)', 'over') +
       n(c.watch + c.hold, 'Спостерігаємо', 'hold') + n(c.relapse, 'Рецидиви', 'relapse') + '<span class="kd-dr__eff" data-l="Пункти після дії">' + eff + '</span>' +
       '<span class="kd-dr__chev">' + P.ic(open ? 'chevron-up' : 'chevron-down') + '</span></button></div>';
   };
@@ -41,7 +41,7 @@
   }
   function rowHtml(d, x) {
     var ref = ' data-dep="' + esc(d.id) + '" data-type="' + esc(x.defectTypeId) + '"';
-    return '<div class="kd-sr' + (x.last && (x.last.state === 'over' || x.last.state === 'watch' || x.last.state === 'hold') ? ' kd-sr--over' : '') + '" data-act="kd-tw"' + ref + '>' +
+    return '<div class="kd-sr' + (x.last && ['pre', 'decide', 'over', 'watch', 'hold'].indexOf(x.last.state) >= 0 ? ' kd-sr--over' : '') + '" data-act="kd-tw"' + ref + '>' +
       '<span class="kd-sr__name"><button class="kd-t__btn" type="button" data-act="kd-tw"' + ref + '>' + esc(x.name) + '</button>' +
       '<span class="kd-t__sub">' + H.lvl(x.level) + (x.active ? '' : '<span class="hint">вимкнений у довіднику</span>') + '</span></span>' +
       '<span class="kd-sr__now" data-l="Зараз"><b>' + K.pct(x.rate) + '</b><span class="kd-sr__hint">' + K.pct(x.share) + ' браку</span></span>' +

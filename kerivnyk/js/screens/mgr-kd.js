@@ -1,9 +1,10 @@
 (function (root) {
   'use strict';
   var P = root.P, esc = P.esc, H = P.sr.h, K = P.mgr;
-  var NOW = ['over', 'watch', 'hold'], DONE = ['done', 'relapse', 'skip'];   // зараз (як іде дія) і завершені за період
-  var WORD = { ok: 'у нормі', over: 'відкрито, ще не впроваджено', work: 'в роботі (старий запис)', watch: 'впроваджено · йде тиждень після впровадження',
-    hold: 'під наглядом', done: 'закрито: тримається', relapse: 'рецидив', skip: 'дія не потрібна' };
+  var NOW = ['pre', 'decide', 'over', 'watch', 'hold'], DONE = ['done', 'part', 'relapse', 'skip'];   // зараз (як іде дія) і завершені за період
+  var WORD = { ok: 'у нормі', pre: 'відкрито достроково, тиждень ще йде', decide: 'потрібне рішення старшого: тиждень у нормі', over: 'відкрито, ще не впроваджено',
+    work: 'в роботі (старий запис)', watch: 'впроваджено · йде тиждень після впровадження', hold: 'під наглядом', done: 'закрито: тримається',
+    part: 'закрито: її види браку нижче, ніж до дії', relapse: 'рецидив', skip: 'дія не потрібна' };
 
   function n(v) { return v == null ? '—' : H.num(v); }
   function dd(v) {
@@ -30,12 +31,14 @@
   }
 
   function nowCard(kd) {
-    var s = kd.states || {}, active = (s.over || 0) + (s.watch || 0) + (s.hold || 0);
+    var s = kd.states || {}, active = NOW.reduce(function (sum, k) { return sum + (s[k] || 0); }, 0);
     return '<section class="card mgr-gap"><div><h2 class="card-title">Коригуючі дії зараз · ' + n(active) + K.help('mgr.kd.now') + '</h2>' +
-      '<p class="hint">Ще не завершені: відкрито, але не впроваджено · впроваджено, йде тиждень після впровадження · під наглядом (перший тиждень після впровадження брак, % не вище норми, дивимось другий)</p></div>' +
+      '<p class="hint">Ще не завершені: відкрито достроково, тиждень ще йде · потрібне рішення старшого (дію відкрито достроково, а тиждень завершився в нормі) · відкрито, але не впроваджено · ' +
+      'впроваджено, йде тиждень після впровадження · під наглядом (перший тиждень після впровадження минув без рецидиву, дивимось другий)</p></div>' +
       split(NOW.map(function (k) { return [s[k] || 0, k, WORD[k]]; }), 'Коригуючі дії зараз') +
       '<div class="mgr-gap mgr-gap--sm"><p class="group-label" style="padding:0">Завершились за період' + K.help('mgr.kd.finished') + '</p>' +
-      '<p class="hint">Закрито: тримається — два тижні після впровадження брак, % не вище норми · рецидив — брак, % знову понад норму · дія не потрібна — так вирішив старший</p>' +
+      '<p class="hint">Закрито: тримається — два тижні після впровадження брак, % відділу не вище норми · закрито: її види браку нижче, ніж до дії — два тижні без рецидиву, але відділ хоч раз понад норму через інші види браку · ' +
+      'рецидив — після впровадження брак, % відділу понад норму, а види браку цієї дії разом не нижче, ніж до дії · дія не потрібна — так вирішив старший</p>' +
       split(DONE.map(function (k) { return [s[k] || 0, k, WORD[k]]; }), 'Завершились за період') + '</div></section>';
   }
   function periodCard(kd, scope) {
@@ -45,9 +48,10 @@
       big(n(p.implemented), 'Впроваджено', 'mgr.kd.implemented') + big(dd(p.implementedDaysAvg), 'Від відкриття до впровадження', 'mgr.kd.days', 'у середньому') +
       big(n(p.notImplemented), 'Ще не впроваджено', 'mgr.kd.notImpl') + '</div>' +
       '<div class="mgr-gap mgr-gap--sm"><p class="group-label" style="padding:0">Перший тиждень після впровадження: брак, % відділу' + K.help('mgr.kd.after1') + '</p>' +
-      split([[r.belowAfter1, 'hold', 'не вище норми'], [r.notBelowAfter1, 'relapse', 'понад норму (рецидив)'], [r.pending, 'watch', 'тиждень ще йде']], 'Перший тиждень після впровадження') + '</div>' +
+      split([[r.belowAfter1, 'hold', 'не вище норми'], [r.notBelowAfter1, 'over', 'понад норму (рецидив або «її види браку нижче, ніж до дії»)'], [r.pending, 'watch', 'тиждень ще йде']], 'Перший тиждень після впровадження') + '</div>' +
       '<div class="mgr-gap mgr-gap--sm"><p class="group-label" style="padding:0">Другий тиждень після впровадження: брак, % відділу' + K.help('mgr.kd.after2') + '</p>' +
-      split([[hd.done, 'done', 'знову не вище норми — закрито: тримається'], [hd.relapse, 'relapse', 'понад норму (рецидив)'], [hd.pending, 'hold', 'тиждень ще йде (під наглядом)']], 'Другий тиждень після впровадження') + '</div></section>';
+      split([[hd.done, 'done', 'знову не вище норми — закрито: тримається'], [hd.part, 'part', 'понад норму, але види браку дії разом нижче, ніж до дії — закрито'],
+        [hd.relapse, 'relapse', 'понад норму (рецидив)'], [hd.pending, 'hold', 'тиждень ще йде (під наглядом)']], 'Другий тиждень після впровадження') + '</div></section>';
   }
   function effectCard(kd) {
     var e = kd.effect || {}, rows = [];
@@ -88,9 +92,11 @@
       '<p class="hint">Брак, % і перевірено — за останній завершений тиждень (' + esc(weekSpan(kd)) + '); коригуючі дії — скільки зараз у кожному стані</p></div>' +
       (!list.length ? '<p class="hint">Відділів немає.</p>' :
       '<div class="tbl-box"><table class="tbl mgr-tbl"><thead><tr><th>Відділ</th><th class="n">Брак, % за тиждень' + K.help('term.rate') + '</th><th class="n mgr-wrap">Перевірено за тиждень, шт</th>' +
-      th(WORD.over, 'over') + th(WORD.watch, 'watch') + th(WORD.hold, 'hold') + th('рецидивів за період', 'relapse') + '</tr></thead><tbody>' + list.map(function (d) {
-        return '<tr><td><b>' + esc(d.name) + '</b></td><td class="n">' + K.rate(d.weekRate, kd.threshold) + '</td><td class="n">' + n(d.weekChecked) + '</td><td class="n">' + n(d.open) + '</td>' +
-          '<td class="n">' + n(d.watch) + '</td><td class="n">' + n(d.hold) + '</td><td class="n">' + n(d.relapse) + '</td></tr>';
+      th(WORD.pre, 'pre') + th(WORD.decide, 'decide') + th(WORD.over, 'over') + th(WORD.watch, 'watch') + th(WORD.hold, 'hold') +
+      th('закрито: її види браку нижче, ніж до дії — за період', 'part') + th('рецидивів за період', 'relapse') + '</tr></thead><tbody>' + list.map(function (d) {
+        return '<tr><td><b>' + esc(d.name) + '</b></td><td class="n">' + K.rate(d.weekRate, kd.threshold) + '</td><td class="n">' + n(d.weekChecked) + '</td>' +
+          '<td class="n">' + n(d.pre || 0) + '</td><td class="n">' + n(d.decide || 0) + '</td><td class="n">' + n(d.open) + '</td>' +
+          '<td class="n">' + n(d.watch) + '</td><td class="n">' + n(d.hold) + '</td><td class="n">' + n(d.part || 0) + '</td><td class="n">' + n(d.relapse) + '</td></tr>';
       }).join('') + '</tbody></table></div>') + '</section>';
   }
   function howOpened(a) {
@@ -111,7 +117,7 @@
           return '<tr><td><b>' + esc(a.departmentName) + '</b></td><td>' + esc(day(a.openedAt)) + howOpened(a) + '</td>' +
             '<td>' + (a.implementedAt ? esc(day(a.implementedAt)) : '<span class="mgr-dim">' + (st === 'skip' ? 'дія не потрібна' : 'ще не впроваджено') + '</span>') + '</td>' +
             '<td class="n">' + (d == null ? '—' : n(d)) + '</td><td>' + (a.cause ? esc(causeName(kd, a.cause)) : '<span class="mgr-dim">не записано</span>') + '</td>' +
-            (state ? '<td>' + H.kdState(st, word(st)) + '</td>' : '') + '<td class="n">' + H.ba(a.before, a.after, st === 'skip' || st === 'over') + '</td></tr>';
+            (state ? '<td>' + H.kdState(st, word(st)) + '</td>' : '') + '<td class="n">' + H.ba(a.before, a.after, st === 'skip' || st === 'over' || st === 'pre' || st === 'decide') + '</td></tr>';
         }).join('') + '</tbody></table></div>') + '</section>';
   }
   function weeksTable(kd) {
@@ -138,7 +144,7 @@
       if (!t) return '<span class="mgr-tile__kd mgr-dim">коригуючі дії: даних немає</span>';
       function list(keys) { return keys.map(function (k) { return '<span class="' + (t.states[k] ? '' : 'mgr-zero') + '">' + H.kdState(k, WORD[k] + ' · ' + t.states[k]) + '</span>'; }).join(''); }
       return '<span class="mgr-tile__kd"><span class="mgr-tile__kdh">Коригуючі дії зараз: <b>' + n(t.active) + '</b></span><span class="mgr-tile__kds">' + list(NOW) + '</span>' +
-        '<span class="mgr-tile__kdh">За період: відкрито <b>' + n(t.opened) + '</b> · впроваджено <b>' + n(t.implemented) + '</b></span><span class="mgr-tile__kds">' + list(['done', 'relapse']) + '</span></span>';
+        '<span class="mgr-tile__kdh">За період: відкрито <b>' + n(t.opened) + '</b> · впроваджено <b>' + n(t.implemented) + '</b></span><span class="mgr-tile__kds">' + list(['done', 'part', 'relapse']) + '</span></span>';
     },
     page: function (kd, scope) {
       if (!kd) return '<section class="card">' + H.empty('Даних про коригуючі дії немає', 'Для цієї локації їх ще не підраховано.') + '</section>';

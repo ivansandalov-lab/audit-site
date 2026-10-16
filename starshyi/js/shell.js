@@ -57,7 +57,7 @@
   S.screen = function (pattern, def) { P.router.add(pattern, def); screens.push(pattern); };
   function refreshKdCount() {
     P.srv('srKdOverview', { locationId: loc.id }).then(function (r) {
-      var n = r && r.ok && r.totals ? r.totals.new || 0 : 0;
+      var tt = r && r.ok && r.totals ? r.totals : null, n = tt ? (tt.new || 0) + (tt.pre || 0) + (tt.decide || 0) : 0;
       if (n !== kdNew) { kdNew = n; var t = app.querySelector('.tab[href="#/kd"]'); if (t) { var c = t.querySelector('.count'); if (c) c.remove(); if (n) t.insertAdjacentHTML('beforeend', '<span class="count count--danger">' + n + '</span>'); } }
     });
   }

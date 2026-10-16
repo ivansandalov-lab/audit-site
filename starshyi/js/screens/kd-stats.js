@@ -63,8 +63,9 @@
       var kpi = function (n, label, key, mod) { return K.kpiH(n == null ? '—' : n, label, key, n ? mod : ''); };
       var kpis = '<div class="kpis kd-stats-kpis">' + kpi(k.opened, 'КД відкрито · з них раннім тумблером ' + k.earlyOpened, 'kd.stats.opened', 'danger') +
         kpi(k.implemented, 'впроваджено' + (k.implementedDaysAvg != null ? ' · у середньому через ' + String(k.implementedDaysAvg).replace('.', ',') + ' днів після відкриття' : ''), 'kd.stats.implemented') +
-        kpi(k.results.belowAfter1, '1-й тиждень після впровадження: не вище норми ' + T + '%', 'kd.stats.below', 'ok') + kpi(k.results.notBelowAfter1, '1-й тиждень після впровадження: понад норму (рецидив)', 'kd.state.relapse', 'danger') +
+        kpi(k.results.belowAfter1, '1-й тиждень після впровадження: не вище норми ' + T + '%', 'kd.stats.below', 'ok') + kpi(k.results.notBelowAfter1, '1-й тиждень після впровадження: понад норму (рецидив або «її види нижче, ніж до дії»)', 'kd.state.watch', 'danger') +
         kpi(k.held.done, '2-й тиждень після впровадження: не вище норми (закрито)', 'kd.state.done', 'ok') + kpi(k.held.relapse, '2-й тиждень після впровадження: понад норму (рецидив)', 'kd.state.relapse', 'danger') +
+        kpi(k.held.part, '2-й тиждень після впровадження: понад норму, але види дії разом нижче, ніж до дії (закрито)', 'kd.state.part', 'ok') +
         kpi(k.results.pending + k.held.pending, 'ще спостерігаємо', 'kd.stats.pending', 'info') + kpi(k.waiting, 'понад норму, не почато · зараз', 'kd.state.over', 'danger') + '</div>';
       var e = k.effect;
       var facts = '<section class="card kd-sfacts"><div class="kd-sfacts__i"><p class="kd-sec">Пункти КД: до → після' + help('kd.stats.effect') + '</p>' +
@@ -112,10 +113,10 @@
           var x = it.p, more = x.items.length - 6;
           var rows = [['Брак, % відділів разом', K.pct(x.rate)], ['Відділів понад норму ' + T + '%', String(x.overDepts)], ['КД відкрито', String(x.opened)]]
             .concat(x.early ? [['· з них раннім тумблером', String(x.early)]] : [])
-            .concat(K.STATES.filter(function (s) { return x.states[s.id]; }).map(function (s) { return ['· ' + P.sr.KD_STATES[s.id].label, String(x.states[s.id])]; }));
+            .concat(K.STATES.filter(function (s) { return x.states[s.id]; }).map(function (s) { return ['· ' + K.stateLabel(s.id), String(x.states[s.id])]; }));
           if (x.relapse) rows.push(['✕ рецидив виміряно', String(x.relapse), 'danger']);
           return P.srChart.tip({ title: 'Тиждень ' + K.range(x.start, x.end), sub: x.current ? 'тиждень триває' : '',
-            rows: rows.concat(x.items.slice(0, 6).map(function (i) { return [i.departmentName, K.pct(i.rate) + ' · ' + P.sr.KD_STATES[i.state].label + (i.earlyBelow ? ' (раннім тумблером; тиждень не вище норми)' : '')]; })),
+            rows: rows.concat(x.items.slice(0, 6).map(function (i) { return [i.departmentName, K.pct(i.rate) + ' · ' + K.stateLabel(i.state) + (i.earlyBelow ? ' (раннім тумблером; тиждень не вище норми)' : '')]; })),
             foot: more > 0 ? 'і ще ' + more : '' });
         } });
     }

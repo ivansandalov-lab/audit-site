@@ -4,10 +4,13 @@
   var help = function (k) { return P.help ? P.help.btn(k) : ''; };
 
   K.STATES = [
+    { id: 'pre', label: 'Відкрито достроково', help: 'kd.state.pre' },
+    { id: 'decide', label: 'Потрібне рішення', help: 'kd.state.decide' },
     { id: 'over', label: 'Понад норму, не почато', help: 'kd.state.over' },
     { id: 'watch', label: 'Впроваджено', help: 'kd.state.watch' },
     { id: 'hold', label: 'Під наглядом', help: 'kd.state.hold' },
     { id: 'done', label: 'Закрито: тримається', help: 'kd.state.done' },
+    { id: 'part', label: 'Закрито: її види браку нижче, ніж до дії', help: 'kd.state.part' },
     { id: 'relapse', label: 'Рецидив', help: 'kd.state.relapse' },
     { id: 'skip', label: 'Дія не потрібна', help: 'kd.state.skip' }
   ];
@@ -55,7 +58,7 @@
     return '<ol class="kd-tape">' + steps.map(function (s, i) {
       var d = stepDays(steps, i, today), cur = i === steps.length - 1;
       var pct = s.rate == null ? 'перевірок не було' : K.pct(s.rate) + ' · ' + K.num(s.pieces) + ' шт з ' + K.num(s.checked);
-      var what = s.state === 'hold' || s.state === 'relapse' || s.state === 'done' ? 'тиждень після впровадження ' : s.state === 'ok' ? 'тиждень ' : 'тиждень КД ';
+      var what = s.state === 'hold' || s.state === 'relapse' || s.state === 'done' || s.state === 'part' ? 'тиждень після впровадження ' : s.state === 'ok' ? 'тиждень ' : 'тиждень КД ';
       return '<li class="kd-tape__i' + (cur ? ' kd-tape__i--now' : '') + '"><span class="kd-tape__d">' + (s.asOf ? 'станом на ' : '') + '<b>' + esc(H.dayShort(s.day)) + '</b></span>' +
         '<span class="kd-tape__s">' + H.kdState(s.state, s.state === 'ok' ? stepLabel(s) : '') + '</span>' +
         '<span class="kd-tape__t">' + (cur ? 'досі · ' : '') + K.plural(d, 'день', 'дні', 'днів') + '</span>' +
@@ -101,7 +104,7 @@
         K.cap('Тижні ' + esc(K.spanOf(r.series)) + '. Колір стовпчика — стан КД, у якій вид браку був пунктом; сірий — тиждень без такої КД.') + '<div data-chart="kd-tw"></div></div>';
       var hist = '<div class="kd-blk"><h4 class="kd-blk__t">КД, де цей вид браку був пунктом · ' + r.history.length + help('kd.action') + '</h4>' +
         (r.history.length ? r.history.map(function (a) { return K.histEntry(a, typeId); }).join('') : '<p class="kd-text">Пунктом КД цей вид браку у відділі ще не був.</p>') + '</div>';
-      var open = r.history.filter(function (a) { return a.status === 'new' || a.status === 'not_needed' || a.status === 'check' || a.status === 'hold'; })[0];
+      var open = r.history.filter(function (a) { return a.phase !== 'final' || a.status === 'not_needed'; })[0];
       var foot = '<div class="kd-btns kd-btns--foot">' + (r.canWrite && open ? K.decisionBtns(open) : '') +
         '<a class="btn btn--quiet btn--sm" href="#/kd/dept/' + encodeURIComponent(depId) + '?t=' + encodeURIComponent(typeId) + '" data-ov-close>' + P.ic('department', 'ui-icon--sm') + 'Усе про вид браку у відділі</a></div>';
       var find = function (t) { return K.finder(r.history)(t); };
@@ -112,7 +115,8 @@
           impl: function (t) { m.close(); K.openPlan(ctx, K.refOf(t)); },
           edit: function (t) { m.close(); K.openPlan(ctx, K.refOf(t), { edit: true }); },
           nn: function (t) { m.close(); K.openNotNeeded(ctx, K.refOf(t), find(t)); },
-          open: function (t) { m.close(); K.openDrawer(ctx, K.refOf(t)); }
+          open: function (t) { m.close(); K.openDrawer(ctx, K.refOf(t)); },
+          keep: function (t) { m.close(); K.keep(ctx, t); }
         } });
     });
   };

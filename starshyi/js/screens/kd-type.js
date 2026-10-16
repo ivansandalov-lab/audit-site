@@ -39,7 +39,7 @@
       blk('На яких виробах', 'Шт цього виду браку за тиждень і частка.', K.who(r.products, { all: 'Показати всі', empty: none })) +
       blk('У яких замовленнях', 'Шт цього виду браку за тиждень і частка.', K.who(r.orders, { all: 'Показати всі', empty: none }));
 
-    var cur = r.history.filter(function (a) { return a.status === 'new' || a.status === 'check' || a.status === 'hold'; })[0];
+    var cur = r.history.filter(function (a) { return a.phase !== 'final'; })[0];
     var decide = r.canWrite && cur ? K.decisionBtns(cur) + '<button class="btn btn--quiet btn--sm" type="button" data-act="open"' + K.ref(cur) + '>Картка КД</button>' : '';
     var d2 = p.end > o.today ? o.today : p.end;
     var links = '<a class="btn btn--secondary btn--sm" href="#/history?defect=' + encodeURIComponent(t.name) + '&dep=' + encodeURIComponent(r.dept.id) + '&d1=' + p.start + '&d2=' + d2 + '">' +

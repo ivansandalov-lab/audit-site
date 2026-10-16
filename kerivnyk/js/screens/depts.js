@@ -4,7 +4,7 @@
   var SORTS = [['pct', 'За % браку'], ['checked', 'За перевіреними, шт']];
   var WEEKLY_FROM = 46;   // з такої довжини періоду (днів) графік панелі — по тижнях, а не по днях
   var FIRST_PRODUCTS = 8, FIRST_DEFECTS = 10;   // скільки рядків панелі видно до «Показати всі»
-  var KD_ORDER = ['over', 'work', 'watch', 'hold', 'done', 'relapse', 'skip'];
+  var KD_ORDER = ['pre', 'decide', 'over', 'work', 'watch', 'hold', 'done', 'part', 'relapse', 'skip'];
   var st = { sort: 'pct', locs: [], many: false, type: '' };
 
   function sorted(list) {
@@ -176,7 +176,7 @@
   function day(v) { return v ? K.day(String(v).slice(0, 10)) : '—'; }
   function action(a) {
     var s = canon(a.state), d = a.daysToImplement;
-    var noAfter = s === 'skip' || s === 'over';   // «після» не буде (дія не потрібна) або ще не впроваджено — лише «до»
+    var noAfter = s === 'skip' || s === 'over' || s === 'pre' || s === 'decide';   // «після» не буде (дія не потрібна) або ще не впроваджено — лише «до»
     return '<article class="mgr-dact"><div class="mgr-dact__top">' + H.kdState(s, P.mgrKd.word(s)) + P.mgrKd.help(s) +
       (a.weekStart ? '<span class="mgr-dim">тиждень, через який відкрито: ' + esc(K.span(a.weekStart, a.weekEnd)) + '</span>' : '') + '</div>' +
       '<dl class="mgr-dact__kv"><dt>Відкрито</dt><dd>' + esc(day(a.openedAt)) + (a.early ? ' <span class="badge">достроково, посеред тижня</span>' + K.help('mgr.kd.early') +

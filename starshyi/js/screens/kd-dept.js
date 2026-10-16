@@ -128,11 +128,12 @@
     function kdCardHtml(r) {
       var a = r.kd, p = r.period, T = r.threshold, body;
       if (!a) {
-        if (r.cover) body = '<p class="kd-text">Окремої КД за цей тиждень немає: відділ уже мав КД за ' + esc(K.week(r.cover.periodStart, r.cover.periodEnd)) + ' (' + esc(P.sr.KD_STATES[r.cover.state].label) + ').</p>' +
+        if (r.cover) body = '<p class="kd-text">Окремої КД за цей тиждень немає: відділ уже мав КД за ' + esc(K.week(r.cover.periodStart, r.cover.periodEnd)) + ' (' + esc(K.stateLabel(r.cover.state)) + ').</p>' +
           '<button class="btn btn--secondary btn--sm" type="button" data-act="open"' + K.ref(r.cover) + '>Картка тієї КД</button>';
         else if (p.current) body = '<p class="kd-text">Тиждень триває: перевірено ' + K.num(p.checked) + ' шт, брак ' + K.pct(p.rate) + '. ' +
           'Якщо брак, % тижня буде понад ' + T + '%, КД відкриється ' + esc(K.wd(r.review.readyOn)) + ' (день розбору). ' +
-          'Раніше — якщо вже перевірено від ' + K.num(r.rules.early) + ' шт і брак понад ' + T + '% (ранній тумблер).</p>';
+          'Раніше — лише якщо вже перевірено від ' + K.num(r.rules.early) + ' шт і брак певно понад ' + T + '%' + (K.earlyRatesText(r.rules) ? ': ' + esc(K.earlyRatesText(r.rules)) : '') +
+          ' (ранній тумблер; вимкнений, поки у відділу є КД, що триває).</p>';
         else body = '<p class="kd-text">Брак, % відділу за тиждень — ' + K.pct(p.rate) + ' (норма ' + T + '%). КД за цей тиждень не відкривалась.</p>';
         return '<section class="card col"><h3 class="card-title">КД за цей тиждень' + help('kd.action') + '</h3>' + body + '</section>';
       }
@@ -141,8 +142,9 @@
         '<dt>Впроваджено</dt><dd>' + esc(K.wd(a.implementedAt)) + '</dd></dl></div>' : '';
       var btns = r.canWrite ? K.decisionBtns(a) : '';
       return '<section class="card kd-kdcard"><div class="kd-kdcard__head"><h3 class="card-title">КД за цей тиждень' + help('kd.action') + '</h3>' + K.stateBadge(a) + K.earlyBadge(a) + '</div>' +
+        K.decideFacts(a, T) +
         '<div class="kd-kdcard__body"><div class="kd-kdcard__col"><p class="kd-sec">Хід КД' + help('kd.steps') + '</p>' + K.obsSteps(a, T) + '</div>' +
-        '<div class="kd-kdcard__col"><p class="kd-sec">Пункти · до → після' + help('kd.beforeAfter') + '</p>' + K.itemsTable(a) + plan + '</div></div>' +
+        '<div class="kd-kdcard__col"><p class="kd-sec">Пункти · до → після' + help('kd.beforeAfter') + '</p>' + K.itemsTable(a, r.rules) + plan + '</div></div>' +
         '<div class="kd-btns">' + btns + '<button class="btn btn--quiet btn--sm" type="button" data-act="open"' + K.ref(a) + '>Картка КД</button></div></section>';
     }
     function actRow(a, hide) {
@@ -198,7 +200,7 @@
     }
     function pinFacts(x) {
       return K.plural(x.audits, 'аудит', 'аудити', 'аудитів') + ' · перевірено ' + K.num(x.checked) + ' шт · брак ' + K.num(x.rejected) + ' шт · ' + K.pct(x.rate) +
-        (x.kdState ? ' · КД: ' + P.sr.KD_STATES[x.kdState].label : '');
+        (x.kdState ? ' · КД: ' + K.stateLabel(x.kdState) : '');
     }
     function drawChart() {
       var r = data, el = ctx.el.querySelector('[data-chart="kd-dept"]'), pin = ctx.el.querySelector('[data-kd-pin="dept"]');

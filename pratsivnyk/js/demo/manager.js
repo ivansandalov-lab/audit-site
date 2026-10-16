@@ -48,8 +48,9 @@
   function kdTile(k) {
     if (!k) return null;
     var s = k.states || {};
-    return { states: { over: s.over || 0, watch: s.watch || 0, hold: s.hold || 0, done: s.done || 0, relapse: s.relapse || 0, skip: s.skip || 0 },
-      active: (s.over || 0) + (s.watch || 0) + (s.hold || 0), opened: k.period ? k.period.opened : 0, implemented: k.period ? k.period.implemented : 0 };
+    return { states: { pre: s.pre || 0, decide: s.decide || 0, over: s.over || 0, watch: s.watch || 0, hold: s.hold || 0, done: s.done || 0, part: s.part || 0,
+      relapse: s.relapse || 0, skip: s.skip || 0 },
+      active: (s.pre || 0) + (s.decide || 0) + (s.over || 0) + (s.watch || 0) + (s.hold || 0), opened: k.period ? k.period.opened : 0, implemented: k.period ? k.period.implemented : 0 };
   }
 
   function stats(env, list, deps) {

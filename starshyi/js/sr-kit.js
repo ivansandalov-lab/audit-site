@@ -4,14 +4,20 @@
   var S = P.sr = P.sr || {};
 
   S.KD_STATES = {
-    ok: { label: 'у нормі', help: 'kd.state.ok' }, over: { label: 'понад норму, не почато', help: 'kd.state.over' },
+    ok: { label: 'у нормі', help: 'kd.state.ok' },
+    pre: { label: 'відкрито достроково · тиждень ще йде', help: 'kd.state.pre' },
+    decide: { label: 'потрібне рішення · тиждень завершився в нормі', help: 'kd.state.decide' },
+    over: { label: 'понад норму, не почато', help: 'kd.state.over' },
     work: { label: 'в роботі', help: 'kd.state.work' }, watch: { label: 'впроваджено · йде тиждень після впровадження', help: 'kd.state.watch' },
     hold: { label: 'під наглядом', help: 'kd.state.hold' },   // 15.10: перший тиждень після дії — брак не вище норми; дивимось другий
-    done: { label: 'закрито: тримається', help: 'kd.state.done' }, relapse: { label: 'рецидив', help: 'kd.state.relapse' },
+    done: { label: 'закрито: тримається', help: 'kd.state.done' },
+    part: { label: 'закрито: її види браку нижче, ніж до дії', help: 'kd.state.part' },
+    relapse: { label: 'рецидив', help: 'kd.state.relapse' },
     skip: { label: 'дія не потрібна', help: 'kd.state.skip' }
   };
   S.kdStateOf = function (status) {
-    return { 'new': 'over', started: 'work', check: 'watch', hold: 'hold', helped: 'done', not_helped: 'relapse', not_needed: 'skip', none: 'ok' }[status] || 'ok';
+    return { pre: 'pre', decide: 'decide', 'new': 'over', started: 'work', check: 'watch', hold: 'hold', helped: 'done', held_types: 'part',
+      not_helped: 'relapse', not_needed: 'skip', none: 'ok' }[status] || 'ok';
   };
 
 

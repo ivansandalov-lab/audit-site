@@ -308,6 +308,14 @@ mark.hl { padding: 0; border-radius: 2px; background: var(--brand-soft); color: 
 .kds--hold::before { background: var(--kd-hold); } .kds--hold { color: var(--ok); }
 .kdm--hold { background: var(--kd-hold); }
 
+:root { --kd-pre: color-mix(in srgb, var(--danger-fill) 40%, var(--surface)); --kd-decide: var(--warn-fill); --kd-part: color-mix(in srgb, var(--ok) 50%, var(--surface)); }
+.kds--pre::before { background: var(--kd-pre); border: 2px dashed var(--kd-over); width: 6px; height: 6px; } .kds--pre { color: var(--danger); }
+.kds--decide::before { background: var(--kd-decide); box-shadow: inset 0 0 0 1px var(--warn-line); } .kds--decide { color: var(--warn); }
+.kds--part::before { background: var(--kd-part); } .kds--part { color: var(--ok); }
+.kdm--pre { background: var(--kd-pre); border: 2px dashed var(--kd-over); }
+.kdm--decide { background: var(--kd-decide); box-shadow: inset 0 0 0 1px var(--warn-line); }
+.kdm--part { background: var(--kd-part); }
+
 
 .ba { white-space: nowrap; font-variant-numeric: tabular-nums; }
 .ba__b { color: var(--text-2); }
