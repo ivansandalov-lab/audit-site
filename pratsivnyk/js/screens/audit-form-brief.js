@@ -32,14 +32,16 @@
       '<p class="br-sub">Найбільше браку' + d30 + '</p>' + (b.defectors.length ? rows(b.defectors, pcs) : none('Нікого: браку з відомим винним не було.')) +
       '<p class="br-sub">Давно не перевіряли (понад ' + b.lostAfter + ' днів)</p>' +
       (b.lost.length ? rows(b.lost, function (x) { return x.daysAgo + ' ' + P.plural(x.daysAgo, 'день', 'дні', 'днів') + ' тому'; }) : none('Усіх перевіряли за останні ' + b.lostAfter + ' днів.')));
-    var k = b.kd;
-    html += part('Коригуюча дія', !k ? none('Зараз немає.') :
-      '<div class="br-kd"><p class="br-kd__state">' + esc(k.statusLabel) + '</p>' +
+    var list = b.kds || (b.kd ? [b.kd] : []);
+    html += part(list.length > 1 ? 'Коригуючі дії · ' + list.length : 'Коригуюча дія', !list.length ? none('Зараз немає.') : list.map(kdHtml).join(''));
+    return '<div class="br">' + html + '</div>';
+  }
+  function kdHtml(k) {
+    return '<div class="br-kd"><p class="br-kd__state">' + esc(k.statusLabel) + '</p>' +
       '<p class="br-kd__line">Тиждень ' + dm(k.periodStart) + '–' + dm(k.periodEnd) + (k.rate != null ? ' · брак ' + f.pct(k.rate) + ' (норма ' + f.pct(k.threshold) + ')' : '') + '</p>' +
       (k.items.length ? '<p class="br-kd__line">Види браку: ' + k.items.map(function (x) { return '<span class="lvl-dot lvl-dot--' + esc(x.level) + '"></span>' + esc(x.name); }).join(', ') + '</p>' : '') +
       (k.plan ? '<p class="br-kd__line">Що зробили: ' + esc(k.plan) + '</p>' : '') +
-      (k.whoName ? '<p class="br-kd__line">Відповідає: ' + esc(k.whoName) + (k.implementedAt ? ' · впроваджено ' + dm(k.implementedAt) : '') + '</p>' : '') + '</div>');
-    return '<div class="br">' + html + '</div>';
+      (k.whoName ? '<p class="br-kd__line">Відповідає: ' + esc(k.whoName) + (k.implementedAt ? ' · впроваджено ' + dm(k.implementedAt) : '') + '</p>' : '') + '</div>';
   }
 
   AF.openBrief = function (F) {

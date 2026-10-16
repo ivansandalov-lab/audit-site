@@ -8,6 +8,11 @@
     return Object.keys(map).filter(function (k) { return map[k] > 0; }).sort(function (a, b) { return map[b] - map[a] || (a < b ? -1 : 1); }).slice(0, n);
   }
 
+  function kdOut(k) {
+    return { statusLabel: k.statusLabel, state: k.state, items: (k.items || []).map(function (x) { return { name: x.name, level: x.level }; }),
+      periodStart: k.periodStart, periodEnd: k.periodEnd, rate: k.rate, threshold: k.threshold,
+      plan: k.plan, whoName: k.whoName, implementedAt: k.implementedAt };
+  }
   P.demoApis = P.demoApis || [];
   P.demoApis.push({
     auditDeptBrief: function (p, me, env) {
@@ -63,9 +68,7 @@
         }),
         defectors: top(defectMap, TOP).map(function (c) { return { name: mine[c].name, pieces: defectMap[c] }; }),
         lost: lost, lostAfter: LOST_AFTER,
-        kd: kd ? { statusLabel: kd.statusLabel, state: kd.state, items: kd.items.map(function (x) { return { name: x.name, level: x.level }; }),
-          periodStart: kd.periodStart, periodEnd: kd.periodEnd, rate: kd.rate, threshold: kd.threshold,
-          plan: kd.plan, whoName: kd.whoName, implementedAt: kd.implementedAt } : null };
+        kds: kd ? (kd.all || [kd]).map(kdOut) : [], kd: kd ? kdOut(kd) : null };
     }
   });
 })(typeof window !== 'undefined' ? window : globalThis);
